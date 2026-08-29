@@ -123,10 +123,25 @@ make verify
 ```
 
 The root command checks required protocol artifacts, bootstrap behavior, and
-GitHub Actions syntax, then delegates to both example repositories. The
+release-check behavior, and GitHub Actions syntax, then delegates to both
+example repositories. The
 repository workflow in [`.github/workflows/verify.yml`](.github/workflows/verify.yml)
 sets up its Linux toolchains and locked dependencies before invoking this same
 gate.
+
+## Prepare a ForgeFlow release
+
+From a clean committed release candidate, run the local-only readiness gate:
+
+```sh
+make release-check
+```
+
+It composes `make verify` with deterministic local version, Git, worktree, and
+tag checks. It does not inspect remotes, CI, or GitHub Releases, and it never
+changes local tags or other repository state. Follow the human-authorized
+[release runbook](docs/releasing.md) for exact-SHA remote verification and
+publication.
 
 ## Current protocol scope
 
@@ -137,7 +152,8 @@ Its compatibility guarantees and versioned surface are defined by the
 ForgeFlow is a declarative, manual protocol: Story and acceptance formats,
 repository guidance, verification, lifecycle, and versioning contracts, a
 reusable Story-development skill, executable TypeScript and Go examples, CI
-support, and a non-destructive bootstrap script.
+support, a non-destructive bootstrap script, and a local release-readiness
+check with a manual publication runbook.
 
 Multi-agent orchestration, workflow services, schedulers, agent runtimes,
 dashboards, persistent workflow state, and language-model abstraction layers are

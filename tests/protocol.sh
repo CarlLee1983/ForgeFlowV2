@@ -81,9 +81,12 @@ for forgeflow_required_file in \
   templates/ci/github-actions.yml \
   docs/concepts.md \
   docs/getting-started.md \
+  docs/releasing.md \
   examples/typescript/Makefile \
   examples/go/Makefile \
-  scripts/bootstrap
+  scripts/bootstrap \
+  scripts/release-check \
+  tests/release-check.sh
 do
   if [ ! -s "$forgeflow_repo/$forgeflow_required_file" ]; then
     fail "required artifact is missing or empty: $forgeflow_required_file"
@@ -167,6 +170,7 @@ for forgeflow_story_directory in \
   specs/stories/FF-202-bootstrap-dry-run \
   specs/stories/FF-203-executable-story-example \
   specs/stories/FF-204-linux-ci \
+  specs/stories/FF-205-release-readiness \
   examples/go/specs/stories/ORD-001-order-total
 do
   forgeflow_story_file="$forgeflow_repo/$forgeflow_story_directory/story.md"
@@ -186,6 +190,64 @@ do
     fail "approved Story contains template placeholders: $forgeflow_story_directory"
   fi
 done
+
+forgeflow_makefile="$forgeflow_repo/Makefile"
+
+grep -Eq '^verify:.*verify-release' "$forgeflow_makefile" ||
+  fail 'root verify does not include release-check tests'
+
+grep -Eq '^release-check:[[:space:]]+verify$' "$forgeflow_makefile" ||
+  fail 'release-check does not depend on canonical verify'
+
+grep -Fq './scripts/release-check' "$forgeflow_makefile" ||
+  fail 'release-check target does not invoke the local checker'
+
+forgeflow_release_runbook="$forgeflow_repo/docs/releasing.md"
+
+for forgeflow_release_term in \
+  'make release-check' \
+  'local-only' \
+  'candidate_version' \
+  'candidate_tag' \
+  'candidate_sha' \
+  'candidate_remote' \
+  'candidate_remote_url' \
+  'candidate_repository' \
+  'one identical fetch/push URL' \
+  'Git remote and GitHub repository do not match' \
+  'exact candidate SHA' \
+  'git cat-file -t' \
+  'gh release create' \
+  '--verify-tag' \
+  'explicit authorization' \
+  'remote tag peels'
+do
+  grep -Fq -- "$forgeflow_release_term" "$forgeflow_release_runbook" ||
+    fail "release runbook is missing: $forgeflow_release_term"
+done
+
+grep -Fq '[release runbook](docs/releasing.md)' "$forgeflow_repo/README.md" ||
+  fail 'README does not link to the release runbook'
+
+for forgeflow_release_checker_term in \
+  'GIT_NO_LAZY_FETCH=1' \
+  "'HEAD:VERSION'" \
+  "--format='%(refname) %(objectname)'" \
+  'remote_checks=not-performed'
+do
+  grep -Fq -- "$forgeflow_release_checker_term" \
+    "$forgeflow_repo/scripts/release-check" ||
+    fail "release checker is missing: $forgeflow_release_checker_term"
+done
+
+if grep -Fq 'refname:short' "$forgeflow_repo/scripts/release-check"; then
+  fail 'release checker must not use ambiguous short tag refs'
+fi
+
+if grep -Eq '(^|[;&|[:space:]])(gh|curl|wget)([;&|[:space:]]|$)|git.*[[:space:]](fetch|push|ls-remote|update-ref|tag)([;&|[:space:]]|$)' \
+  "$forgeflow_repo/scripts/release-check"; then
+  fail 'release checker must not perform network or Git mutation commands'
+fi
 
 check_story_headings \
   "$forgeflow_repo/templates/story/story.md" 'Story template'

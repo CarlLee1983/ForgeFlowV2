@@ -64,3 +64,16 @@ create or publish a release.
 
 Any change to the versioned surface must review its classification and update
 `VERSION` in the same release change when the policy requires a new version.
+
+## Repository release readiness
+
+ForgeFlow maintainers can run root `make release-check` on a clean committed
+candidate. It composes canonical verification with read-only local version,
+worktree, commit, and tag-consistency checks. A local PASS is necessary but not
+sufficient for publication: the command does not inspect or change remote refs,
+GitHub Actions, or GitHub Releases.
+
+The human-authorized [release runbook](../docs/releasing.md) defines the remote
+exact-SHA evidence, stop conditions, publication commands, and post-publication
+checks. This optional maintainer capability is additive; it does not change the
+existing `make verify` contract or require adopters to install a release tool.
