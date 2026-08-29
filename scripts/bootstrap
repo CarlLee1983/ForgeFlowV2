@@ -1,0 +1,79 @@
+#!/bin/sh
+
+set -eu
+
+usage() {
+  printf 'Usage: %s [--force] [repository-directory]\n' "$0" >&2
+}
+
+forgeflow_force=0
+
+if [ "${1:-}" = "--force" ]; then
+  forgeflow_force=1
+  shift
+fi
+
+if [ "$#" -gt 1 ]; then
+  usage
+  exit 2
+fi
+
+forgeflow_target=${1:-.}
+
+if [ ! -d "$forgeflow_target" ]; then
+  printf 'Target is not a directory: %s\n' "$forgeflow_target" >&2
+  exit 2
+fi
+
+forgeflow_script_dir=$(
+  cd -P "$(dirname "$0")" >/dev/null 2>&1
+  pwd
+)
+forgeflow_root=$(dirname "$forgeflow_script_dir")
+
+for forgeflow_source in \
+  "$forgeflow_root/templates/AGENTS.md" \
+  "$forgeflow_root/templates/story/story.md" \
+  "$forgeflow_root/templates/story/acceptance.md" \
+  "$forgeflow_root/templates/story/task.md"
+do
+  if [ ! -f "$forgeflow_source" ]; then
+    printf 'ForgeFlow template is missing: %s\n' "$forgeflow_source" >&2
+    exit 1
+  fi
+done
+
+if [ "$forgeflow_force" -eq 0 ]; then
+  forgeflow_conflicts=
+
+  for forgeflow_relative_path in \
+    AGENTS.md \
+    specs/stories/_template/story.md \
+    specs/stories/_template/acceptance.md \
+    specs/stories/_template/task.md
+  do
+    if [ -e "$forgeflow_target/$forgeflow_relative_path" ]; then
+      forgeflow_conflicts="${forgeflow_conflicts}
+  $forgeflow_target/$forgeflow_relative_path"
+    fi
+  done
+
+  if [ -n "$forgeflow_conflicts" ]; then
+    printf 'Refusing to overwrite existing ForgeFlow files:%s\n' \
+      "$forgeflow_conflicts" >&2
+    printf 'Re-run with --force only if replacing these files is intended.\n' >&2
+    exit 1
+  fi
+fi
+
+mkdir -p "$forgeflow_target/specs/stories/_template"
+cp "$forgeflow_root/templates/AGENTS.md" \
+  "$forgeflow_target/AGENTS.md"
+cp "$forgeflow_root/templates/story/story.md" \
+  "$forgeflow_target/specs/stories/_template/story.md"
+cp "$forgeflow_root/templates/story/acceptance.md" \
+  "$forgeflow_target/specs/stories/_template/acceptance.md"
+cp "$forgeflow_root/templates/story/task.md" \
+  "$forgeflow_target/specs/stories/_template/task.md"
+
+printf 'ForgeFlow initialized in %s\n' "$forgeflow_target"
