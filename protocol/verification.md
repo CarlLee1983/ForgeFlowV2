@@ -26,6 +26,16 @@ ForgeFlow does not require a language, framework, test runner, or CI provider.
 Project-specific commands and setup remain in repository tooling and
 documentation rather than in the ForgeFlow protocol.
 
+## Optional Doctor invocation
+
+[Repository Doctor](../docs/doctor.md) does not define another verification
+gate. Its default inspection is static and always reports verification as not
+run. When a caller explicitly uses `--run-verify` for a trusted repository,
+Doctor runs this same `make verify` command exactly once from the physical
+repository root and reports its original exit status. That execution is not
+read-only or sandboxed and can run repository code, write files, start
+services, or use the network.
+
 ## Result
 
 - Exit status `0` means **PASS**. The implementation is eligible for
@@ -35,6 +45,11 @@ documentation rather than in the ForgeFlow protocol.
 
 PASS does not approve the product intent, waive human review, or merge the
 change. FAIL cannot be reclassified by an agent.
+
+Doctor's `STRUCTURE_OK` result is only a static structure result, while
+`VERIFIED_LOCAL` is local automated evidence. Neither checks CI or merge policy
+(both remain `NOT_CHECKED`), and neither replaces required human review or the
+repository's own merge decision.
 
 ## Repair loop
 

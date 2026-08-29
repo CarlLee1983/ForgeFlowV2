@@ -13,7 +13,8 @@ The protocol version covers:
 * the required repository surface, including `AGENTS.md`, Story files, and
   `make verify`;
 * distributed Story, agent-guide, and CI templates; and
-* the public command-line behavior and safety guarantees of bootstrap.
+* the public command-line behavior and safety guarantees of bootstrap and the
+  optional Repository Doctor.
 
 Examples demonstrate the contract but are not protocol packages. In particular,
 the private TypeScript example's package version is not the ForgeFlow protocol
@@ -27,7 +28,7 @@ the previous contract:
 | Class | Meaning | Examples |
 | --- | --- | --- |
 | Breaking | An adopter must change existing valid files, commands, or expectations to follow the new contract. | Removing or renaming required Story fields, changing `make verify` PASS semantics, removing a bootstrap option. |
-| Additive | Existing valid adoption keeps working without changes and the new capability is optional. | Adding an optional Story field or a new bootstrap option whose absence preserves behavior. |
+| Additive | Existing valid adoption keeps working without changes and the new capability is optional. | Adding an optional Story field, a new bootstrap option whose absence preserves behavior, or the optional Repository Doctor CLI and its documented safety guarantees. |
 | Corrective | The change repairs or clarifies the documented behavior without changing the supported interface. | Fixing a bootstrap safety defect or resolving contradictory wording. |
 
 When impact is ambiguous, treat the change as breaking until a human records a
@@ -64,6 +65,13 @@ create or publish a release.
 
 Any change to the versioned surface must review its classification and update
 `VERSION` in the same release change when the policy requires a new version.
+
+Repository Doctor is an **Additive** capability: its absence does not invalidate
+an existing adoption, and it does not require adopters to install a CLI or
+change `make verify`. Changes to Doctor's public command forms, exit semantics,
+or static and execution-mode safety guarantees are changes to the versioned
+surface. This classification records the optional capability only; it does not
+change `VERSION`, create a tag, or publish a release.
 
 ## Repository release readiness
 

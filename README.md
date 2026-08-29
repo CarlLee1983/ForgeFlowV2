@@ -79,12 +79,37 @@ Preview the same static preflight without writing to the target:
 ./scripts/bootstrap --force --dry-run /path/to/repository
 ```
 
+A successful bootstrap means only that these managed protocol files were
+installed. It does not create the adopter-owned `Makefile`, run Doctor, execute
+`make verify`, perform human review, or authorize a merge.
+
 Copy `specs/stories/_template` to a directory named for the Story, fill
 in the requirements, and ask an agent to implement that Story ID.
 
 The full manual flow is documented in
 [Getting Started](docs/getting-started.md), with rationale in
 [ForgeFlow Concepts](docs/concepts.md).
+
+## Diagnose an adoption (optional)
+
+Repository Doctor can statically inspect an adoption without changing it:
+
+```sh
+./scripts/doctor /path/to/repository
+```
+
+It checks only the required `AGENTS.md`, `specs/stories/`, and `Makefile`
+surface. Static success does not run `make verify`, check CI or merge policy,
+or replace human review. For a repository you trust, explicit execution mode
+runs its canonical gate once:
+
+```sh
+./scripts/doctor --run-verify /path/to/repository
+```
+
+This executes repository-owned code and is not read-only or sandboxed. See
+[Repository Doctor](docs/doctor.md) for the command forms, safety boundary, and
+result semantics.
 
 ## TypeScript example
 
@@ -122,9 +147,9 @@ go -C examples/go mod download
 make verify
 ```
 
-The root command checks required protocol artifacts, bootstrap behavior, and
-release-check behavior, and GitHub Actions syntax, then delegates to both
-example repositories. The
+The root command checks required protocol artifacts, bootstrap and Doctor
+behavior, release-check behavior, and GitHub Actions syntax, then delegates to
+both example repositories. The
 repository workflow in [`.github/workflows/verify.yml`](.github/workflows/verify.yml)
 sets up its Linux toolchains and locked dependencies before invoking this same
 gate.
@@ -153,7 +178,8 @@ ForgeFlow is a declarative, manual protocol: Story and acceptance formats,
 repository guidance, verification, lifecycle, and versioning contracts, a
 reusable Story-development skill, executable TypeScript and Go examples, CI
 support, a non-destructive bootstrap script, and a local release-readiness
-check with a manual publication runbook.
+check with a manual publication runbook. Repository Doctor is an optional
+static diagnostic with explicitly authorized local verification.
 
 Multi-agent orchestration, workflow services, schedulers, agent runtimes,
 dashboards, persistent workflow state, and language-model abstraction layers are

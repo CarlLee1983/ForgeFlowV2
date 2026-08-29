@@ -80,6 +80,7 @@ for forgeflow_required_file in \
   templates/story/task.md \
   templates/ci/github-actions.yml \
   docs/concepts.md \
+  docs/doctor.md \
   docs/getting-started.md \
   docs/releasing.md \
   examples/typescript/Makefile \
@@ -87,7 +88,9 @@ for forgeflow_required_file in \
   examples/typescript/tests/traceability.sh \
   examples/go/Makefile \
   scripts/bootstrap \
+  scripts/doctor \
   scripts/release-check \
+  tests/doctor.sh \
   tests/release-check.sh
 do
   if [ ! -s "$forgeflow_repo/$forgeflow_required_file" ]; then
@@ -167,6 +170,36 @@ do
     fail "versioning policy is missing: $forgeflow_versioning_term"
 done
 
+grep -Fq '[Repository Doctor](docs/doctor.md)' "$forgeflow_repo/README.md" ||
+  fail 'README does not link to Repository Doctor documentation'
+
+grep -Fq '[Repository Doctor](doctor.md)' \
+  "$forgeflow_repo/docs/getting-started.md" ||
+  fail 'Getting Started does not link to Repository Doctor documentation'
+
+forgeflow_doctor_document="$forgeflow_repo/docs/doctor.md"
+
+for forgeflow_doctor_document_term in \
+  './scripts/doctor [repository-directory]' \
+  './scripts/doctor --run-verify [repository-directory]' \
+  'Verification: NOT_RUN' \
+  'STRUCTURE_OK' \
+  'STRUCTURE_INCOMPLETE' \
+  'VERIFIED_LOCAL' \
+  'VERIFICATION_FAILED' \
+  'NOT_CHECKED' \
+  'Human review is always still required' \
+  'Doctor never authorizes a merge'
+do
+  grep -Fq -- "$forgeflow_doctor_document_term" \
+    "$forgeflow_doctor_document" ||
+    fail "Doctor documentation is missing: $forgeflow_doctor_document_term"
+done
+
+grep -Fq 'Repository Doctor is an **Additive** capability' \
+  "$forgeflow_repo/protocol/versioning.md" ||
+  fail 'versioning policy does not classify Repository Doctor as Additive'
+
 for forgeflow_story_directory in \
   specs/stories/FF-201-protocol-version-contract \
   specs/stories/FF-202-bootstrap-dry-run \
@@ -174,6 +207,7 @@ for forgeflow_story_directory in \
   specs/stories/FF-204-linux-ci \
   specs/stories/FF-205-release-readiness \
   specs/stories/FF-206-typescript-executable-story-parity \
+  specs/stories/FF-207-repository-doctor \
   examples/typescript/specs/stories/TYP-001-order-total \
   examples/go/specs/stories/ORD-001-order-total
 do
@@ -192,6 +226,37 @@ do
   if grep -Eq '<ID>|<Title>|Describe the user or business outcome|^\*[[:space:]]*$' \
     "$forgeflow_story_file" "$forgeflow_acceptance_file"; then
     fail "approved Story contains template placeholders: $forgeflow_story_directory"
+  fi
+done
+
+forgeflow_doctor_acceptance="$forgeflow_repo/specs/stories/FF-207-repository-doctor/acceptance.md"
+forgeflow_doctor_tests="$forgeflow_repo/tests/doctor.sh"
+
+for forgeflow_doctor_ac_number in \
+  001 002 003 004 005 006 007 008 009 010 011 012
+do
+  forgeflow_doctor_acceptance_count=$(
+    grep -Ec "AC-$forgeflow_doctor_ac_number:" \
+      "$forgeflow_doctor_acceptance"
+  )
+  forgeflow_doctor_test_count=$(
+    grep -Ec "^run_case 'AC-$forgeflow_doctor_ac_number'" \
+      "$forgeflow_doctor_tests"
+  )
+
+  if [ "$forgeflow_doctor_acceptance_count" -ne 1 ]; then
+    fail "Doctor acceptance must define AC-$forgeflow_doctor_ac_number exactly once"
+  fi
+
+  if [ "$forgeflow_doctor_test_count" -ne 1 ]; then
+    fail "Doctor tests must map AC-$forgeflow_doctor_ac_number exactly once"
+  fi
+done
+
+for forgeflow_doctor_artifact in scripts/doctor tests/doctor.sh
+do
+  if [ ! -x "$forgeflow_repo/$forgeflow_doctor_artifact" ]; then
+    fail "Doctor artifact is not executable: $forgeflow_doctor_artifact"
   fi
 done
 
@@ -220,6 +285,18 @@ forgeflow_makefile="$forgeflow_repo/Makefile"
 
 grep -Eq '^verify:.*verify-release' "$forgeflow_makefile" ||
   fail 'root verify does not include release-check tests'
+
+grep -Eq '^verify:.*verify-doctor' "$forgeflow_makefile" ||
+  fail 'root verify does not include Doctor tests'
+
+grep -Fqx 'verify-doctor:' "$forgeflow_makefile" ||
+  fail 'root Makefile does not expose verify-doctor'
+
+grep -Fq 'sh -n scripts/doctor tests/doctor.sh' "$forgeflow_makefile" ||
+  fail 'verify-doctor does not validate shell syntax'
+
+grep -Fq './tests/doctor.sh' "$forgeflow_makefile" ||
+  fail 'verify-doctor does not run Doctor acceptance tests'
 
 grep -Eq '^release-check:[[:space:]]+verify$' "$forgeflow_makefile" ||
   fail 'release-check does not depend on canonical verify'

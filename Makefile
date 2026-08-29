@@ -1,6 +1,6 @@
-.PHONY: verify verify-protocol verify-bootstrap verify-release verify-typescript verify-go verify-actions release-check
+.PHONY: verify verify-protocol verify-bootstrap verify-doctor verify-release verify-typescript verify-go verify-actions release-check
 
-verify: verify-protocol verify-bootstrap verify-release verify-typescript verify-go verify-actions
+verify: verify-protocol verify-bootstrap verify-doctor verify-release verify-typescript verify-go verify-actions
 
 release-check: verify
 	./scripts/release-check
@@ -12,6 +12,10 @@ verify-protocol:
 verify-bootstrap:
 	sh -n scripts/bootstrap tests/bootstrap.sh
 	./tests/bootstrap.sh
+
+verify-doctor:
+	sh -n scripts/doctor tests/doctor.sh
+	./tests/doctor.sh
 
 verify-release:
 	sh -n scripts/release-check tests/release-check.sh

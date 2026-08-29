@@ -28,6 +28,21 @@ The [bootstrap script](../scripts/bootstrap) installs the agent guide and Story
 templates. Each repository still owns its Makefile and technology-specific
 setup.
 
+## Optional Repository Doctor
+
+[Repository Doctor](../docs/doctor.md) is an optional ForgeFlow command for
+inspecting an adoption. In its default static mode, it performs read-only checks
+of only a readable non-blank `AGENTS.md`, readable `specs/stories/`, and
+readable non-blank `Makefile`; it does not run `make`, target code, network
+operations, dependency installation, or Git mutations. It does not require a
+first Story, `_template/`, `task.md`, Skills, or CI configuration.
+
+With explicit `--run-verify` authorization and only for a trusted repository,
+Doctor invokes the repository-owned `make verify` once from the resolved
+physical root. That mode is not read-only or sandboxed. Doctor does not change
+this adoption contract, create an alternative verification command, or become
+mandatory for existing adopters.
+
 ## Verification ownership
 
 The repository decides which checks belong behind `make verify` and

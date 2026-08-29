@@ -44,7 +44,40 @@ is concurrently replacing its paths. The portable shell script rejects managed
 directory and file symlinks and replaces files atomically, but it is not a
 sandbox for an actively hostile, concurrently mutated filesystem.
 
-## 2. Define the repository gate
+Bootstrap success means only that the managed guide and Story-template files
+were installed. Bootstrap intentionally does not create a repository-owned
+`Makefile`, call Doctor, run `make verify`, review the result, or authorize a
+merge.
+
+## 2. Inspect the adopted structure (optional)
+
+From a ForgeFlow checkout, Doctor can confirm the static required structure
+without changing the target:
+
+```sh
+./scripts/doctor /path/to/repository
+```
+
+Immediately after a fresh bootstrap into an otherwise empty directory, this
+command is expected to report the missing `Makefile` and exit `1`. Define the
+repository gate in the next step, then run Doctor again.
+
+It requires only a readable non-blank `AGENTS.md`, readable `specs/stories/`,
+and readable non-blank `Makefile`. Story templates, `task.md`, Skills, and CI
+are optional. A static success does not execute `make verify`, check CI or
+merge policy, or replace human review.
+
+For a repository you trust, explicitly run its canonical gate once:
+
+```sh
+./scripts/doctor --run-verify /path/to/repository
+```
+
+This mode executes repository-owned code and is neither read-only nor
+sandboxed; it may write files, start services, or use the network. Read
+[Repository Doctor](doctor.md) for all command forms and result semantics.
+
+## 3. Define the repository gate
 
 At the target repository root, provide a Makefile target named
 `verify`:
@@ -60,7 +93,7 @@ Replace the example command with the repository's format, lint, type,
 architecture, unit, integration, and acceptance checks. Keep
 `make verify` as the single review-readiness interface.
 
-## 3. Create and approve a Story
+## 4. Create and approve a Story
 
 Copy the template to a Story directory:
 
@@ -72,7 +105,7 @@ Complete `story.md` and `acceptance.md`. A human approves
 the Goal, scope, rules, expected errors, and acceptance criteria before the Story
 enters READY.
 
-## 4. Implement with an agent
+## 5. Implement with an agent
 
 Give any coding agent a bounded request:
 
@@ -83,7 +116,7 @@ Implement Story ORD-123. Follow AGENTS.md and run make verify.
 The agent reads the Story, inspects the repository, implements the smallest
 coherent change, adds tests, and runs the canonical gate.
 
-## 5. Verify and repair
+## 6. Verify and repair
 
 ```sh
 make verify
@@ -93,7 +126,7 @@ On FAIL, diagnose the output, repair the root cause, and run the same command
 again. Preserve the Story and acceptance criteria. On PASS, produce the delivery
 report required by `AGENTS.md`.
 
-## 6. Review and merge
+## 7. Review and merge
 
 A human reviews the verified implementation for product intent and architecture,
 then follows the repository's normal merge policy. Automated PASS makes work

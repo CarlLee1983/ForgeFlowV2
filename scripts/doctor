@@ -1,0 +1,470 @@
+#!/bin/sh
+
+set -eu
+
+usage() {
+  printf 'Usage: %s [repository-directory]\n' "$0" >&2
+  printf '       %s --run-verify [repository-directory]\n' "$0" >&2
+  printf '       %s --help\n' "$0" >&2
+}
+
+usage_error() {
+  printf 'ERROR Invalid arguments\n' >&2
+  usage
+  printf '\nResult: ERROR\n' >&2
+  printf 'Verification: NOT_RUN\n' >&2
+  printf 'CI: NOT_CHECKED\n' >&2
+  printf 'Merge policy: NOT_CHECKED\n' >&2
+}
+
+help() {
+  printf 'ForgeFlow Repository Doctor\n\n'
+  printf 'Usage: %s [repository-directory]\n' "$0"
+  printf '       %s --run-verify [repository-directory]\n' "$0"
+  printf '       %s --help\n\n' "$0"
+  printf 'Without --run-verify, Doctor performs static, read-only structure checks.\n'
+  printf 'Static success does not mean make verify or human review passed.\n\n'
+  printf '%s\n' '--run-verify executes repository-owned code and is not read-only or sandboxed.'
+  printf 'It may create build files, start services, or use the network.\n'
+  printf 'Use it only with repositories you trust.\n'
+}
+
+file_has_non_whitespace() {
+  forgeflow_content_file=$1
+
+  while IFS= read -r forgeflow_content_line ||
+    [ -n "$forgeflow_content_line" ]; do
+    case "$forgeflow_content_line" in
+      *[![:space:]]*) return 0 ;;
+    esac
+  done <"$forgeflow_content_file"
+
+  return 1
+}
+
+strip_make_blanks() {
+  forgeflow_stripped_make_text=$1
+
+  while :; do
+    case "$forgeflow_stripped_make_text" in
+      ' '*) forgeflow_stripped_make_text=${forgeflow_stripped_make_text# } ;;
+      "$forgeflow_tab"*)
+        forgeflow_stripped_make_text=${forgeflow_stripped_make_text#"$forgeflow_tab"}
+        ;;
+      *) break ;;
+    esac
+  done
+}
+
+is_make_define_directive() {
+  forgeflow_define_candidate=$1
+  forgeflow_seen_override=0
+  forgeflow_seen_export=0
+
+  while :; do
+    case "$forgeflow_define_candidate" in
+      override[[:blank:]]*)
+        [ "$forgeflow_seen_override" -eq 0 ] || return 1
+        forgeflow_seen_override=1
+        forgeflow_define_candidate=${forgeflow_define_candidate#override}
+        strip_make_blanks "$forgeflow_define_candidate"
+        forgeflow_define_candidate=$forgeflow_stripped_make_text
+        ;;
+      export[[:blank:]]*)
+        [ "$forgeflow_seen_export" -eq 0 ] || return 1
+        forgeflow_seen_export=1
+        forgeflow_define_candidate=${forgeflow_define_candidate#export}
+        strip_make_blanks "$forgeflow_define_candidate"
+        forgeflow_define_candidate=$forgeflow_stripped_make_text
+        ;;
+      *) break ;;
+    esac
+  done
+
+  case "$forgeflow_define_candidate" in
+    define|define[[:blank:]]*) return 0 ;;
+  esac
+
+  return 1
+}
+
+scan_makefile() {
+  forgeflow_scan_file=$1
+  forgeflow_literal_verify_rule=0
+  forgeflow_complex_makefile=0
+  forgeflow_continuation=0
+  forgeflow_define_depth=0
+  forgeflow_tab=$(printf '\t')
+
+  while IFS= read -r forgeflow_scan_line ||
+    [ -n "$forgeflow_scan_line" ]; do
+    if [ "$forgeflow_define_depth" -gt 0 ]; then
+      while [ "${forgeflow_scan_line# }" != "$forgeflow_scan_line" ]; do
+        forgeflow_scan_line=${forgeflow_scan_line# }
+      done
+
+      if is_make_define_directive "$forgeflow_scan_line"; then
+        forgeflow_define_depth=$((forgeflow_define_depth + 1))
+      else
+        case "$forgeflow_scan_line" in
+          endef|endef[[:blank:]]*)
+            forgeflow_define_depth=$((forgeflow_define_depth - 1))
+            ;;
+        esac
+      fi
+
+      forgeflow_complex_makefile=1
+      continue
+    fi
+
+    forgeflow_next_continuation=0
+    case "$forgeflow_scan_line" in
+      *\\)
+        forgeflow_next_continuation=1
+        forgeflow_complex_makefile=1
+        ;;
+    esac
+
+    if [ "$forgeflow_continuation" -eq 1 ]; then
+      forgeflow_continuation=$forgeflow_next_continuation
+      continue
+    fi
+    forgeflow_continuation=$forgeflow_next_continuation
+
+    case "$forgeflow_scan_line" in
+      "$forgeflow_tab"*) continue ;;
+    esac
+
+    while [ "${forgeflow_scan_line# }" != "$forgeflow_scan_line" ]; do
+      forgeflow_scan_line=${forgeflow_scan_line# }
+    done
+
+    case "$forgeflow_scan_line" in
+      ''|'#'*) continue ;;
+      include|-include|sinclude|include\ *|-include\ *|sinclude\ *)
+        forgeflow_complex_makefile=1
+        ;;
+    esac
+
+    if is_make_define_directive "$forgeflow_scan_line"; then
+      forgeflow_define_depth=1
+      forgeflow_complex_makefile=1
+      continue
+    fi
+
+    # The quoted dollar signs are literal Make syntax, not shell expansion.
+    # shellcheck disable=SC2016
+    case "$forgeflow_scan_line" in
+      *'$('*|*'${'*) forgeflow_complex_makefile=1 ;;
+    esac
+
+    case "$forgeflow_scan_line" in
+      verify*)
+        forgeflow_verify_suffix=${forgeflow_scan_line#verify}
+
+        while [ "${forgeflow_verify_suffix# }" != \
+          "$forgeflow_verify_suffix" ]; do
+          forgeflow_verify_suffix=${forgeflow_verify_suffix# }
+        done
+
+        case "$forgeflow_verify_suffix" in
+          :*)
+            forgeflow_verify_suffix=${forgeflow_verify_suffix#:}
+            while [ "${forgeflow_verify_suffix#:}" != \
+              "$forgeflow_verify_suffix" ]; do
+              forgeflow_verify_suffix=${forgeflow_verify_suffix#:}
+            done
+            case "$forgeflow_verify_suffix" in
+              =*) ;;
+              *) forgeflow_literal_verify_rule=1 ;;
+            esac
+            ;;
+        esac
+        ;;
+    esac
+  done <"$forgeflow_scan_file"
+}
+
+forgeflow_run_verify=0
+forgeflow_target=.
+
+case "$#" in
+  0) ;;
+  1)
+    case "$1" in
+      --help)
+        help
+        exit 0
+        ;;
+      --run-verify) forgeflow_run_verify=1 ;;
+      -*)
+        usage_error
+        exit 2
+        ;;
+      *) forgeflow_target=$1 ;;
+    esac
+    ;;
+  2)
+    if [ "$1" != '--run-verify' ]; then
+      usage_error
+      exit 2
+    fi
+
+    case "$2" in
+      -*)
+        usage_error
+        exit 2
+        ;;
+      *)
+        forgeflow_run_verify=1
+        forgeflow_target=$2
+        ;;
+    esac
+    ;;
+  *)
+    usage_error
+    exit 2
+    ;;
+esac
+
+if [ ! -d "$forgeflow_target" ]; then
+  printf 'ForgeFlow Doctor\n\n'
+  printf 'ERROR Repository is not a directory: %s\n\n' "$forgeflow_target"
+  printf 'Result: ERROR\n'
+  printf 'Verification: NOT_RUN\n'
+  printf 'CI: NOT_CHECKED\n'
+  printf 'Merge policy: NOT_CHECKED\n'
+  exit 2
+fi
+
+if forgeflow_physical_target=$(
+  CDPATH='' cd -P "$forgeflow_target" >/dev/null 2>&1 || exit 1
+  pwd
+); then
+  forgeflow_target=$forgeflow_physical_target
+else
+  printf 'ForgeFlow Doctor\n\n'
+  printf 'ERROR Repository directory cannot be resolved: %s\n\n' \
+    "$forgeflow_target"
+  printf 'Result: ERROR\n'
+  printf 'Verification: NOT_RUN\n'
+  printf 'CI: NOT_CHECKED\n'
+  printf 'Merge policy: NOT_CHECKED\n'
+  exit 2
+fi
+
+forgeflow_structure_incomplete=0
+forgeflow_structure_error=0
+forgeflow_makefile_readable=0
+forgeflow_agent_incomplete=0
+forgeflow_stories_incomplete=0
+forgeflow_makefile_incomplete=0
+
+printf 'ForgeFlow Doctor\n\n'
+
+forgeflow_agent_path="$forgeflow_target/AGENTS.md"
+
+if [ -L "$forgeflow_agent_path" ]; then
+  printf 'ERROR Required path is a symlink and cannot be safely confirmed: AGENTS.md\n'
+  forgeflow_structure_error=1
+elif [ ! -e "$forgeflow_agent_path" ]; then
+  printf 'FAIL  Agent guide is missing: AGENTS.md\n'
+  forgeflow_structure_incomplete=1
+  forgeflow_agent_incomplete=1
+elif [ ! -f "$forgeflow_agent_path" ]; then
+  printf 'FAIL  Agent guide is not a regular file: AGENTS.md\n'
+  forgeflow_structure_incomplete=1
+  forgeflow_agent_incomplete=1
+elif [ ! -r "$forgeflow_agent_path" ]; then
+  printf 'ERROR Required path is not readable: AGENTS.md\n'
+  forgeflow_structure_error=1
+elif ! file_has_non_whitespace "$forgeflow_agent_path"; then
+  printf 'FAIL  Agent guide is blank: AGENTS.md\n'
+  forgeflow_structure_incomplete=1
+  forgeflow_agent_incomplete=1
+else
+  printf 'PASS  Agent guide: AGENTS.md\n'
+fi
+
+forgeflow_specs_path="$forgeflow_target/specs"
+forgeflow_stories_path="$forgeflow_specs_path/stories"
+
+if [ -L "$forgeflow_specs_path" ]; then
+  printf 'ERROR Required path is a symlink and cannot be safely confirmed: specs/\n'
+  forgeflow_structure_error=1
+elif [ ! -e "$forgeflow_specs_path" ]; then
+  printf 'FAIL  Story directory is missing: specs/stories/\n'
+  forgeflow_structure_incomplete=1
+  forgeflow_stories_incomplete=1
+elif [ ! -d "$forgeflow_specs_path" ]; then
+  printf 'FAIL  Story directory parent is not a directory: specs/\n'
+  forgeflow_structure_incomplete=1
+  forgeflow_stories_incomplete=1
+elif [ ! -x "$forgeflow_specs_path" ]; then
+  printf 'ERROR Required path is not searchable: specs/\n'
+  forgeflow_structure_error=1
+elif [ -L "$forgeflow_stories_path" ]; then
+  printf 'ERROR Required path is a symlink and cannot be safely confirmed: specs/stories/\n'
+  forgeflow_structure_error=1
+elif [ ! -e "$forgeflow_stories_path" ]; then
+  printf 'FAIL  Story directory is missing: specs/stories/\n'
+  forgeflow_structure_incomplete=1
+  forgeflow_stories_incomplete=1
+elif [ ! -d "$forgeflow_stories_path" ]; then
+  printf 'FAIL  Story path is not a directory: specs/stories/\n'
+  forgeflow_structure_incomplete=1
+  forgeflow_stories_incomplete=1
+elif [ ! -r "$forgeflow_stories_path" ] ||
+  [ ! -x "$forgeflow_stories_path" ]; then
+  printf 'ERROR Required path is not readable: specs/stories/\n'
+  forgeflow_structure_error=1
+else
+  printf 'PASS  Story directory: specs/stories/\n'
+fi
+
+forgeflow_makefile_path="$forgeflow_target/Makefile"
+
+if [ -L "$forgeflow_makefile_path" ]; then
+  printf 'ERROR Required path is a symlink and cannot be safely confirmed: Makefile\n'
+  forgeflow_structure_error=1
+elif [ ! -e "$forgeflow_makefile_path" ]; then
+  printf 'FAIL  Makefile is missing\n'
+  forgeflow_structure_incomplete=1
+  forgeflow_makefile_incomplete=1
+elif [ ! -f "$forgeflow_makefile_path" ]; then
+  printf 'FAIL  Makefile is not a regular file\n'
+  forgeflow_structure_incomplete=1
+  forgeflow_makefile_incomplete=1
+elif [ ! -r "$forgeflow_makefile_path" ]; then
+  printf 'ERROR Required path is not readable: Makefile\n'
+  forgeflow_structure_error=1
+elif ! file_has_non_whitespace "$forgeflow_makefile_path"; then
+  printf 'FAIL  Makefile is blank\n'
+  forgeflow_structure_incomplete=1
+  forgeflow_makefile_incomplete=1
+else
+  printf 'PASS  Makefile: readable\n'
+  forgeflow_makefile_readable=1
+fi
+
+if [ "$forgeflow_makefile_readable" -eq 1 ]; then
+  scan_makefile "$forgeflow_target/Makefile"
+
+  if [ "$forgeflow_literal_verify_rule" -eq 1 ]; then
+    printf 'INFO  Found a literal verify rule; not executed\n'
+  else
+    printf 'WARN  Verification entrypoint: UNCONFIRMED\n'
+    printf 'INFO  Static inspection cannot prove that make verify is absent\n'
+  fi
+
+  if [ "$forgeflow_complex_makefile" -eq 1 ]; then
+    printf 'WARN  Makefile uses include, continuation, definition, or dynamic syntax; static inspection is limited\n'
+  fi
+fi
+
+printf 'INFO  Skill installation is optional\n\n'
+
+if [ "$forgeflow_structure_error" -eq 1 ]; then
+  printf 'Result: ERROR\n'
+  printf 'Verification: NOT_RUN\n'
+  printf 'CI: NOT_CHECKED\n'
+  printf 'Merge policy: NOT_CHECKED\n\n'
+  printf 'Next:\n'
+  printf 'Review required-path permissions and symlinks, then run Doctor again.\n'
+
+  if [ "$forgeflow_agent_incomplete" -eq 1 ]; then
+    printf 'Add a readable, non-blank repository-owned AGENTS.md.\n'
+  fi
+
+  if [ "$forgeflow_stories_incomplete" -eq 1 ]; then
+    printf 'Create a readable repository-owned specs/stories/ directory.\n'
+  fi
+
+  if [ "$forgeflow_makefile_incomplete" -eq 1 ]; then
+    printf 'Define a repository-owned Makefile exposing make verify.\n'
+  fi
+
+  exit 2
+fi
+
+if [ "$forgeflow_structure_incomplete" -eq 1 ]; then
+  printf 'Result: STRUCTURE_INCOMPLETE\n'
+  printf 'Verification: NOT_RUN\n'
+  printf 'CI: NOT_CHECKED\n'
+  printf 'Merge policy: NOT_CHECKED\n\n'
+  printf 'Next:\n'
+
+  if [ "$forgeflow_agent_incomplete" -eq 1 ]; then
+    printf 'Add a readable, non-blank repository-owned AGENTS.md.\n'
+  fi
+
+  if [ "$forgeflow_stories_incomplete" -eq 1 ]; then
+    printf 'Create a readable repository-owned specs/stories/ directory.\n'
+  fi
+
+  if [ "$forgeflow_makefile_incomplete" -eq 1 ]; then
+    printf 'Define a repository-owned Makefile exposing make verify.\n'
+  fi
+
+  exit 1
+fi
+
+if [ "$forgeflow_run_verify" -eq 1 ]; then
+  if ! CDPATH='' cd "$forgeflow_target"; then
+    printf '\nERROR Could not enter repository root: %s\n\n' \
+      "$forgeflow_target" >&2
+    printf 'Result: ERROR\n'
+    printf 'Verification: NOT_RUN\n'
+    printf 'CI: NOT_CHECKED\n'
+    printf 'Merge policy: NOT_CHECKED\n'
+    exit 2
+  fi
+
+  if ! command -v make >/dev/null 2>&1; then
+    printf 'ERROR make is required for --run-verify but is not available\n\n'
+    printf 'Result: ERROR\n'
+    printf 'Verification: NOT_RUN\n'
+    printf 'CI: NOT_CHECKED\n'
+    printf 'Merge policy: NOT_CHECKED\n'
+    exit 2
+  fi
+
+  printf 'WARNING: --run-verify executes repository-owned code; this is not read-only or sandboxed.\n'
+  printf 'Use this mode only with a repository you trust.\n'
+  printf 'Running: make verify\n\n'
+
+  if make verify; then
+    forgeflow_verify_status=0
+  else
+    forgeflow_verify_status=$?
+  fi
+
+  printf '\n'
+
+  if [ "$forgeflow_verify_status" -eq 0 ]; then
+    printf 'Result: VERIFIED_LOCAL\n'
+    printf 'Verification: PASS\n'
+    printf 'Verification exit: 0\n'
+    printf 'CI: NOT_CHECKED\n'
+    printf 'Merge policy: NOT_CHECKED\n'
+    printf 'Human review is still required.\n'
+    exit 0
+  fi
+
+  printf 'Result: VERIFICATION_FAILED\n'
+  printf 'Verification: FAIL\n'
+  printf 'Verification exit: %s\n' "$forgeflow_verify_status"
+  printf 'CI: NOT_CHECKED\n'
+  printf 'Merge policy: NOT_CHECKED\n'
+  printf 'Human review is still required.\n'
+  exit 1
+fi
+
+printf 'Result: STRUCTURE_OK\n'
+printf 'Verification: NOT_RUN\n'
+printf 'CI: NOT_CHECKED\n'
+printf 'Merge policy: NOT_CHECKED\n\n'
+printf 'Next:\n'
+printf 'Review the repository gate, then run:\n'
+printf '  make verify\n'
+printf 'from the target repository root.\n'
