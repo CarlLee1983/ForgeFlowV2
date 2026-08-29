@@ -83,6 +83,8 @@ for forgeflow_required_file in \
   docs/getting-started.md \
   docs/releasing.md \
   examples/typescript/Makefile \
+  examples/typescript/scripts/check-traceability.sh \
+  examples/typescript/tests/traceability.sh \
   examples/go/Makefile \
   scripts/bootstrap \
   scripts/release-check \
@@ -171,6 +173,8 @@ for forgeflow_story_directory in \
   specs/stories/FF-203-executable-story-example \
   specs/stories/FF-204-linux-ci \
   specs/stories/FF-205-release-readiness \
+  specs/stories/FF-206-typescript-executable-story-parity \
+  examples/typescript/specs/stories/TYP-001-order-total \
   examples/go/specs/stories/ORD-001-order-total
 do
   forgeflow_story_file="$forgeflow_repo/$forgeflow_story_directory/story.md"
@@ -190,6 +194,27 @@ do
     fail "approved Story contains template placeholders: $forgeflow_story_directory"
   fi
 done
+
+forgeflow_typescript_makefile="$forgeflow_repo/examples/typescript/Makefile"
+
+grep -Eq '^traceability:' "$forgeflow_typescript_makefile" ||
+  fail 'TypeScript example does not expose the focused traceability target'
+
+grep -Fq "\$(MAKE) traceability" "$forgeflow_typescript_makefile" ||
+  fail 'TypeScript verify does not include Story traceability'
+
+for forgeflow_typescript_traceability_artifact in \
+  examples/typescript/scripts/check-traceability.sh \
+  examples/typescript/tests/traceability.sh
+do
+  if [ ! -x "$forgeflow_repo/$forgeflow_typescript_traceability_artifact" ]; then
+    fail "TypeScript traceability artifact is not executable: $forgeflow_typescript_traceability_artifact"
+  fi
+done
+
+grep -Fq "[\`specs/stories/TYP-001-order-total\`](specs/stories/TYP-001-order-total/)" \
+  "$forgeflow_repo/examples/typescript/README.md" ||
+  fail 'TypeScript README does not link to the executable Story'
 
 forgeflow_makefile="$forgeflow_repo/Makefile"
 
