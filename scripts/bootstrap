@@ -6,6 +6,35 @@ usage() {
   printf 'Usage: %s [--force] [repository-directory]\n' "$0" >&2
 }
 
+install_managed_file() {
+  forgeflow_install_source=$1
+  forgeflow_install_destination=$2
+  forgeflow_install_parent=$(dirname "$forgeflow_install_destination")
+  forgeflow_install_stage="$forgeflow_install_parent/.forgeflow-install.$$"
+
+  if ! (umask 077 && mkdir "$forgeflow_install_stage"); then
+    printf 'Could not create staging directory: %s\n' \
+      "$forgeflow_install_stage" >&2
+    return 1
+  fi
+
+  if ! cp "$forgeflow_install_source" \
+    "$forgeflow_install_stage/managed-file"; then
+    rm -f "$forgeflow_install_stage/managed-file"
+    rmdir "$forgeflow_install_stage"
+    return 1
+  fi
+
+  if ! mv -f "$forgeflow_install_stage/managed-file" \
+    "$forgeflow_install_destination"; then
+    rm -f "$forgeflow_install_stage/managed-file"
+    rmdir "$forgeflow_install_stage"
+    return 1
+  fi
+
+  rmdir "$forgeflow_install_stage"
+}
+
 forgeflow_force=0
 
 if [ "${1:-}" = "--force" ]; then
@@ -25,6 +54,11 @@ if [ ! -d "$forgeflow_target" ]; then
   exit 2
 fi
 
+forgeflow_target=$(
+  cd -P "$forgeflow_target" >/dev/null 2>&1
+  pwd
+)
+
 forgeflow_script_dir=$(
   cd -P "$(dirname "$0")" >/dev/null 2>&1
   pwd
@@ -39,6 +73,47 @@ for forgeflow_source in \
 do
   if [ ! -f "$forgeflow_source" ]; then
     printf 'ForgeFlow template is missing: %s\n' "$forgeflow_source" >&2
+    exit 1
+  fi
+done
+
+for forgeflow_relative_directory in \
+  specs \
+  specs/stories \
+  specs/stories/_template
+do
+  forgeflow_directory="$forgeflow_target/$forgeflow_relative_directory"
+
+  if [ -L "$forgeflow_directory" ]; then
+    printf 'Refusing managed directory symlink: %s\n' \
+      "$forgeflow_directory" >&2
+    exit 1
+  fi
+
+  if [ -e "$forgeflow_directory" ] && [ ! -d "$forgeflow_directory" ]; then
+    printf 'Managed directory path is not a directory: %s\n' \
+      "$forgeflow_directory" >&2
+    exit 1
+  fi
+done
+
+for forgeflow_relative_path in \
+  AGENTS.md \
+  specs/stories/_template/story.md \
+  specs/stories/_template/acceptance.md \
+  specs/stories/_template/task.md
+do
+  forgeflow_destination="$forgeflow_target/$forgeflow_relative_path"
+
+  if [ -L "$forgeflow_destination" ]; then
+    printf 'Refusing managed file symlink: %s\n' \
+      "$forgeflow_destination" >&2
+    exit 1
+  fi
+
+  if [ -e "$forgeflow_destination" ] && [ ! -f "$forgeflow_destination" ]; then
+    printf 'Managed file path is not a regular file: %s\n' \
+      "$forgeflow_destination" >&2
     exit 1
   fi
 done
@@ -67,13 +142,13 @@ if [ "$forgeflow_force" -eq 0 ]; then
 fi
 
 mkdir -p "$forgeflow_target/specs/stories/_template"
-cp "$forgeflow_root/templates/AGENTS.md" \
+install_managed_file "$forgeflow_root/templates/AGENTS.md" \
   "$forgeflow_target/AGENTS.md"
-cp "$forgeflow_root/templates/story/story.md" \
+install_managed_file "$forgeflow_root/templates/story/story.md" \
   "$forgeflow_target/specs/stories/_template/story.md"
-cp "$forgeflow_root/templates/story/acceptance.md" \
+install_managed_file "$forgeflow_root/templates/story/acceptance.md" \
   "$forgeflow_target/specs/stories/_template/acceptance.md"
-cp "$forgeflow_root/templates/story/task.md" \
+install_managed_file "$forgeflow_root/templates/story/task.md" \
   "$forgeflow_target/specs/stories/_template/task.md"
 
 printf 'ForgeFlow initialized in %s\n' "$forgeflow_target"

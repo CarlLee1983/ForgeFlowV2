@@ -37,8 +37,12 @@ returns to implementation, repairs the root cause without weakening the Story,
 and verifies again. A zero exit makes the work eligible for human review; it
 does not replace product or architecture judgment.
 
-See [the verification contract](protocol/verification.md) for the normative
-command behavior.
+The protocol is split into four small contracts:
+
+- [Story](protocol/story.md)
+- [Verification](protocol/verification.md)
+- [Lifecycle](protocol/lifecycle.md)
+- [Repository adoption](protocol/repository-contract.md)
 
 ## Adopt ForgeFlow in a repository
 
@@ -70,6 +74,10 @@ files is intentional, pass `--force` explicitly:
 Copy `specs/stories/_template` to a directory named for the Story, fill
 in the requirements, and ask an agent to implement that Story ID.
 
+The full manual flow is documented in
+[Getting Started](docs/getting-started.md), with rationale in
+[ForgeFlow Concepts](docs/concepts.md).
+
 ## TypeScript example
 
 The example in `examples/typescript` uses pnpm 12 and demonstrates a
@@ -84,6 +92,17 @@ make verify
 Its `make verify` runs formatting, linting, static type checking, and
 tests through one deterministic entry point.
 
+## Go example
+
+The example in `examples/go` demonstrates the same contract with Go:
+
+```sh
+go -C examples/go mod download
+make -C examples/go verify
+```
+
+Its gate checks formatting, `go vet`, Staticcheck, and tests.
+
 ## Verify this repository
 
 Install the example's locked development dependencies, then run ForgeFlow's own
@@ -94,16 +113,20 @@ pnpm --dir examples/typescript install --frozen-lockfile
 make verify
 ```
 
-The root command checks bootstrap syntax and behavior, then delegates to the
-TypeScript example's `make verify`.
+The root command checks required protocol artifacts and bootstrap behavior,
+then delegates to both example repositories.
 
-## Initial slice
+## Version 0.1
 
-This repository currently contains the first ForgeFlow v0.1 implementation
-slice: the core explanation, Story templates, repository agent guide,
-Story-development skill, verification contract, TypeScript example, and
+ForgeFlow v0.1 is a declarative, manual protocol: Story and acceptance formats,
+repository guidance, verification and lifecycle contracts, a reusable
+Story-development skill, TypeScript and Go examples, a CI template, and a
 non-destructive bootstrap script.
 
 Multi-agent orchestration, workflow services, schedulers, agent runtimes,
 dashboards, persistent workflow state, and language-model abstraction layers are
 outside this slice.
+
+## License
+
+ForgeFlow is available under the [MIT License](LICENSE).

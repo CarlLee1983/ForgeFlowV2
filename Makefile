@@ -1,6 +1,10 @@
-.PHONY: verify verify-bootstrap verify-typescript
+.PHONY: verify verify-protocol verify-bootstrap verify-typescript verify-go
 
-verify: verify-bootstrap verify-typescript
+verify: verify-protocol verify-bootstrap verify-typescript verify-go
+
+verify-protocol:
+	sh -n tests/protocol.sh
+	./tests/protocol.sh
 
 verify-bootstrap:
 	sh -n scripts/bootstrap tests/bootstrap.sh
@@ -8,3 +12,6 @@ verify-bootstrap:
 
 verify-typescript:
 	$(MAKE) -C examples/typescript verify
+
+verify-go:
+	$(MAKE) -C examples/go verify
