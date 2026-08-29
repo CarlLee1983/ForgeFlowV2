@@ -1,8 +1,9 @@
 # Story Lifecycle
 
-ForgeFlow v0.1 uses lifecycle states as a shared vocabulary. They are conceptual
+ForgeFlow uses lifecycle states as a shared vocabulary. They are conceptual
 only: repositories do not need a workflow engine, state database, or agent
-orchestrator.
+orchestrator. The current protocol version is recorded in
+[`VERSION`](../VERSION).
 
 ```text
 DRAFT → READY → IMPLEMENTING → VERIFYING → REVIEW → DONE

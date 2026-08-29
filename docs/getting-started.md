@@ -26,6 +26,19 @@ specs/
 The script refuses to replace any managed file. Review conflicts manually; use
 `--force` only when replacing those exact files is intentional.
 
+Preview the same static safety and conflict checks without changing the target:
+
+```sh
+./scripts/bootstrap --dry-run /path/to/repository
+./scripts/bootstrap --force --dry-run /path/to/repository
+```
+
+`--force` and `--dry-run` may appear in either order before the optional target,
+but each flag may appear only once. A dry run reports the files it would install
+or replace and exits nonzero for the same static refusals as a real install. It
+does not create directories, staging paths, files, or links; a later real run
+can still fail if the filesystem changes concurrently.
+
 Run bootstrap only while you control the target repository and no other process
 is concurrently replacing its paths. The portable shell script rejects managed
 directory and file symlinks and replaces files atomically, but it is not a

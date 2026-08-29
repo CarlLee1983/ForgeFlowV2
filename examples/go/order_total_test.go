@@ -7,7 +7,7 @@ import (
 )
 
 func TestCalculateOrderTotal(t *testing.T) {
-	t.Run("sums line item prices in cents", func(t *testing.T) {
+	t.Run("AC-01: sums line item prices in cents", func(t *testing.T) {
 		total, err := CalculateOrderTotal([]LineItem{
 			{UnitPriceCents: 1_250, Quantity: 2},
 			{UnitPriceCents: 499, Quantity: 1},
@@ -20,7 +20,7 @@ func TestCalculateOrderTotal(t *testing.T) {
 		}
 	})
 
-	t.Run("returns zero for an empty order", func(t *testing.T) {
+	t.Run("AC-02: returns zero for an empty order", func(t *testing.T) {
 		total, err := CalculateOrderTotal(nil)
 		if err != nil {
 			t.Fatalf("CalculateOrderTotal() error = %v", err)
@@ -38,22 +38,22 @@ func TestCalculateOrderTotalErrors(t *testing.T) {
 		want  error
 	}{
 		{
-			name:  "negative unit price",
+			name:  "AC-03: negative unit price",
 			items: []LineItem{{UnitPriceCents: -1, Quantity: 1}},
 			want:  ErrInvalidUnitPrice,
 		},
 		{
-			name:  "non-positive quantity",
+			name:  "AC-04: non-positive quantity",
 			items: []LineItem{{UnitPriceCents: 100, Quantity: 0}},
 			want:  ErrInvalidQuantity,
 		},
 		{
-			name:  "line total overflow",
+			name:  "AC-05: line total overflow",
 			items: []LineItem{{UnitPriceCents: math.MaxInt64, Quantity: 2}},
 			want:  ErrTotalOverflow,
 		},
 		{
-			name: "order total overflow",
+			name: "AC-06: order total overflow",
 			items: []LineItem{
 				{UnitPriceCents: math.MaxInt64, Quantity: 1},
 				{UnitPriceCents: 1, Quantity: 1},

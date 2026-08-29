@@ -1,6 +1,6 @@
-.PHONY: verify format-check vet staticcheck test
+.PHONY: verify format-check vet staticcheck traceability test
 
-verify: format-check vet staticcheck test
+verify: format-check vet staticcheck traceability test
 
 format-check:
 	@unformatted="$$(gofmt -l *.go)"; \
@@ -14,6 +14,10 @@ vet:
 
 staticcheck:
 	go tool staticcheck ./...
+
+traceability:
+	./scripts/check-traceability.sh
+	./tests/traceability.sh
 
 test:
 	go test ./...

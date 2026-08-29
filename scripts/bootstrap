@@ -3,7 +3,7 @@
 set -eu
 
 usage() {
-  printf 'Usage: %s [--force] [repository-directory]\n' "$0" >&2
+  printf 'Usage: %s [--force] [--dry-run] [repository-directory]\n' "$0" >&2
 }
 
 install_managed_file() {
@@ -36,18 +36,46 @@ install_managed_file() {
 }
 
 forgeflow_force=0
+forgeflow_dry_run=0
+forgeflow_target=
+forgeflow_target_set=0
 
-if [ "${1:-}" = "--force" ]; then
-  forgeflow_force=1
+while [ "$#" -gt 0 ]; do
+  if [ "$forgeflow_target_set" -eq 1 ]; then
+    usage
+    exit 2
+  fi
+
+  case "$1" in
+    --force)
+      if [ "$forgeflow_force" -eq 1 ]; then
+        usage
+        exit 2
+      fi
+      forgeflow_force=1
+      ;;
+    --dry-run)
+      if [ "$forgeflow_dry_run" -eq 1 ]; then
+        usage
+        exit 2
+      fi
+      forgeflow_dry_run=1
+      ;;
+    -*)
+      usage
+      exit 2
+      ;;
+    *)
+      forgeflow_target=$1
+      forgeflow_target_set=1
+      ;;
+  esac
   shift
-fi
+done
 
-if [ "$#" -gt 1 ]; then
-  usage
-  exit 2
+if [ "$forgeflow_target_set" -eq 0 ]; then
+  forgeflow_target=.
 fi
-
-forgeflow_target=${1:-.}
 
 if [ ! -d "$forgeflow_target" ]; then
   printf 'Target is not a directory: %s\n' "$forgeflow_target" >&2
@@ -65,17 +93,21 @@ forgeflow_script_dir=$(
 )
 forgeflow_root=$(dirname "$forgeflow_script_dir")
 
-for forgeflow_source in \
-  "$forgeflow_root/templates/AGENTS.md" \
-  "$forgeflow_root/templates/story/story.md" \
-  "$forgeflow_root/templates/story/acceptance.md" \
-  "$forgeflow_root/templates/story/task.md"
-do
+forgeflow_managed_files='templates/AGENTS.md AGENTS.md
+templates/story/story.md specs/stories/_template/story.md
+templates/story/acceptance.md specs/stories/_template/acceptance.md
+templates/story/task.md specs/stories/_template/task.md'
+
+while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
+  forgeflow_source="$forgeflow_root/$forgeflow_template_relative"
+
   if [ ! -f "$forgeflow_source" ]; then
     printf 'ForgeFlow template is missing: %s\n' "$forgeflow_source" >&2
     exit 1
   fi
-done
+done <<EOF
+$forgeflow_managed_files
+EOF
 
 for forgeflow_relative_directory in \
   specs \
@@ -97,12 +129,7 @@ do
   fi
 done
 
-for forgeflow_relative_path in \
-  AGENTS.md \
-  specs/stories/_template/story.md \
-  specs/stories/_template/acceptance.md \
-  specs/stories/_template/task.md
-do
+while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
   forgeflow_destination="$forgeflow_target/$forgeflow_relative_path"
 
   if [ -L "$forgeflow_destination" ]; then
@@ -116,22 +143,21 @@ do
       "$forgeflow_destination" >&2
     exit 1
   fi
-done
+done <<EOF
+$forgeflow_managed_files
+EOF
 
 if [ "$forgeflow_force" -eq 0 ]; then
   forgeflow_conflicts=
 
-  for forgeflow_relative_path in \
-    AGENTS.md \
-    specs/stories/_template/story.md \
-    specs/stories/_template/acceptance.md \
-    specs/stories/_template/task.md
-  do
+  while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
     if [ -e "$forgeflow_target/$forgeflow_relative_path" ]; then
       forgeflow_conflicts="${forgeflow_conflicts}
   $forgeflow_target/$forgeflow_relative_path"
     fi
-  done
+  done <<EOF
+$forgeflow_managed_files
+EOF
 
   if [ -n "$forgeflow_conflicts" ]; then
     printf 'Refusing to overwrite existing ForgeFlow files:%s\n' \
@@ -141,14 +167,29 @@ if [ "$forgeflow_force" -eq 0 ]; then
   fi
 fi
 
+if [ "$forgeflow_dry_run" -eq 1 ]; then
+  while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
+    forgeflow_destination="$forgeflow_target/$forgeflow_relative_path"
+
+    if [ -e "$forgeflow_destination" ]; then
+      printf 'Would replace %s\n' "$forgeflow_destination"
+    else
+      printf 'Would install %s\n' "$forgeflow_destination"
+    fi
+  done <<EOF
+$forgeflow_managed_files
+EOF
+
+  printf 'ForgeFlow dry run completed for %s\n' "$forgeflow_target"
+  exit 0
+fi
+
 mkdir -p "$forgeflow_target/specs/stories/_template"
-install_managed_file "$forgeflow_root/templates/AGENTS.md" \
-  "$forgeflow_target/AGENTS.md"
-install_managed_file "$forgeflow_root/templates/story/story.md" \
-  "$forgeflow_target/specs/stories/_template/story.md"
-install_managed_file "$forgeflow_root/templates/story/acceptance.md" \
-  "$forgeflow_target/specs/stories/_template/acceptance.md"
-install_managed_file "$forgeflow_root/templates/story/task.md" \
-  "$forgeflow_target/specs/stories/_template/task.md"
+while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
+  install_managed_file "$forgeflow_root/$forgeflow_template_relative" \
+    "$forgeflow_target/$forgeflow_relative_path"
+done <<EOF
+$forgeflow_managed_files
+EOF
 
 printf 'ForgeFlow initialized in %s\n' "$forgeflow_target"

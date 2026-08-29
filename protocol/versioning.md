@@ -1,0 +1,66 @@
+# Protocol Versioning
+
+ForgeFlow versions the repository-level contract that adopters copy and rely
+on. The root [`VERSION`](../VERSION) file is the single authority for the
+current protocol version. It contains one numeric `MAJOR.MINOR.PATCH` value
+without a `v` prefix.
+
+## Versioned surface
+
+The protocol version covers:
+
+* the Story, acceptance, verification, lifecycle, and repository contracts;
+* the required repository surface, including `AGENTS.md`, Story files, and
+  `make verify`;
+* distributed Story, agent-guide, and CI templates; and
+* the public command-line behavior and safety guarantees of bootstrap.
+
+Examples demonstrate the contract but are not protocol packages. In particular,
+the private TypeScript example's package version is not the ForgeFlow protocol
+version.
+
+## Change classification
+
+Classify every adopter-facing change by its effect on a repository that follows
+the previous contract:
+
+| Class | Meaning | Examples |
+| --- | --- | --- |
+| Breaking | An adopter must change existing valid files, commands, or expectations to follow the new contract. | Removing or renaming required Story fields, changing `make verify` PASS semantics, removing a bootstrap option. |
+| Additive | Existing valid adoption keeps working without changes and the new capability is optional. | Adding an optional Story field or a new bootstrap option whose absence preserves behavior. |
+| Corrective | The change repairs or clarifies the documented behavior without changing the supported interface. | Fixing a bootstrap safety defect or resolving contradictory wording. |
+
+When impact is ambiguous, treat the change as breaking until a human records a
+different classification. A breaking release must include migration guidance
+that identifies affected adopters and the required repository changes.
+
+## Compatibility policy
+
+Before ForgeFlow 1.0, PATCH releases within the same MINOR line are
+backward-compatible. A new `0.MINOR.0` release may include documented breaking
+changes. Adopters must read its migration guidance before upgrading.
+
+Starting with 1.0, ForgeFlow follows Semantic Versioning:
+
+* MAJOR releases may contain breaking changes;
+* MINOR releases add backward-compatible behavior; and
+* PATCH releases contain backward-compatible corrections.
+
+Compatibility applies to the versioned surface above. It does not promise that
+optional example toolchains, third-party CI actions, or unversioned product code
+will remain unchanged.
+
+## Snapshots and releases
+
+Bootstrap installs a copy-time snapshot. It does not record, negotiate, or
+automatically upgrade the protocol version in an adopting repository. Adopters
+review new templates and migration guidance before deliberately replacing
+managed files.
+
+The repository may contain a new `VERSION` value before that revision is
+published. Publishing a release requires a Git tag named
+`vMAJOR.MINOR.PATCH` whose value matches `VERSION`; the file alone does not
+create or publish a release.
+
+Any change to the versioned surface must review its classification and update
+`VERSION` in the same release change when the policy requires a new version.

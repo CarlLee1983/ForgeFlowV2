@@ -1,6 +1,6 @@
-.PHONY: verify verify-protocol verify-bootstrap verify-typescript verify-go
+.PHONY: verify verify-protocol verify-bootstrap verify-typescript verify-go verify-actions
 
-verify: verify-protocol verify-bootstrap verify-typescript verify-go
+verify: verify-protocol verify-bootstrap verify-typescript verify-go verify-actions
 
 verify-protocol:
 	sh -n tests/protocol.sh
@@ -15,3 +15,7 @@ verify-typescript:
 
 verify-go:
 	$(MAKE) -C examples/go verify
+
+verify-actions:
+	go -C examples/go tool actionlint \
+		../../templates/ci/github-actions.yml ../../.github/workflows/verify.yml

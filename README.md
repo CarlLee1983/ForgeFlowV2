@@ -37,12 +37,13 @@ returns to implementation, repairs the root cause without weakening the Story,
 and verifies again. A zero exit makes the work eligible for human review; it
 does not replace product or architecture judgment.
 
-The protocol is split into four small contracts:
+The protocol is split into five small contracts:
 
 - [Story](protocol/story.md)
 - [Verification](protocol/verification.md)
 - [Lifecycle](protocol/lifecycle.md)
 - [Repository adoption](protocol/repository-contract.md)
+- [Versioning and compatibility](protocol/versioning.md)
 
 ## Adopt ForgeFlow in a repository
 
@@ -69,6 +70,13 @@ files is intentional, pass `--force` explicitly:
 
 ```sh
 ./scripts/bootstrap --force /path/to/repository
+```
+
+Preview the same static preflight without writing to the target:
+
+```sh
+./scripts/bootstrap --dry-run /path/to/repository
+./scripts/bootstrap --force --dry-run /path/to/repository
 ```
 
 Copy `specs/stories/_template` to a directory named for the Story, fill
@@ -110,22 +118,30 @@ canonical verification command from the repository root:
 
 ```sh
 pnpm --dir examples/typescript install --frozen-lockfile
+go -C examples/go mod download
 make verify
 ```
 
-The root command checks required protocol artifacts and bootstrap behavior,
-then delegates to both example repositories.
+The root command checks required protocol artifacts, bootstrap behavior, and
+GitHub Actions syntax, then delegates to both example repositories. The
+repository workflow in [`.github/workflows/verify.yml`](.github/workflows/verify.yml)
+sets up its Linux toolchains and locked dependencies before invoking this same
+gate.
 
-## Version 0.1
+## Current protocol scope
 
-ForgeFlow v0.1 is a declarative, manual protocol: Story and acceptance formats,
-repository guidance, verification and lifecycle contracts, a reusable
-Story-development skill, TypeScript and Go examples, a CI template, and a
-non-destructive bootstrap script.
+The current protocol version is recorded in the root [`VERSION`](VERSION) file.
+Its compatibility guarantees and versioned surface are defined by the
+[Protocol Versioning policy](protocol/versioning.md).
+
+ForgeFlow is a declarative, manual protocol: Story and acceptance formats,
+repository guidance, verification, lifecycle, and versioning contracts, a
+reusable Story-development skill, executable TypeScript and Go examples, CI
+support, and a non-destructive bootstrap script.
 
 Multi-agent orchestration, workflow services, schedulers, agent runtimes,
 dashboards, persistent workflow state, and language-model abstraction layers are
-outside this slice.
+outside the current protocol scope.
 
 ## License
 
