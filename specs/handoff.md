@@ -43,12 +43,11 @@ verification:
 * FF-212 was merged in PR #5 as
   `94e7de17d753d3fd718314d604ccfcd808c95a47`, which is this baseline. Root
   `make verify` passes on it and the worktree is clean.
-* `v0.3.0` was published from `7e2299971b07afdc925d141e17d87fb5a0908d15`. FF-212
-  is **Corrective** and lands after that tag, so the published `0.3.0` still
-  carries the defect: under an unusual `PATH`, `handoff-check` can report
-  `HANDOFF_CONTRACT_INCOMPLETE` for a valid handoff and Doctor composes that
-  into a false `CONTRACT_DRIFT`. Deciding whether to publish `0.3.1` is an open
-  human decision, not a lifecycle state.
+* `v0.3.0` was published from `7e2299971b07afdc925d141e17d87fb5a0908d15`, before
+  FF-212, so the published `0.3.0` carries the defect FF-212 repairs. `VERSION`
+  is now `0.3.1`, classified **Corrective** in `protocol/versioning.md`. The
+  release itself remains a human-authorized operation under
+  `docs/releasing.md`.
 * Two behavioral narrowings from FF-212 that the callers cannot reach: the
   replaced `grep` predicates matched if any line of a multi-line value matched,
   and `AC-004` listed leading and trailing spaces the parser trims before either
