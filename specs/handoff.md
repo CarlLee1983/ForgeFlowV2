@@ -29,9 +29,12 @@ workflow:
 baseline:
   repository: CarlLee1983/ForgeFlowV2
   branch: main
-  commit: 31de0794cd1f471a8fa4ec9f825c43b49f68fc0a
-  dirty_worktree: false
-  story_owned_paths: []
+  commit: 7bbdf443ead484780e23df9abf055095d4c629e2
+  dirty_worktree: true
+  story_owned_paths:
+    - README.md
+    - docs/assets/forgeflow-hero.png
+    - specs/handoff.md
   known_unrelated_paths: []
 
 verification:
@@ -46,9 +49,11 @@ verification:
 * The corrective `v0.3.1` release was published from
   `1096ef5125f1e2d7c304f65d5c7405b76aadf335` after PR #6 merged its release
   preparation. The tag and GitHub Release both resolve to that baseline.
-* FF-213 was accepted at
-  `31de0794cd1f471a8fa4ec9f825c43b49f68fc0a`. It is a documentation-only
-  Corrective change for `0.3.2`; publication is a separate authorized action.
+* FF-213 was merged in PR #7 and published as the documentation-only Corrective
+  release `v0.3.2` from
+  `7bbdf443ead484780e23df9abf055095d4c629e2`.
+* The current dirty worktree adds the README hero image requested after that
+  release.
 * Two behavioral narrowings from FF-212 that the callers cannot reach: the
   replaced `grep` predicates matched if any line of a multi-line value matched,
   and `AC-004` listed leading and trailing spaces the parser trims before either

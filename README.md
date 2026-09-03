@@ -1,5 +1,7 @@
 # ForgeFlow
 
+![ForgeFlow turns human intent into verified engineering work](docs/assets/forgeflow-hero.png)
+
 ForgeFlow is an agent-agnostic development protocol for AI-assisted engineering.
 It turns approved human intent into a bounded Story, makes repository tooling the
 authority on completion, and sends only verified work to human review.
