@@ -53,10 +53,11 @@ will remain unchanged.
 
 ## Snapshots and releases
 
-Bootstrap installs a copy-time snapshot. It does not record, negotiate, or
-automatically upgrade the protocol version in an adopting repository. Adopters
-review new templates and migration guidance before deliberately replacing
-managed files.
+Bootstrap installs a copy-time snapshot and records which snapshot it installed
+in `specs/.forgeflow-adoption`. It does not negotiate or automatically upgrade
+the protocol version in an adopting repository. Adopters review new templates
+and migration guidance before deliberately replacing managed files, whether with
+`--force` or with `--upgrade`.
 
 The repository may contain a new `VERSION` value before that revision is
 published. Publishing a release requires a Git tag named
@@ -88,6 +89,15 @@ an earlier snapshot must be updated before `scripts/story-check` reports
 Nothing else in an existing adoption changes: `make verify` semantics, bootstrap
 arguments, and Doctor behavior are unaffected, and a repository that never runs
 `scripts/story-check` is not blocked by the new field.
+
+The adoption marker `specs/.forgeflow-adoption` and the bootstrap `--upgrade`
+option are **Additive** capabilities: a repository adopted before either existed
+keeps working unchanged, `--upgrade` creates a missing marker rather than
+refusing, and no existing bootstrap invocation changes meaning. The marker is a
+managed file, so a plain bootstrap refuses to overwrite one that already exists.
+Changes to the marker's path or field format, or to `--upgrade`'s command form
+and safety guarantees, are changes to the versioned surface. The adopter-facing
+procedure is [Upgrading an adopting repository](../docs/upgrading.md).
 
 The Handoff Contract, `scripts/story-check`, and `scripts/handoff-check` are
 **Additive** capabilities: a repository without a handoff or without either

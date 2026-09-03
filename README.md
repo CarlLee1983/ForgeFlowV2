@@ -89,7 +89,9 @@ in the requirements, and ask an agent to implement that Story ID.
 
 The full manual flow is documented in
 [Getting Started](docs/getting-started.md), with rationale in
-[ForgeFlow Concepts](docs/concepts.md).
+[ForgeFlow Concepts](docs/concepts.md). Moving an existing adoption to newer
+Story templates is covered in
+[Upgrading an adopting repository](docs/upgrading.md).
 
 ## Check Story and handoff contracts
 
