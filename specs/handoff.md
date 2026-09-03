@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: FF-211
+  current_story: none
   next_story: pending
   completed_stories:
     - FF-201
@@ -21,12 +21,13 @@ workflow:
     - FF-208
     - FF-209
     - FF-210
-  status: review
+    - FF-211
+  status: done
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: feat/ff-210-adoption-marker
-  commit: 4c392a556167a77bf602e7e1dc81591bb124d071
+  branch: main
+  commit: 96df251e69232507602aa65dabfa30d1b3b41497
   dirty_worktree: false
   story_owned_paths: []
   known_unrelated_paths: []
@@ -38,23 +39,21 @@ verification:
 
 ## Notes
 
-* FF-210 is delivered on this branch and FF-211 continues on the same branch
-  because it reads the adoption marker FF-210 installs.
-* FF-211 is delivered and awaiting human review. Root `make verify` passes on
-  the baseline commit and the worktree is clean, so no path attribution is
-  needed.
+* FF-210 and FF-211 were delivered together in PR #4 and merged to `main` as
+  `96df251e69232507602aa65dabfa30d1b3b41497`, which is this baseline. Root
+  `make verify` passes on it and the worktree is clean.
 * The baseline commit also carries this repository's own root `AGENTS.md`, which
   was missing: Doctor reported `STRUCTURE_INCOMPLETE` against ForgeFlow itself
   while the Repository Contract required that file of every adopter. Doctor now
   reports `STRUCTURE_OK` for this repository.
-* A code review raised one CRITICAL and three HIGH findings, all fixed: static
-  mode used `sed` and so aborted with no `Result` line under an empty `PATH`;
-  an incomplete ForgeFlow checkout was reported as a target failure; the marker
-  version was compared without the normalization `scripts/bootstrap` applies
-  when it writes the file; and a refused Story path reported `NOT_CHECKED`
-  instead of `ERROR`.
-* Open, not in FF-211's scope: `scripts/story-check` and `scripts/handoff-check`
-  use `grep`, `sort`, and `uniq`, so under an empty `PATH` `handoff-check`
-  returns `HANDOFF_CONTRACT_INCOMPLETE` for a valid handoff. Composed by Doctor,
-  that surfaces as a false `CONTRACT_DRIFT`. FF-211 cannot fix it because its
-  `AC-012` requires both checkers to stay byte-identical.
+* No next Story has been selected. Candidates are recorded here as prose, never
+  as `next_story`. Two are open:
+  * `scripts/story-check` and `scripts/handoff-check` use `grep`, `sort`, and
+    `uniq`, so under an empty `PATH` `handoff-check` returns
+    `HANDOFF_CONTRACT_INCOMPLETE` for a valid handoff. Composed by Doctor, that
+    surfaces as a false `CONTRACT_DRIFT`. FF-211 could not fix it because its
+    `AC-012` required both checkers to stay byte-identical.
+  * ForgeFlow does not install its own adoption marker, so Doctor reports
+    `Adopted version: UNKNOWN` against this repository. That is correct today —
+    ForgeFlow is not an adopter of itself — but it means the marker path has no
+    coverage from this repository's own Doctor run.
