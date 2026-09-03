@@ -105,6 +105,14 @@ checker keeps working unchanged, and neither command is required by
 `make verify` in an adopting repository. Changes to their command forms, result
 names, or exit semantics are changes to the versioned surface.
 
+`scripts/story-check` and `scripts/handoff-check` deciding without external
+utilities is **Corrective** for `0.3.1`: it repairs documented behavior without
+changing the supported interface. Both checkers accept and reject exactly what
+they accepted and rejected before, and no adopter changes anything. Published
+`0.3.0` carries the defect: under a `PATH` that resolves no external utility,
+`handoff-check` reports `HANDOFF_CONTRACT_INCOMPLETE` for a conformant handoff
+and Repository Doctor composes that into a `CONTRACT_DRIFT` that does not exist.
+
 Doctor's contract-drift reporting is **Additive**: it adds three static-mode
 result lines, composes the two checkers through their existing command forms,
 and changes no exit status. It does add one new value to Doctor's `Result`
