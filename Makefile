@@ -1,6 +1,6 @@
-.PHONY: verify verify-protocol verify-bootstrap verify-doctor verify-release verify-typescript verify-go verify-actions release-check
+.PHONY: verify verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions release-check
 
-verify: verify-protocol verify-bootstrap verify-doctor verify-release verify-typescript verify-go verify-actions
+verify: verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions
 
 release-check: verify
 	./scripts/release-check
@@ -16,6 +16,17 @@ verify-bootstrap:
 verify-doctor:
 	sh -n scripts/doctor tests/doctor.sh
 	./tests/doctor.sh
+
+verify-story:
+	sh -n scripts/story-check tests/story-check.sh
+	./tests/story-check.sh
+	./scripts/story-check
+	./scripts/story-check examples/*/specs/stories/*
+
+verify-handoff:
+	sh -n scripts/handoff-check tests/handoff-check.sh
+	./tests/handoff-check.sh
+	./scripts/handoff-check
 
 verify-release:
 	sh -n scripts/release-check tests/release-check.sh

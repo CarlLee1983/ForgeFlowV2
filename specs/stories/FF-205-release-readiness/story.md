@@ -12,6 +12,11 @@ required ad hoc local Git and GitHub checks. Maintainers need one deterministic
 local readiness interface without turning publication into automation or
 claiming that local evidence proves remote state.
 
+## Classification
+
+* Security sensitive: no
+* Baseline conformance: no
+
 ## Scope
 
 ### In Scope

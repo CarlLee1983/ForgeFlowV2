@@ -39,10 +39,37 @@ check_story_headings() {
     '## Rules' \
     '## Expected Errors' \
     '## Dependencies' \
+    '## Classification' \
     '## Constraints'
   do
     grep -Fqx "$forgeflow_required_heading" "$forgeflow_heading_file" ||
       fail "$forgeflow_heading_label is missing: $forgeflow_required_heading"
+  done
+}
+
+check_acceptance_mapping() {
+  forgeflow_mapping_acceptance=$1
+  forgeflow_mapping_tests=$2
+  shift 2
+
+  for forgeflow_mapping_ac_number in "$@"
+  do
+    forgeflow_mapping_acceptance_count=$(
+      grep -Ec "AC-$forgeflow_mapping_ac_number:" \
+        "$forgeflow_mapping_acceptance" || :
+    )
+    forgeflow_mapping_test_count=$(
+      grep -Ec "^run_case 'AC-$forgeflow_mapping_ac_number'" \
+        "$forgeflow_mapping_tests" || :
+    )
+
+    if [ "$forgeflow_mapping_acceptance_count" -ne 1 ]; then
+      fail "$forgeflow_mapping_acceptance must define AC-$forgeflow_mapping_ac_number exactly once"
+    fi
+
+    if [ "$forgeflow_mapping_test_count" -ne 1 ]; then
+      fail "$forgeflow_mapping_tests must map AC-$forgeflow_mapping_ac_number exactly once"
+    fi
   done
 }
 
@@ -71,6 +98,7 @@ for forgeflow_required_file in \
   protocol/story.md \
   protocol/verification.md \
   protocol/lifecycle.md \
+  protocol/handoff.md \
   protocol/repository-contract.md \
   protocol/versioning.md \
   skills/story-development/SKILL.md \
@@ -78,8 +106,10 @@ for forgeflow_required_file in \
   templates/story/story.md \
   templates/story/acceptance.md \
   templates/story/task.md \
+  templates/handoff.md \
   templates/ci/github-actions.yml \
   docs/concepts.md \
+  docs/contract-checks.md \
   docs/doctor.md \
   docs/getting-started.md \
   docs/releasing.md \
@@ -89,8 +119,13 @@ for forgeflow_required_file in \
   examples/go/Makefile \
   scripts/bootstrap \
   scripts/doctor \
+  scripts/story-check \
+  scripts/handoff-check \
   scripts/release-check \
+  specs/handoff.md \
   tests/doctor.sh \
+  tests/story-check.sh \
+  tests/handoff-check.sh \
   tests/release-check.sh
 do
   if [ ! -s "$forgeflow_repo/$forgeflow_required_file" ]; then
@@ -208,6 +243,8 @@ for forgeflow_story_directory in \
   specs/stories/FF-205-release-readiness \
   specs/stories/FF-206-typescript-executable-story-parity \
   specs/stories/FF-207-repository-doctor \
+  specs/stories/FF-208-security-fixture-matrix \
+  specs/stories/FF-209-handoff-contract \
   examples/typescript/specs/stories/TYP-001-order-total \
   examples/go/specs/stories/ORD-001-order-total
 do
@@ -232,26 +269,9 @@ done
 forgeflow_doctor_acceptance="$forgeflow_repo/specs/stories/FF-207-repository-doctor/acceptance.md"
 forgeflow_doctor_tests="$forgeflow_repo/tests/doctor.sh"
 
-for forgeflow_doctor_ac_number in \
+check_acceptance_mapping "$forgeflow_doctor_acceptance" \
+  "$forgeflow_doctor_tests" \
   001 002 003 004 005 006 007 008 009 010 011 012
-do
-  forgeflow_doctor_acceptance_count=$(
-    grep -Ec "AC-$forgeflow_doctor_ac_number:" \
-      "$forgeflow_doctor_acceptance"
-  )
-  forgeflow_doctor_test_count=$(
-    grep -Ec "^run_case 'AC-$forgeflow_doctor_ac_number'" \
-      "$forgeflow_doctor_tests"
-  )
-
-  if [ "$forgeflow_doctor_acceptance_count" -ne 1 ]; then
-    fail "Doctor acceptance must define AC-$forgeflow_doctor_ac_number exactly once"
-  fi
-
-  if [ "$forgeflow_doctor_test_count" -ne 1 ]; then
-    fail "Doctor tests must map AC-$forgeflow_doctor_ac_number exactly once"
-  fi
-done
 
 for forgeflow_doctor_artifact in scripts/doctor tests/doctor.sh
 do
@@ -430,6 +450,119 @@ if [ "$forgeflow_action_count" -eq 0 ] ||
   [ "$forgeflow_action_count" -ne "$forgeflow_pinned_action_count" ]; then
   fail 'repository workflow actions must use immutable commit SHAs'
 fi
+
+forgeflow_story_contract_acceptance="$forgeflow_repo/specs/stories/FF-208-security-fixture-matrix/acceptance.md"
+forgeflow_story_contract_tests="$forgeflow_repo/tests/story-check.sh"
+forgeflow_handoff_acceptance="$forgeflow_repo/specs/stories/FF-209-handoff-contract/acceptance.md"
+forgeflow_handoff_tests="$forgeflow_repo/tests/handoff-check.sh"
+
+check_acceptance_mapping \
+  "$forgeflow_story_contract_acceptance" "$forgeflow_story_contract_tests" \
+  001 002 003 004 005 006 007 008 009 010 011 012
+
+check_acceptance_mapping \
+  "$forgeflow_handoff_acceptance" "$forgeflow_handoff_tests" \
+  001 002 003 004 005 006 007 008 009 010
+
+for forgeflow_contract_artifact in \
+  scripts/story-check \
+  scripts/handoff-check \
+  tests/story-check.sh \
+  tests/handoff-check.sh
+do
+  if [ ! -x "$forgeflow_repo/$forgeflow_contract_artifact" ]; then
+    fail "contract check artifact is not executable: $forgeflow_contract_artifact"
+  fi
+done
+
+grep -Eq '^verify:.*verify-story' "$forgeflow_makefile" ||
+  fail 'root verify does not include the Story contract check'
+
+grep -Eq '^verify:.*verify-handoff' "$forgeflow_makefile" ||
+  fail 'root verify does not include the handoff contract check'
+
+grep -Fqx 'verify-story:' "$forgeflow_makefile" ||
+  fail 'root Makefile does not expose verify-story'
+
+grep -Fqx 'verify-handoff:' "$forgeflow_makefile" ||
+  fail 'root Makefile does not expose verify-handoff'
+
+grep -Fq '[Handoff](protocol/handoff.md)' "$forgeflow_repo/README.md" ||
+  fail 'README does not link to the Handoff Contract'
+
+grep -Fq '[Contract checks](docs/contract-checks.md)' \
+  "$forgeflow_repo/README.md" ||
+  fail 'README does not link to the contract check documentation'
+
+grep -Fq '[Handoff Contract](handoff.md)' \
+  "$forgeflow_repo/protocol/lifecycle.md" ||
+  fail 'lifecycle does not link to the Handoff Contract'
+
+for forgeflow_story_contract_term in \
+  '## Classification' \
+  'Security sensitive' \
+  'Baseline conformance' \
+  '## Trust Boundary Fields' \
+  '## Superseded Behavior' \
+  '| Source field | Payload | Expected result | Persisted locations | Verification |'
+do
+  grep -Fq -- "$forgeflow_story_contract_term" \
+    "$forgeflow_repo/templates/story/story.md" \
+    "$forgeflow_repo/templates/story/acceptance.md" ||
+    fail "Story templates are missing: $forgeflow_story_contract_term"
+done
+
+for forgeflow_story_document_term in \
+  '## Security Fixture Matrix' \
+  'preserve' \
+  'redact' \
+  'reject' \
+  'omit' \
+  'STORY_CONTRACT_OK' \
+  'STORY_CONTRACT_INCOMPLETE'
+do
+  grep -Fq -- "$forgeflow_story_document_term" \
+    "$forgeflow_repo/docs/contract-checks.md" ||
+    fail "contract check documentation is missing: $forgeflow_story_document_term"
+done
+
+for forgeflow_handoff_document_term in \
+  'current_story' \
+  'next_story' \
+  'completed_stories' \
+  'dirty_worktree' \
+  'story_owned_paths' \
+  'known_unrelated_paths' \
+  'last_command'
+do
+  grep -Fq -- "$forgeflow_handoff_document_term" \
+    "$forgeflow_repo/protocol/handoff.md" ||
+    fail "Handoff Contract is missing: $forgeflow_handoff_document_term"
+
+  grep -Fq -- "$forgeflow_handoff_document_term" \
+    "$forgeflow_repo/templates/handoff.md" ||
+    fail "handoff template is missing: $forgeflow_handoff_document_term"
+done
+
+for forgeflow_handoff_result_term in \
+  'HANDOFF_CONTRACT_OK' \
+  'HANDOFF_CONTRACT_INCOMPLETE'
+do
+  grep -Fq -- "$forgeflow_handoff_result_term" \
+    "$forgeflow_repo/protocol/handoff.md" ||
+    fail "Handoff Contract is missing: $forgeflow_handoff_result_term"
+
+  grep -Fq -- "$forgeflow_handoff_result_term" \
+    "$forgeflow_repo/docs/contract-checks.md" ||
+    fail "contract check documentation is missing: $forgeflow_handoff_result_term"
+done
+
+grep -Fq 'Story `## Classification` declaration is a **Breaking** change' \
+  "$forgeflow_repo/protocol/versioning.md" ||
+  fail 'versioning policy does not classify the Classification field'
+
+grep -Fq '**Additive** capabilities' "$forgeflow_repo/protocol/versioning.md" ||
+  fail 'versioning policy does not classify the contract checks as additive'
 
 grep -Fqx 'MIT License' "$forgeflow_repo/LICENSE" ||
   fail 'LICENSE does not declare the MIT License'

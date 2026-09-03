@@ -11,6 +11,11 @@ The Go order-total example already has a compact set of business behaviors and
 tests, but it does not show the complete path from approved Story to acceptance
 IDs to executable verification.
 
+## Classification
+
+* Security sensitive: no
+* Baseline conformance: no
+
 ## Scope
 
 ### In Scope

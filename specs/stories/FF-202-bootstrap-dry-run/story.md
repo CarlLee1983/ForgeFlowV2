@@ -11,6 +11,11 @@ Bootstrap currently either installs files or refuses the operation. Users need
 a safe preview that exercises the same static safety and conflict decisions as
 the real installer while preserving all target state.
 
+## Classification
+
+* Security sensitive: no
+* Baseline conformance: no
+
 ## Scope
 
 ### In Scope

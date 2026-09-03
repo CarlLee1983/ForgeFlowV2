@@ -1,0 +1,576 @@
+#!/bin/sh
+
+set -eu
+
+usage() {
+  printf 'Usage: %s [story-directory ...]\n' "$0" >&2
+  printf '       %s --help\n' "$0" >&2
+}
+
+usage_error() {
+  printf 'ERROR Invalid arguments\n' >&2
+  usage
+  printf '\nResult: ERROR\n'
+  printf 'Stories checked: 0\n'
+}
+
+help() {
+  printf 'ForgeFlow Story Contract Check\n\n'
+  printf 'Usage: %s [story-directory ...]\n' "$0"
+  printf '       %s --help\n\n' "$0"
+  printf 'Without arguments, every directory under specs/stories/ except\n'
+  printf '_template/ is checked relative to the current directory.\n\n'
+  printf 'The check is static and read-only. It never executes repository code\n'
+  printf 'and never replaces make verify or human review.\n'
+}
+
+forgeflow_trim() {
+  forgeflow_trimmed=$1
+
+  while :; do
+    case "$forgeflow_trimmed" in
+      *"$forgeflow_cr") forgeflow_trimmed=${forgeflow_trimmed%"$forgeflow_cr"} ;;
+      *"$forgeflow_tab") forgeflow_trimmed=${forgeflow_trimmed%"$forgeflow_tab"} ;;
+      *' ') forgeflow_trimmed=${forgeflow_trimmed% } ;;
+      *) break ;;
+    esac
+  done
+
+  while :; do
+    case "$forgeflow_trimmed" in
+      "$forgeflow_tab"*) forgeflow_trimmed=${forgeflow_trimmed#"$forgeflow_tab"} ;;
+      ' '*) forgeflow_trimmed=${forgeflow_trimmed# } ;;
+      *) break ;;
+    esac
+  done
+}
+
+# A quoted literal is the smallest machine-checkable evidence that a fixture
+# records an exact value instead of prose such as "no credentials". Empty or
+# blank backticks are not evidence.
+forgeflow_has_literal() {
+  forgeflow_literal_rest=$1
+
+  while :; do
+    case "$forgeflow_literal_rest" in
+      *'`'*'`'*)
+        forgeflow_literal_rest=${forgeflow_literal_rest#*'`'}
+        forgeflow_literal_span=${forgeflow_literal_rest%%'`'*}
+        forgeflow_literal_rest=${forgeflow_literal_rest#*'`'}
+
+        case "$forgeflow_literal_span" in
+          *[![:space:]]*) return 0 ;;
+        esac
+        ;;
+      *) break ;;
+    esac
+  done
+
+  return 1
+}
+
+# A placeholder is an unfilled template cell, not a payload that happens to
+# contain angle brackets: `<script>alert(1)</script>` is a real fixture value.
+forgeflow_is_placeholder() {
+  case "$1" in
+    ''|'*'|'-'|TBD|tbd|'N/A'|'n/a') return 0 ;;
+    '<'*'>') return 0 ;;
+  esac
+
+  return 1
+}
+
+forgeflow_report() {
+  printf '%s  %s: %s\n' "$1" "$forgeflow_story_label" "$2"
+}
+
+forgeflow_story_fail() {
+  forgeflow_report 'FAIL' "$1"
+  forgeflow_contract_incomplete=$((forgeflow_contract_incomplete + 1))
+}
+
+# Reads "* <label>: <value>" lines inside one Markdown section.
+forgeflow_read_declaration() {
+  forgeflow_declaration_file=$1
+  forgeflow_declaration_section=$2
+  forgeflow_declaration_label=$3
+  forgeflow_declaration_value=
+  forgeflow_declaration_count=0
+  forgeflow_declaration_in_section=0
+  forgeflow_declaration_fenced=0
+
+  while IFS= read -r forgeflow_declaration_line ||
+    [ -n "$forgeflow_declaration_line" ]; do
+    forgeflow_trim "$forgeflow_declaration_line"
+    forgeflow_declaration_line=$forgeflow_trimmed
+
+    case "$forgeflow_declaration_line" in
+      '```'*)
+        if [ "$forgeflow_declaration_fenced" -eq 0 ]; then
+          forgeflow_declaration_fenced=1
+        else
+          forgeflow_declaration_fenced=0
+        fi
+        continue
+        ;;
+    esac
+
+    [ "$forgeflow_declaration_fenced" -eq 0 ] || continue
+
+    case "$forgeflow_declaration_line" in
+      '#'*)
+        if [ "$forgeflow_declaration_line" = "$forgeflow_declaration_section" ]
+        then
+          forgeflow_declaration_in_section=1
+        else
+          forgeflow_declaration_in_section=0
+        fi
+        continue
+        ;;
+    esac
+
+    [ "$forgeflow_declaration_in_section" -eq 1 ] || continue
+
+    case "$forgeflow_declaration_line" in
+      '- '*)
+        forgeflow_declaration_line="* ${forgeflow_declaration_line#'- '}"
+        ;;
+    esac
+
+    case "$forgeflow_declaration_line" in
+      "* $forgeflow_declaration_label: "*)
+        forgeflow_declaration_count=$((forgeflow_declaration_count + 1))
+        forgeflow_declaration_value=${forgeflow_declaration_line#"* $forgeflow_declaration_label: "}
+        forgeflow_trim "$forgeflow_declaration_value"
+        forgeflow_declaration_value=$forgeflow_trimmed
+        ;;
+    esac
+  done <"$forgeflow_declaration_file"
+}
+
+# Counts "* ..." bullets carrying a quoted literal inside one section.
+forgeflow_count_literal_bullets() {
+  forgeflow_bullet_file=$1
+  forgeflow_bullet_section=$2
+  forgeflow_bullet_total=0
+  forgeflow_bullet_literal=0
+  forgeflow_bullet_section_found=0
+  forgeflow_bullet_in_section=0
+  forgeflow_bullet_fenced=0
+
+  while IFS= read -r forgeflow_bullet_line ||
+    [ -n "$forgeflow_bullet_line" ]; do
+    forgeflow_trim "$forgeflow_bullet_line"
+    forgeflow_bullet_line=$forgeflow_trimmed
+
+    case "$forgeflow_bullet_line" in
+      '```'*)
+        if [ "$forgeflow_bullet_fenced" -eq 0 ]; then
+          forgeflow_bullet_fenced=1
+        else
+          forgeflow_bullet_fenced=0
+        fi
+        continue
+        ;;
+    esac
+
+    [ "$forgeflow_bullet_fenced" -eq 0 ] || continue
+
+    case "$forgeflow_bullet_line" in
+      '#'*)
+        if [ "$forgeflow_bullet_line" = "$forgeflow_bullet_section" ]; then
+          forgeflow_bullet_section_found=1
+          forgeflow_bullet_in_section=1
+        else
+          forgeflow_bullet_in_section=0
+        fi
+        continue
+        ;;
+    esac
+
+    [ "$forgeflow_bullet_in_section" -eq 1 ] || continue
+
+    case "$forgeflow_bullet_line" in
+      '- '*) forgeflow_bullet_line="* ${forgeflow_bullet_line#'- '}" ;;
+    esac
+
+    case "$forgeflow_bullet_line" in
+      '* '*)
+        forgeflow_bullet_value=${forgeflow_bullet_line#'* '}
+        forgeflow_trim "$forgeflow_bullet_value"
+        forgeflow_bullet_value=$forgeflow_trimmed
+
+        forgeflow_is_placeholder "$forgeflow_bullet_value" && continue
+
+        forgeflow_bullet_total=$((forgeflow_bullet_total + 1))
+
+        if forgeflow_has_literal "$forgeflow_bullet_value"; then
+          forgeflow_bullet_literal=$((forgeflow_bullet_literal + 1))
+        fi
+        ;;
+    esac
+  done <"$forgeflow_bullet_file"
+}
+
+forgeflow_next_cell() {
+  case "$forgeflow_row" in
+    *'|'*)
+      forgeflow_cell=${forgeflow_row%%|*}
+      forgeflow_row=${forgeflow_row#*|}
+      ;;
+    *)
+      forgeflow_cell=$forgeflow_row
+      forgeflow_row=
+      ;;
+  esac
+
+  forgeflow_trim "$forgeflow_cell"
+  forgeflow_cell=$forgeflow_trimmed
+}
+
+forgeflow_count_pipes() {
+  forgeflow_pipe_rest=$1
+  forgeflow_pipe_count=0
+
+  while :; do
+    case "$forgeflow_pipe_rest" in
+      *'|'*)
+        forgeflow_pipe_rest=${forgeflow_pipe_rest#*|}
+        forgeflow_pipe_count=$((forgeflow_pipe_count + 1))
+        ;;
+      *) break ;;
+    esac
+  done
+}
+
+forgeflow_check_matrix_row() {
+  forgeflow_row=$1
+  forgeflow_row_number=$2
+
+  forgeflow_count_pipes "$forgeflow_row"
+
+  if [ "$forgeflow_pipe_count" -ne 6 ]; then
+    forgeflow_story_fail "security fixture row $forgeflow_row_number must declare five columns"
+    return
+  fi
+
+  forgeflow_row=${forgeflow_row#|}
+
+  forgeflow_next_cell
+  forgeflow_source_field=$forgeflow_cell
+  forgeflow_next_cell
+  forgeflow_payload=$forgeflow_cell
+  forgeflow_next_cell
+  forgeflow_expected=$forgeflow_cell
+  forgeflow_next_cell
+  forgeflow_locations=$forgeflow_cell
+  forgeflow_next_cell
+  forgeflow_verification=$forgeflow_cell
+
+  for forgeflow_required_literal_column in \
+    "source field=$forgeflow_source_field" \
+    "payload=$forgeflow_payload" \
+    "persisted locations=$forgeflow_locations" \
+    "verification=$forgeflow_verification"
+  do
+    forgeflow_column_name=${forgeflow_required_literal_column%%=*}
+    forgeflow_column_value=${forgeflow_required_literal_column#*=}
+
+    if forgeflow_is_placeholder "$forgeflow_column_value"; then
+      forgeflow_story_fail "security fixture row $forgeflow_row_number leaves $forgeflow_column_name unspecified"
+      continue
+    fi
+
+    if ! forgeflow_has_literal "$forgeflow_column_value"; then
+      forgeflow_story_fail "security fixture row $forgeflow_row_number states $forgeflow_column_name as prose instead of an exact value"
+    fi
+  done
+
+  case "$forgeflow_expected" in
+    preserve|redact|reject|omit) ;;
+    *)
+      forgeflow_story_fail "security fixture row $forgeflow_row_number expected result must be preserve, redact, reject, or omit"
+      ;;
+  esac
+}
+
+forgeflow_check_matrix() {
+  forgeflow_matrix_file=$1
+  forgeflow_matrix_found=0
+  forgeflow_matrix_header=0
+  forgeflow_matrix_separator=0
+  forgeflow_matrix_rows=0
+  forgeflow_matrix_in_section=0
+  forgeflow_matrix_row_number=0
+  forgeflow_matrix_fenced=0
+
+  while IFS= read -r forgeflow_matrix_line ||
+    [ -n "$forgeflow_matrix_line" ]; do
+    forgeflow_trim "$forgeflow_matrix_line"
+    forgeflow_matrix_line=$forgeflow_trimmed
+
+    case "$forgeflow_matrix_line" in
+      '```'*)
+        if [ "$forgeflow_matrix_fenced" -eq 0 ]; then
+          forgeflow_matrix_fenced=1
+        else
+          forgeflow_matrix_fenced=0
+        fi
+        continue
+        ;;
+    esac
+
+    [ "$forgeflow_matrix_fenced" -eq 0 ] || continue
+
+    case "$forgeflow_matrix_line" in
+      '#'*)
+        if [ "$forgeflow_matrix_line" = '## Security Fixture Matrix' ]; then
+          forgeflow_matrix_found=1
+          forgeflow_matrix_in_section=1
+        else
+          forgeflow_matrix_in_section=0
+        fi
+        continue
+        ;;
+    esac
+
+    [ "$forgeflow_matrix_in_section" -eq 1 ] || continue
+
+    case "$forgeflow_matrix_line" in
+      '|'*)
+        if [ "$forgeflow_matrix_header" -eq 0 ]; then
+          if [ "$forgeflow_matrix_line" = "$forgeflow_matrix_header_row" ]; then
+            forgeflow_matrix_header=1
+          else
+            forgeflow_story_fail 'security fixture matrix header must be exactly the documented five columns'
+            forgeflow_matrix_header=1
+          fi
+          continue
+        fi
+
+        if [ "$forgeflow_matrix_separator" -eq 0 ]; then
+          forgeflow_matrix_separator=1
+
+          printf '%s\n' "$forgeflow_matrix_line" |
+            grep -Eq '^\|( *:?-+:? *\|){5}$' ||
+            forgeflow_story_fail 'security fixture matrix header must be followed by a five-column separator row'
+
+          continue
+        fi
+
+        forgeflow_matrix_row_number=$((forgeflow_matrix_row_number + 1))
+        forgeflow_matrix_rows=$((forgeflow_matrix_rows + 1))
+        forgeflow_check_matrix_row \
+          "$forgeflow_matrix_line" "$forgeflow_matrix_row_number"
+        ;;
+    esac
+  done <"$forgeflow_matrix_file"
+}
+
+forgeflow_check_story() {
+  forgeflow_story_directory=$1
+  forgeflow_story_label=$forgeflow_story_directory
+
+  forgeflow_story_file="$forgeflow_story_directory/story.md"
+  forgeflow_acceptance_file="$forgeflow_story_directory/acceptance.md"
+
+  for forgeflow_required_story_file in \
+    "$forgeflow_story_file" "$forgeflow_acceptance_file"
+  do
+    if [ -L "$forgeflow_required_story_file" ]; then
+      printf 'ERROR %s: required Story file is a symlink: %s\n' \
+        "$forgeflow_story_label" "$forgeflow_required_story_file" >&2
+      forgeflow_operational_error=1
+      return
+    fi
+
+    if [ ! -f "$forgeflow_required_story_file" ] ||
+      [ ! -r "$forgeflow_required_story_file" ] ||
+      [ ! -s "$forgeflow_required_story_file" ]; then
+      printf 'ERROR %s: required Story file is missing or unreadable: %s\n' \
+        "$forgeflow_story_label" "$forgeflow_required_story_file" >&2
+      forgeflow_operational_error=1
+      return
+    fi
+  done
+
+  forgeflow_read_declaration \
+    "$forgeflow_story_file" '## Classification' 'Security sensitive'
+  forgeflow_security_count=$forgeflow_declaration_count
+  forgeflow_security=$forgeflow_declaration_value
+
+  forgeflow_read_declaration \
+    "$forgeflow_story_file" '## Classification' 'Baseline conformance'
+  forgeflow_baseline_count=$forgeflow_declaration_count
+  forgeflow_baseline=$forgeflow_declaration_value
+
+  forgeflow_classification_valid=1
+
+  if [ "$forgeflow_security_count" -ne 1 ]; then
+    forgeflow_story_fail 'Classification must declare "Security sensitive" exactly once'
+    forgeflow_classification_valid=0
+  else
+    case "$forgeflow_security" in
+      yes|no) ;;
+      *)
+        forgeflow_story_fail 'Security sensitive must be declared as yes or no'
+        forgeflow_classification_valid=0
+        ;;
+    esac
+  fi
+
+  if [ "$forgeflow_baseline_count" -ne 1 ]; then
+    forgeflow_story_fail 'Classification must declare "Baseline conformance" exactly once'
+    forgeflow_classification_valid=0
+  else
+    case "$forgeflow_baseline" in
+      yes|no) ;;
+      *)
+        forgeflow_story_fail 'Baseline conformance must be declared as yes or no'
+        forgeflow_classification_valid=0
+        ;;
+    esac
+  fi
+
+  if [ "$forgeflow_classification_valid" -eq 0 ]; then
+    return
+  fi
+
+  forgeflow_check_matrix "$forgeflow_acceptance_file"
+
+  forgeflow_count_literal_bullets \
+    "$forgeflow_story_file" '## Trust Boundary Fields'
+  forgeflow_trust_found=$forgeflow_bullet_section_found
+  forgeflow_trust_total=$forgeflow_bullet_total
+  forgeflow_trust_literal=$forgeflow_bullet_literal
+
+  forgeflow_count_literal_bullets \
+    "$forgeflow_story_file" '## Superseded Behavior'
+  forgeflow_superseded_found=$forgeflow_bullet_section_found
+  forgeflow_superseded_total=$forgeflow_bullet_total
+  forgeflow_superseded_literal=$forgeflow_bullet_literal
+
+  if [ "$forgeflow_security" = 'yes' ]; then
+    if [ "$forgeflow_matrix_found" -eq 0 ]; then
+      forgeflow_story_fail 'security-sensitive Story is missing acceptance section: ## Security Fixture Matrix'
+    elif [ "$forgeflow_matrix_rows" -eq 0 ]; then
+      forgeflow_story_fail 'security fixture matrix declares no fixture rows'
+    fi
+
+    if [ "$forgeflow_trust_found" -eq 0 ] ||
+      [ "$forgeflow_trust_total" -eq 0 ]; then
+      forgeflow_story_fail 'security-sensitive Story must enumerate its trust-boundary fields under ## Trust Boundary Fields'
+    elif [ "$forgeflow_trust_literal" -ne "$forgeflow_trust_total" ]; then
+      forgeflow_story_fail 'every trust-boundary field must name an exact field, not prose'
+    fi
+  elif [ "$forgeflow_matrix_found" -eq 1 ]; then
+    forgeflow_story_fail 'Story declares Security sensitive: no but provides a security fixture matrix'
+  fi
+
+  if [ "$forgeflow_baseline" = 'yes' ]; then
+    if [ "$forgeflow_superseded_found" -eq 0 ] ||
+      [ "$forgeflow_superseded_total" -eq 0 ]; then
+      forgeflow_story_fail 'baseline-conformance Story must list superseded tests or behavior under ## Superseded Behavior'
+    elif [ "$forgeflow_superseded_literal" -ne \
+      "$forgeflow_superseded_total" ]; then
+      forgeflow_story_fail 'every superseded entry must name an exact test path or behavior'
+    fi
+  elif [ "$forgeflow_superseded_found" -eq 1 ]; then
+    forgeflow_story_fail 'Story declares Baseline conformance: no but declares superseded behavior'
+  fi
+
+  if [ "$forgeflow_contract_incomplete" -eq "$forgeflow_entry_incomplete" ]; then
+    forgeflow_report 'PASS' \
+      "classification security=$forgeflow_security baseline=$forgeflow_baseline"
+  fi
+}
+
+forgeflow_cr=$(printf '\r')
+forgeflow_tab=$(printf '\t')
+forgeflow_matrix_header_row='| Source field | Payload | Expected result | Persisted locations | Verification |'
+
+case "${1-}" in
+  --help)
+    if [ "$#" -ne 1 ]; then
+      usage_error
+      exit 2
+    fi
+    help
+    exit 0
+    ;;
+  -*)
+    usage_error
+    exit 2
+    ;;
+esac
+
+forgeflow_contract_incomplete=0
+forgeflow_operational_error=0
+forgeflow_checked=0
+
+printf 'ForgeFlow Story Contract Check\n\n'
+
+if [ "$#" -eq 0 ]; then
+  if [ ! -d specs/stories ]; then
+    printf 'ERROR Story directory is missing: specs/stories/\n' >&2
+    printf '\nResult: ERROR\n'
+    printf 'Stories checked: 0\n'
+    exit 2
+  fi
+
+  for forgeflow_candidate in specs/stories/*
+  do
+    [ -d "$forgeflow_candidate" ] || continue
+
+    case "$forgeflow_candidate" in
+      */_template) continue ;;
+    esac
+
+    forgeflow_entry_incomplete=$forgeflow_contract_incomplete
+    forgeflow_checked=$((forgeflow_checked + 1))
+    forgeflow_check_story "$forgeflow_candidate"
+  done
+else
+  for forgeflow_candidate in "$@"
+  do
+    if [ ! -d "$forgeflow_candidate" ]; then
+      printf 'ERROR Story directory is missing: %s\n' \
+        "$forgeflow_candidate" >&2
+      forgeflow_operational_error=1
+      continue
+    fi
+
+    forgeflow_entry_incomplete=$forgeflow_contract_incomplete
+    forgeflow_checked=$((forgeflow_checked + 1))
+    forgeflow_check_story "$forgeflow_candidate"
+  done
+fi
+
+printf '\n'
+
+if [ "$forgeflow_operational_error" -eq 1 ]; then
+  printf 'Result: ERROR\n'
+  printf 'Stories checked: %s\n' "$forgeflow_checked"
+  exit 2
+fi
+
+if [ "$forgeflow_checked" -eq 0 ]; then
+  printf 'ERROR No Story directory was checked\n' >&2
+  printf 'Result: ERROR\n'
+  printf 'Stories checked: 0\n'
+  exit 2
+fi
+
+if [ "$forgeflow_contract_incomplete" -gt 0 ]; then
+  printf 'Result: STORY_CONTRACT_INCOMPLETE\n'
+  printf 'Stories checked: %s\n\n' "$forgeflow_checked"
+  printf 'Next:\n'
+  printf 'Record the missing classification, fixture matrix, or superseded\n'
+  printf 'behavior in the Story, then run this check again.\n'
+  exit 1
+fi
+
+printf 'Result: STORY_CONTRACT_OK\n'
+printf 'Stories checked: %s\n\n' "$forgeflow_checked"
+printf 'Next:\n'
+printf 'Static Story structure only. Run make verify and human review.\n'

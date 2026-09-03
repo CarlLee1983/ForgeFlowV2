@@ -34,7 +34,20 @@ The Story records:
 - **Rules** — numbered business invariants
 - **Expected Errors** — required failure behavior
 - **Dependencies** — systems or prior work the Story relies on
+- **Classification** — whether the Story is security sensitive and whether it
+  changes baseline behavior, each declared as `yes` or `no`
 - **Constraints** — non-negotiable technical, operational, or policy limits
+
+Two sections are conditional on the Classification:
+
+- **Trust Boundary Fields** — required when `Security sensitive: yes`. Name every
+  user-controlled or externally derived field the requirement covers, including
+  custom metadata, derived summaries, evidence labels, error details, and
+  external references.
+- **Superseded Behavior** — required when `Baseline conformance: yes`. Name each
+  existing test or documented behavior the Story intentionally replaces, so a
+  conflicting regression test is recognized as superseded rather than as a
+  defect.
 
 Use [the Story template](../templates/story/story.md) as the canonical field
 layout.
@@ -50,6 +63,46 @@ Story-specific setup or focused commands belong under Verification Notes, but
 they supplement rather than replace repository-level `make verify`.
 Use [the Acceptance template](../templates/story/acceptance.md).
 
+### Security fixture matrix
+
+A Story declaring `Security sensitive: yes` states its secrecy, redaction,
+authorization, or persistence requirements as an executable fixture matrix in
+`acceptance.md` rather than as prose such as "no credentials". Each row is one
+fixture:
+
+| Column | Purpose |
+| --- | --- |
+| Source field | The untrusted input or derived field |
+| Payload | The exact representative value |
+| Expected result | `preserve`, `redact`, `reject`, or `omit` |
+| Persisted locations | Every artifact field that must be checked |
+| Verification | The test path or command that proves the result |
+
+Every column except the expected result carries a non-blank exact value in
+backticks, so that an implementing agent finds the required cases in the Story
+instead of discovering them one review loop at a time. A quoted payload may
+contain markup; only a whole-cell placeholder such as `<value>`, `TBD`, or an
+empty quotation is rejected. A cell cannot contain an unescaped `|`, because the
+row is split on that character.
+
+## Checking the contract
+
+`scripts/story-check` statically reports a missing classification, a missing or
+prose-only fixture matrix, a missing trust-boundary enumeration, or a missing
+superseded-behavior declaration:
+
+```sh
+./scripts/story-check [story-directory ...]
+```
+
+A fenced example inside a Story is documentation: its contents are never read as
+headings, declarations, or fixture rows.
+
+It is read-only, exits `0` for `STORY_CONTRACT_OK`, `1` for
+`STORY_CONTRACT_INCOMPLETE`, and `2` for an operational error. It judges the
+declared structure only; it never decides whether a classification is truthful
+and never replaces `make verify` or human review.
+
 ## Sizing and readiness
 
 A Story is small enough when one coherent implementation can satisfy all of its
@@ -62,6 +115,7 @@ A Story can enter READY when:
 - the Goal and scope are approved by a human;
 - business rules and expected errors are explicit;
 - acceptance criteria cover the required behavior;
+- the Classification is declared and its required sections are present;
 - unresolved decisions do not materially change the implementation.
 
 ## Change control

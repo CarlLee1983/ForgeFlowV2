@@ -40,3 +40,9 @@ IMPLEMENTING → SPEC_BLOCKED → READY
 
 Verification failure alone is not a specification blocker. It remains part of
 the implementation repair loop.
+
+## Handing work over
+
+When work changes hands, the state is recorded in a handoff whose lifecycle
+block states the current Story, the next Story, the repository baseline, and the
+last verification result. See the [Handoff Contract](handoff.md).

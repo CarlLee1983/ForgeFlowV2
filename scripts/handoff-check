@@ -1,0 +1,548 @@
+#!/bin/sh
+
+set -eu
+
+usage() {
+  printf 'Usage: %s [handoff-file]\n' "$0" >&2
+  printf '       %s --help\n' "$0" >&2
+}
+
+usage_error() {
+  printf 'ERROR Invalid arguments\n' >&2
+  usage
+  printf '\nResult: ERROR\n' >&2
+}
+
+help() {
+  printf 'ForgeFlow Handoff Contract Check\n\n'
+  printf 'Usage: %s [handoff-file]\n' "$0"
+  printf '       %s --help\n\n' "$0"
+  printf 'The handoff file defaults to specs/handoff.md.\n\n'
+  printf 'The check is static and read-only. It validates the machine-readable\n'
+  printf 'lifecycle block only; it never runs verification or authorizes a merge.\n'
+}
+
+forgeflow_cr=$(printf '\r')
+forgeflow_tab=$(printf '\t')
+
+forgeflow_trim_right() {
+  forgeflow_trimmed=$1
+
+  while :; do
+    case "$forgeflow_trimmed" in
+      *"$forgeflow_cr") forgeflow_trimmed=${forgeflow_trimmed%"$forgeflow_cr"} ;;
+      *"$forgeflow_tab") forgeflow_trimmed=${forgeflow_trimmed%"$forgeflow_tab"} ;;
+      *' ') forgeflow_trimmed=${forgeflow_trimmed% } ;;
+      *) break ;;
+    esac
+  done
+}
+
+forgeflow_fail() {
+  printf 'FAIL  %s\n' "$1"
+  forgeflow_contract_incomplete=1
+}
+
+forgeflow_is_story_id() {
+  printf '%s\n' "$1" | grep -Eq '^[A-Z][A-Z0-9]*-[0-9]+$'
+}
+
+forgeflow_list_contains() {
+  forgeflow_list_haystack=$1
+  forgeflow_list_needle=$2
+  forgeflow_list_item=
+
+  while IFS= read -r forgeflow_list_item; do
+    [ -n "$forgeflow_list_item" ] || continue
+    if [ "$forgeflow_list_item" = "$forgeflow_list_needle" ]; then
+      return 0
+    fi
+  done <<FORGEFLOW_LIST
+$forgeflow_list_haystack
+FORGEFLOW_LIST
+
+  return 1
+}
+
+forgeflow_list_has_duplicate() {
+  printf '%s\n' "$1" | grep -v '^$' | sort | uniq -d | grep -q .
+}
+
+forgeflow_record_key() {
+  forgeflow_record_name=$1
+  forgeflow_record_value=$2
+
+  case "$forgeflow_record_name" in
+    workflow.current_story)
+      forgeflow_current_count=$((forgeflow_current_count + 1))
+      forgeflow_current_story=$forgeflow_record_value
+      ;;
+    workflow.next_story)
+      forgeflow_next_count=$((forgeflow_next_count + 1))
+      forgeflow_next_story=$forgeflow_record_value
+      ;;
+    workflow.status)
+      forgeflow_status_count=$((forgeflow_status_count + 1))
+      forgeflow_status=$forgeflow_record_value
+      ;;
+    workflow.completed_stories)
+      forgeflow_completed_count=$((forgeflow_completed_count + 1))
+      forgeflow_list_target=completed
+      [ "$forgeflow_record_value" != '[]' ] || forgeflow_list_target=
+      ;;
+    baseline.repository)
+      forgeflow_repository_count=$((forgeflow_repository_count + 1))
+      forgeflow_repository=$forgeflow_record_value
+      ;;
+    baseline.branch)
+      forgeflow_branch_count=$((forgeflow_branch_count + 1))
+      forgeflow_branch=$forgeflow_record_value
+      ;;
+    baseline.commit)
+      forgeflow_commit_count=$((forgeflow_commit_count + 1))
+      forgeflow_commit=$forgeflow_record_value
+      ;;
+    baseline.dirty_worktree)
+      forgeflow_dirty_count=$((forgeflow_dirty_count + 1))
+      forgeflow_dirty=$forgeflow_record_value
+      ;;
+    baseline.story_owned_paths)
+      forgeflow_owned_count=$((forgeflow_owned_count + 1))
+      forgeflow_list_target=owned
+      [ "$forgeflow_record_value" != '[]' ] || forgeflow_list_target=
+      ;;
+    baseline.known_unrelated_paths)
+      forgeflow_unrelated_count=$((forgeflow_unrelated_count + 1))
+      forgeflow_list_target=unrelated
+      [ "$forgeflow_record_value" != '[]' ] || forgeflow_list_target=
+      ;;
+    verification.last_command)
+      forgeflow_command_count=$((forgeflow_command_count + 1))
+      forgeflow_last_command=$forgeflow_record_value
+      ;;
+    verification.result)
+      forgeflow_result_count=$((forgeflow_result_count + 1))
+      forgeflow_result=$forgeflow_record_value
+      ;;
+    *)
+      forgeflow_fail "unknown lifecycle key: $forgeflow_record_name"
+      ;;
+  esac
+}
+
+forgeflow_record_item() {
+  case "$forgeflow_list_target" in
+    completed)
+      forgeflow_completed_stories="$forgeflow_completed_stories
+$1"
+      ;;
+    owned)
+      forgeflow_owned_paths="$forgeflow_owned_paths
+$1"
+      ;;
+    unrelated)
+      forgeflow_unrelated_paths="$forgeflow_unrelated_paths
+$1"
+      ;;
+    *)
+      forgeflow_fail "list item does not belong to a lifecycle list: $1"
+      ;;
+  esac
+}
+
+forgeflow_parse_block() {
+  forgeflow_parse_file=$1
+  forgeflow_block_count=0
+  forgeflow_in_block=0
+  forgeflow_section=
+
+  while IFS= read -r forgeflow_line || [ -n "$forgeflow_line" ]; do
+    forgeflow_trim_right "$forgeflow_line"
+    forgeflow_line=$forgeflow_trimmed
+
+    if [ "$forgeflow_in_block" -eq 0 ]; then
+      case "$forgeflow_line" in
+        '```yaml')
+          forgeflow_block_count=$((forgeflow_block_count + 1))
+          forgeflow_in_block=1
+          ;;
+      esac
+      continue
+    fi
+
+    case "$forgeflow_line" in
+      '```')
+        forgeflow_in_block=0
+        continue
+        ;;
+      '') continue ;;
+    esac
+
+    forgeflow_comment_candidate=$forgeflow_line
+
+    while [ "${forgeflow_comment_candidate# }" != \
+      "$forgeflow_comment_candidate" ]; do
+      forgeflow_comment_candidate=${forgeflow_comment_candidate# }
+    done
+
+    case "$forgeflow_comment_candidate" in
+      '#'*) continue ;;
+    esac
+
+    case "$forgeflow_line" in
+      '    - '*)
+        forgeflow_item=${forgeflow_line#'    - '}
+        forgeflow_record_item "$forgeflow_item"
+        continue
+        ;;
+      '  '*)
+        forgeflow_pair=${forgeflow_line#'  '}
+
+        case "$forgeflow_pair" in
+          ' '*|'-'*)
+            forgeflow_fail "unsupported lifecycle indentation: $forgeflow_line"
+            continue
+            ;;
+          *': '*)
+            forgeflow_key=${forgeflow_pair%%': '*}
+            forgeflow_value=${forgeflow_pair#*': '}
+            ;;
+          *':')
+            forgeflow_key=${forgeflow_pair%:}
+            forgeflow_value=
+            ;;
+          *)
+            forgeflow_fail "unsupported lifecycle line: $forgeflow_line"
+            continue
+            ;;
+        esac
+
+        if [ -z "$forgeflow_section" ]; then
+          forgeflow_fail "lifecycle key declared outside a section: $forgeflow_key"
+          continue
+        fi
+
+        forgeflow_list_target=
+        forgeflow_record_key \
+          "$forgeflow_section.$forgeflow_key" "$forgeflow_value"
+        continue
+        ;;
+      *':')
+        forgeflow_section=${forgeflow_line%:}
+        forgeflow_list_target=
+
+        case "$forgeflow_section" in
+          workflow)
+            forgeflow_workflow_section=$((forgeflow_workflow_section + 1))
+            ;;
+          baseline)
+            forgeflow_baseline_section=$((forgeflow_baseline_section + 1))
+            ;;
+          verification)
+            forgeflow_verification_section=$((forgeflow_verification_section + 1))
+            ;;
+          *) forgeflow_fail "unknown lifecycle section: $forgeflow_section" ;;
+        esac
+        continue
+        ;;
+      *)
+        forgeflow_fail "unsupported lifecycle line: $forgeflow_line"
+        ;;
+    esac
+  done <"$forgeflow_parse_file"
+}
+
+forgeflow_require_single() {
+  forgeflow_single_count=$1
+  forgeflow_single_label=$2
+
+  if [ "$forgeflow_single_count" -eq 0 ]; then
+    forgeflow_fail "handoff is missing: $forgeflow_single_label"
+    return 1
+  fi
+
+  if [ "$forgeflow_single_count" -gt 1 ]; then
+    forgeflow_fail "handoff declares $forgeflow_single_label more than once"
+    return 1
+  fi
+
+  return 0
+}
+
+case "${1-}" in
+  --help)
+    if [ "$#" -ne 1 ]; then
+      usage_error
+      exit 2
+    fi
+    help
+    exit 0
+    ;;
+  -*)
+    usage_error
+    exit 2
+    ;;
+esac
+
+if [ "$#" -gt 1 ]; then
+  usage_error
+  exit 2
+fi
+
+forgeflow_handoff=${1-specs/handoff.md}
+
+printf 'ForgeFlow Handoff Contract Check\n\n'
+
+if [ -L "$forgeflow_handoff" ]; then
+  printf 'ERROR Handoff path is a symlink: %s\n' "$forgeflow_handoff" >&2
+  printf '\nResult: ERROR\n'
+  exit 2
+fi
+
+if [ ! -f "$forgeflow_handoff" ] || [ ! -r "$forgeflow_handoff" ] ||
+  [ ! -s "$forgeflow_handoff" ]; then
+  printf 'ERROR Handoff is missing, unreadable, or empty: %s\n' \
+    "$forgeflow_handoff" >&2
+  printf '\nResult: ERROR\n'
+  exit 2
+fi
+
+forgeflow_contract_incomplete=0
+forgeflow_workflow_section=0
+forgeflow_baseline_section=0
+forgeflow_verification_section=0
+forgeflow_current_count=0
+forgeflow_next_count=0
+forgeflow_status_count=0
+forgeflow_completed_count=0
+forgeflow_repository_count=0
+forgeflow_branch_count=0
+forgeflow_commit_count=0
+forgeflow_dirty_count=0
+forgeflow_owned_count=0
+forgeflow_unrelated_count=0
+forgeflow_command_count=0
+forgeflow_result_count=0
+forgeflow_current_story=
+forgeflow_next_story=
+forgeflow_status=
+forgeflow_repository=
+forgeflow_branch=
+forgeflow_commit=
+forgeflow_dirty=
+forgeflow_last_command=
+forgeflow_result=
+forgeflow_completed_stories=
+forgeflow_owned_paths=
+forgeflow_unrelated_paths=
+forgeflow_list_target=
+
+forgeflow_parse_block "$forgeflow_handoff"
+
+if [ "$forgeflow_block_count" -eq 1 ] && [ "$forgeflow_in_block" -eq 1 ]; then
+  printf 'FAIL  lifecycle block is not closed\n'
+  printf '\nResult: HANDOFF_CONTRACT_INCOMPLETE\n\n'
+  printf 'Next:\n'
+  printf 'Close the fenced yaml lifecycle block in %s.\n' "$forgeflow_handoff"
+  exit 1
+fi
+
+if [ "$forgeflow_block_count" -ne 1 ]; then
+  printf 'FAIL  handoff must contain exactly one machine-readable lifecycle block\n'
+  printf '\nResult: HANDOFF_CONTRACT_INCOMPLETE\n\n'
+  printf 'Next:\n'
+  printf 'Add exactly one fenced yaml lifecycle block to %s.\n' \
+    "$forgeflow_handoff"
+  exit 1
+fi
+
+for forgeflow_section_requirement in \
+  "workflow=$forgeflow_workflow_section" \
+  "baseline=$forgeflow_baseline_section" \
+  "verification=$forgeflow_verification_section"
+do
+  forgeflow_section_name=${forgeflow_section_requirement%%=*}
+  forgeflow_section_seen=${forgeflow_section_requirement#*=}
+
+  if [ "$forgeflow_section_seen" -ne 1 ]; then
+    forgeflow_fail "lifecycle block must declare the $forgeflow_section_name section exactly once"
+  fi
+done
+
+if forgeflow_require_single "$forgeflow_current_count" 'workflow.current_story'
+then
+  if [ "$forgeflow_current_story" != 'none' ] &&
+    ! forgeflow_is_story_id "$forgeflow_current_story"; then
+    forgeflow_fail 'workflow.current_story must be one Story ID or none'
+  fi
+fi
+
+if forgeflow_require_single "$forgeflow_next_count" 'workflow.next_story'; then
+  if [ "$forgeflow_next_story" != 'pending' ] &&
+    ! forgeflow_is_story_id "$forgeflow_next_story"; then
+    forgeflow_fail 'workflow.next_story must be one Story ID or pending'
+  fi
+fi
+
+if forgeflow_require_single "$forgeflow_status_count" 'workflow.status'; then
+  case "$forgeflow_status" in
+    draft|ready_for_implementation|implementing|verifying|review|done|spec_blocked) ;;
+    *) forgeflow_fail "workflow.status is not a lifecycle state: $forgeflow_status" ;;
+  esac
+fi
+
+forgeflow_require_single \
+  "$forgeflow_completed_count" 'workflow.completed_stories' || :
+
+forgeflow_completed_total=0
+
+while IFS= read -r forgeflow_completed_entry; do
+  [ -n "$forgeflow_completed_entry" ] || continue
+  forgeflow_completed_total=$((forgeflow_completed_total + 1))
+
+  forgeflow_is_story_id "$forgeflow_completed_entry" ||
+    forgeflow_fail "completed Story is not a Story ID: $forgeflow_completed_entry"
+done <<FORGEFLOW_COMPLETED
+$forgeflow_completed_stories
+FORGEFLOW_COMPLETED
+
+if forgeflow_list_has_duplicate "$forgeflow_completed_stories"; then
+  forgeflow_fail 'completed Story IDs must be unique'
+fi
+
+if forgeflow_require_single \
+  "$forgeflow_repository_count" 'baseline.repository'; then
+  [ -n "$forgeflow_repository" ] ||
+    forgeflow_fail 'baseline.repository must name the target repository'
+fi
+
+if forgeflow_require_single "$forgeflow_branch_count" 'baseline.branch'; then
+  [ -n "$forgeflow_branch" ] ||
+    forgeflow_fail 'baseline.branch must name the baseline branch'
+fi
+
+if forgeflow_require_single "$forgeflow_commit_count" 'baseline.commit'; then
+  printf '%s\n' "$forgeflow_commit" | grep -Eq '^[0-9a-f]{40}$' ||
+    forgeflow_fail 'baseline.commit must be a full 40-character commit SHA'
+fi
+
+if forgeflow_require_single \
+  "$forgeflow_dirty_count" 'baseline.dirty_worktree'; then
+  case "$forgeflow_dirty" in
+    true|false) ;;
+    *) forgeflow_fail 'baseline.dirty_worktree must be true or false' ;;
+  esac
+fi
+
+if [ "$forgeflow_owned_count" -gt 1 ]; then
+  forgeflow_fail 'handoff declares baseline.story_owned_paths more than once'
+fi
+
+if [ "$forgeflow_unrelated_count" -gt 1 ]; then
+  forgeflow_fail 'handoff declares baseline.known_unrelated_paths more than once'
+fi
+
+forgeflow_owned_total=0
+
+while IFS= read -r forgeflow_owned_count_entry; do
+  [ -n "$forgeflow_owned_count_entry" ] || continue
+  forgeflow_owned_total=$((forgeflow_owned_total + 1))
+done <<FORGEFLOW_OWNED_TOTAL
+$forgeflow_owned_paths
+FORGEFLOW_OWNED_TOTAL
+
+if [ "$forgeflow_dirty" = 'true' ]; then
+  if [ "$forgeflow_owned_count" -ne 1 ]; then
+    forgeflow_fail 'a dirty worktree must declare baseline.story_owned_paths'
+  elif [ "$forgeflow_owned_total" -eq 0 ]; then
+    forgeflow_fail 'a dirty worktree must attribute at least one path to the Story'
+  fi
+
+  [ "$forgeflow_unrelated_count" -eq 1 ] ||
+    forgeflow_fail 'a dirty worktree must declare baseline.known_unrelated_paths'
+fi
+
+while IFS= read -r forgeflow_owned_entry; do
+  [ -n "$forgeflow_owned_entry" ] || continue
+
+  if forgeflow_list_contains "$forgeflow_unrelated_paths" \
+    "$forgeflow_owned_entry"; then
+    forgeflow_fail "path is both Story-owned and unrelated: $forgeflow_owned_entry"
+  fi
+done <<FORGEFLOW_OWNED
+$forgeflow_owned_paths
+FORGEFLOW_OWNED
+
+if forgeflow_require_single \
+  "$forgeflow_command_count" 'verification.last_command'; then
+  [ -n "$forgeflow_last_command" ] ||
+    forgeflow_fail 'verification.last_command must record the authoritative command'
+fi
+
+if forgeflow_require_single "$forgeflow_result_count" 'verification.result'
+then
+  case "$forgeflow_result" in
+    pass|fail|not_run) ;;
+    *) forgeflow_fail 'verification.result must be pass, fail, or not_run' ;;
+  esac
+fi
+
+if [ -n "$forgeflow_current_story" ] && [ -n "$forgeflow_next_story" ] &&
+  [ "$forgeflow_current_story" = "$forgeflow_next_story" ] &&
+  [ "$forgeflow_current_story" != 'none' ]; then
+  forgeflow_fail 'the same Story cannot be both current and next'
+fi
+
+for forgeflow_lifecycle_claim in \
+  "current=$forgeflow_current_story" \
+  "next=$forgeflow_next_story"
+do
+  forgeflow_claim_name=${forgeflow_lifecycle_claim%%=*}
+  forgeflow_claim_story=${forgeflow_lifecycle_claim#*=}
+
+  case "$forgeflow_claim_story" in
+    ''|none|pending) continue ;;
+  esac
+
+  if forgeflow_list_contains "$forgeflow_completed_stories" \
+    "$forgeflow_claim_story"; then
+    forgeflow_fail "$forgeflow_claim_name Story is also recorded as completed: $forgeflow_claim_story"
+  fi
+done
+
+case "$forgeflow_status" in
+  ready_for_implementation|implementing|verifying|review)
+    if [ "$forgeflow_current_story" = 'none' ]; then
+      forgeflow_fail "status $forgeflow_status requires an explicit current Story"
+    fi
+    ;;
+esac
+
+case "$forgeflow_status" in
+  review|done)
+    if [ "$forgeflow_result" = 'fail' ] ||
+      [ "$forgeflow_result" = 'not_run' ]; then
+      forgeflow_fail "status $forgeflow_status contradicts verification result $forgeflow_result"
+    fi
+    ;;
+esac
+
+if [ "$forgeflow_contract_incomplete" -eq 1 ]; then
+  printf '\nResult: HANDOFF_CONTRACT_INCOMPLETE\n\n'
+  printf 'Next:\n'
+  printf 'Resolve the reported lifecycle statements in %s, then run this\n' \
+    "$forgeflow_handoff"
+  printf 'check again.\n'
+  exit 1
+fi
+
+printf 'PASS  current Story: %s\n' "$forgeflow_current_story"
+printf 'PASS  next Story: %s\n' "$forgeflow_next_story"
+printf 'PASS  completed Stories: %s\n' "$forgeflow_completed_total"
+printf 'PASS  baseline: %s %s %s\n' \
+  "$forgeflow_repository" "$forgeflow_branch" "$forgeflow_commit"
+printf 'PASS  verification: %s %s\n' \
+  "$forgeflow_last_command" "$forgeflow_result"
+printf '\nResult: HANDOFF_CONTRACT_OK\n\n'
+printf 'Next:\n'
+printf 'Lifecycle statements only. Run make verify and human review.\n'

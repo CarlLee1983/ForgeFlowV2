@@ -13,6 +13,11 @@ templates, and bootstrap behavior form an adopter-facing contract, but the
 repository does not yet define which changes are compatible or where tooling
 should read the current version.
 
+## Classification
+
+* Security sensitive: no
+* Baseline conformance: no
+
 ## Scope
 
 ### In Scope
