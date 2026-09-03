@@ -2,9 +2,19 @@
 
 set -eu
 
+forgeflow_case_id='FF-202'
+
 fail() {
-  printf 'bootstrap test failed: %s\n' "$1" >&2
+  printf 'bootstrap test failed [%s]: %s\n' "$forgeflow_case_id" "$1" >&2
   exit 1
+}
+
+run_case() {
+  forgeflow_case_id=$1
+  forgeflow_case_function=$2
+
+  "$forgeflow_case_function"
+  printf 'PASS %s %s\n' "$forgeflow_case_id" "$forgeflow_case_function"
 }
 
 expect_exit_status() {
@@ -265,5 +275,626 @@ expect_exit_status 2 "$forgeflow_repo/scripts/bootstrap" --force --force "$forge
 expect_exit_status 2 "$forgeflow_repo/scripts/bootstrap" "$forgeflow_fresh" --dry-run
 expect_exit_status 2 "$forgeflow_repo/scripts/bootstrap" "$forgeflow_fresh" "$forgeflow_conflict"
 expect_exit_status 2 "$forgeflow_repo/scripts/bootstrap" --dry-run "$forgeflow_test_dir/missing"
+
+forgeflow_marker_relative='specs/.forgeflow-adoption'
+
+marker_field() {
+  sed -n "s/^$2=//p" "$1"
+}
+
+fresh_bootstrap_records_the_adoption_snapshot() {
+  forgeflow_case_target="$forgeflow_test_dir/marker-fresh"
+  mkdir -p "$forgeflow_case_target"
+  "$forgeflow_repo/scripts/bootstrap" "$forgeflow_case_target" >/dev/null
+
+  forgeflow_case_marker="$forgeflow_case_target/$forgeflow_marker_relative"
+
+  [ -f "$forgeflow_case_marker" ] ||
+    fail 'fresh bootstrap did not install the adoption marker'
+
+  forgeflow_case_line_count=$(wc -l <"$forgeflow_case_marker" | tr -d ' ')
+  if [ "$forgeflow_case_line_count" -ne 2 ]; then
+    fail "the marker must hold exactly two lines, got $forgeflow_case_line_count"
+  fi
+
+  forgeflow_case_expected_version=$(cat "$forgeflow_repo/VERSION")
+  if [ "$(marker_field "$forgeflow_case_marker" version)" != \
+    "$forgeflow_case_expected_version" ]; then
+    fail "the marker version is not $forgeflow_case_expected_version"
+  fi
+
+  forgeflow_case_expected_revision=$(git -C "$forgeflow_repo" rev-parse HEAD)
+  forgeflow_case_revision=$(marker_field "$forgeflow_case_marker" revision)
+  case "$forgeflow_case_revision" in
+    "$forgeflow_case_expected_revision"|"$forgeflow_case_expected_revision-dirty") ;;
+    *) fail "the marker revision is not this checkout's HEAD: $forgeflow_case_revision" ;;
+  esac
+
+  if [ -e "$forgeflow_case_target/specs/stories/README.md" ]; then
+    fail 'bootstrap installed a Story README it does not manage'
+  fi
+}
+
+run_case 'AC-001' fresh_bootstrap_records_the_adoption_snapshot
+
+existing_marker_is_managed_and_story_readme_is_not() {
+  forgeflow_case_target="$forgeflow_test_dir/marker-conflict"
+  forgeflow_case_marker="$forgeflow_case_target/$forgeflow_marker_relative"
+
+  mkdir -p "$(dirname "$forgeflow_case_marker")"
+  printf 'version=0.0.1\nrevision=unknown\n' >"$forgeflow_case_marker"
+
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" "$forgeflow_case_target"
+
+  if [ "$(marker_field "$forgeflow_case_marker" version)" != '0.0.1' ]; then
+    fail 'a refused install replaced the existing marker'
+  fi
+
+  forgeflow_case_file_count=$(find "$forgeflow_case_target" -type f | wc -l | tr -d ' ')
+  if [ "$forgeflow_case_file_count" -ne 1 ]; then
+    fail 'a marker conflict allowed partial writes'
+  fi
+
+  "$forgeflow_repo/scripts/bootstrap" --force "$forgeflow_case_target" >/dev/null
+
+  if [ "$(marker_field "$forgeflow_case_marker" version)" != \
+    "$(cat "$forgeflow_repo/VERSION")" ]; then
+    fail '--force did not replace the existing marker'
+  fi
+
+  forgeflow_case_readme_target="$forgeflow_test_dir/marker-readme"
+  forgeflow_case_readme="$forgeflow_case_readme_target/specs/stories/README.md"
+
+  mkdir -p "$(dirname "$forgeflow_case_readme")"
+  printf 'adopter prose\n' >"$forgeflow_case_readme"
+
+  "$forgeflow_repo/scripts/bootstrap" "$forgeflow_case_readme_target" >/dev/null
+
+  if [ "$(cat "$forgeflow_case_readme")" != 'adopter prose' ]; then
+    fail 'bootstrap wrote to a Story README it does not manage'
+  fi
+}
+
+run_case 'AC-007' existing_marker_is_managed_and_story_readme_is_not
+
+make_forgeflow_checkout() {
+  forgeflow_case_checkout=$1
+
+  mkdir -p "$forgeflow_case_checkout/scripts" \
+    "$forgeflow_case_checkout/templates/story"
+  cp "$forgeflow_repo/scripts/bootstrap" "$forgeflow_case_checkout/scripts/"
+  cp "$forgeflow_repo/VERSION" "$forgeflow_case_checkout/"
+  cp "$forgeflow_repo/templates/AGENTS.md" "$forgeflow_case_checkout/templates/"
+  cp "$forgeflow_repo/templates/story/story.md" \
+    "$forgeflow_repo/templates/story/acceptance.md" \
+    "$forgeflow_repo/templates/story/task.md" \
+    "$forgeflow_case_checkout/templates/story/"
+}
+
+revision_states_what_the_snapshot_can_prove() {
+  forgeflow_case_checkout="$forgeflow_test_dir/checkout-plain"
+  forgeflow_case_target="$forgeflow_test_dir/revision-plain"
+
+  make_forgeflow_checkout "$forgeflow_case_checkout"
+  mkdir -p "$forgeflow_case_target"
+  "$forgeflow_case_checkout/scripts/bootstrap" "$forgeflow_case_target" >/dev/null
+
+  if [ "$(marker_field "$forgeflow_case_target/$forgeflow_marker_relative" revision)" != \
+    'unknown' ]; then
+    fail 'a checkout outside a Git work tree did not record an unknown revision'
+  fi
+
+  forgeflow_case_checkout="$forgeflow_test_dir/checkout-git"
+  forgeflow_case_target="$forgeflow_test_dir/revision-git"
+
+  make_forgeflow_checkout "$forgeflow_case_checkout"
+  git -C "$forgeflow_case_checkout" init -q
+  git -C "$forgeflow_case_checkout" -c user.email=test@example.com \
+    -c user.name=test -c commit.gpgsign=false add -A
+  git -C "$forgeflow_case_checkout" -c user.email=test@example.com \
+    -c user.name=test -c commit.gpgsign=false commit -q -m 'snapshot'
+  forgeflow_case_head=$(git -C "$forgeflow_case_checkout" rev-parse HEAD)
+
+  mkdir -p "$forgeflow_case_target"
+  "$forgeflow_case_checkout/scripts/bootstrap" "$forgeflow_case_target" >/dev/null
+
+  if [ "$(marker_field "$forgeflow_case_target/$forgeflow_marker_relative" revision)" != \
+    "$forgeflow_case_head" ]; then
+    fail 'a clean Git work tree did not record its HEAD revision'
+  fi
+
+  printf 'local edit\n' >>"$forgeflow_case_checkout/templates/AGENTS.md"
+  forgeflow_case_target="$forgeflow_test_dir/revision-dirty"
+  mkdir -p "$forgeflow_case_target"
+  "$forgeflow_case_checkout/scripts/bootstrap" "$forgeflow_case_target" >/dev/null
+
+  if [ "$(marker_field "$forgeflow_case_target/$forgeflow_marker_relative" revision)" != \
+    "$forgeflow_case_head-dirty" ]; then
+    fail 'a dirty Git work tree claimed a bare HEAD revision'
+  fi
+
+  # An inherited Git environment must not redirect the lookup at another
+  # repository, whose HEAD would look like exact evidence about this snapshot.
+  forgeflow_case_target="$forgeflow_test_dir/revision-foreign-env"
+  mkdir -p "$forgeflow_case_target"
+  GIT_DIR="$forgeflow_repo/.git" \
+    "$forgeflow_test_dir/checkout-plain/scripts/bootstrap" \
+    "$forgeflow_case_target" >/dev/null
+
+  if [ "$(marker_field "$forgeflow_case_target/$forgeflow_marker_relative" revision)" != \
+    'unknown' ]; then
+    fail 'an inherited GIT_DIR was recorded as this snapshot revision'
+  fi
+
+  # A non-Git ForgeFlow copy vendored inside an unrelated Git repository must
+  # not adopt the enclosing repository's HEAD either.
+  forgeflow_case_enclosing="$forgeflow_test_dir/enclosing-repo"
+  mkdir -p "$forgeflow_case_enclosing"
+  git -C "$forgeflow_case_enclosing" init -q
+  printf 'unrelated\n' >"$forgeflow_case_enclosing/README.md"
+  git -C "$forgeflow_case_enclosing" -c user.email=test@example.com \
+    -c user.name=test -c commit.gpgsign=false add -A
+  git -C "$forgeflow_case_enclosing" -c user.email=test@example.com \
+    -c user.name=test -c commit.gpgsign=false commit -q -m 'unrelated'
+
+  make_forgeflow_checkout "$forgeflow_case_enclosing/vendor/forgeflow"
+  forgeflow_case_target="$forgeflow_test_dir/revision-vendored"
+  mkdir -p "$forgeflow_case_target"
+  "$forgeflow_case_enclosing/vendor/forgeflow/scripts/bootstrap" \
+    "$forgeflow_case_target" >/dev/null
+
+  if [ "$(marker_field "$forgeflow_case_target/$forgeflow_marker_relative" revision)" != \
+    'unknown' ]; then
+    fail 'an enclosing repository HEAD was recorded as this snapshot revision'
+  fi
+
+  # A work tree whose state cannot be read is not evidence of a clean tree.
+  forgeflow_case_checkout="$forgeflow_test_dir/checkout-unreadable"
+  make_forgeflow_checkout "$forgeflow_case_checkout"
+  git -C "$forgeflow_case_checkout" init -q
+  git -C "$forgeflow_case_checkout" -c user.email=test@example.com \
+    -c user.name=test -c commit.gpgsign=false add -A
+  git -C "$forgeflow_case_checkout" -c user.email=test@example.com \
+    -c user.name=test -c commit.gpgsign=false commit -q -m 'snapshot'
+  printf 'uncommitted\n' >>"$forgeflow_case_checkout/templates/AGENTS.md"
+  printf 'corrupt index\n' >"$forgeflow_case_checkout/.git/index"
+
+  forgeflow_case_target="$forgeflow_test_dir/revision-unreadable"
+  mkdir -p "$forgeflow_case_target"
+  "$forgeflow_case_checkout/scripts/bootstrap" "$forgeflow_case_target" >/dev/null
+
+  if [ "$(marker_field "$forgeflow_case_target/$forgeflow_marker_relative" revision)" != \
+    'unknown' ]; then
+    fail 'an unreadable work tree was recorded as clean'
+  fi
+}
+
+run_case 'AC-004' revision_states_what_the_snapshot_can_prove
+
+make_prior_adoption() {
+  forgeflow_case_adoption=$1
+
+  mkdir -p "$forgeflow_case_adoption/specs/stories/_template"
+  printf 'customized adopter guide\n' >"$forgeflow_case_adoption/AGENTS.md"
+
+  for forgeflow_case_template in story acceptance task
+  do
+    printf 'old template\n' \
+      >"$forgeflow_case_adoption/specs/stories/_template/$forgeflow_case_template.md"
+  done
+}
+
+upgrade_replaces_templates_and_preserves_the_adopter_guide() {
+  forgeflow_case_target="$forgeflow_test_dir/upgrade-basic"
+
+  make_prior_adoption "$forgeflow_case_target"
+
+  "$forgeflow_repo/scripts/bootstrap" --upgrade "$forgeflow_case_target" >/dev/null
+
+  for forgeflow_case_template in story acceptance task
+  do
+    cmp "$forgeflow_repo/templates/story/$forgeflow_case_template.md" \
+      "$forgeflow_case_target/specs/stories/_template/$forgeflow_case_template.md" \
+      >/dev/null ||
+      fail "--upgrade did not replace $forgeflow_case_template.md"
+  done
+
+  if [ "$(cat "$forgeflow_case_target/AGENTS.md")" != \
+    'customized adopter guide' ]; then
+    fail '--upgrade wrote AGENTS.md'
+  fi
+
+  if [ "$(marker_field "$forgeflow_case_target/$forgeflow_marker_relative" version)" != \
+    "$(cat "$forgeflow_repo/VERSION")" ]; then
+    fail '--upgrade did not create the adoption marker'
+  fi
+
+  printf 'version=0.2.1\nrevision=unknown\n' \
+    >"$forgeflow_case_target/$forgeflow_marker_relative"
+  "$forgeflow_repo/scripts/bootstrap" --upgrade "$forgeflow_case_target" \
+    >/dev/null 2>&1
+
+  if [ "$(marker_field "$forgeflow_case_target/$forgeflow_marker_relative" version)" != \
+    "$(cat "$forgeflow_repo/VERSION")" ]; then
+    fail '--upgrade did not replace a stale adoption marker'
+  fi
+
+  # AGENTS.md left the managed surface, so an upgrade must succeed whatever
+  # state it is in, and must not reach it through a link.
+  forgeflow_case_target="$forgeflow_test_dir/upgrade-absent-guide"
+  make_prior_adoption "$forgeflow_case_target"
+  rm "$forgeflow_case_target/AGENTS.md"
+  "$forgeflow_repo/scripts/bootstrap" --upgrade "$forgeflow_case_target" \
+    >/dev/null 2>&1 ||
+    fail '--upgrade refused a repository with no AGENTS.md'
+
+  if [ -e "$forgeflow_case_target/AGENTS.md" ]; then
+    fail '--upgrade installed AGENTS.md'
+  fi
+
+  forgeflow_case_target="$forgeflow_test_dir/upgrade-linked-guide"
+  forgeflow_case_outside="$forgeflow_test_dir/upgrade-outside-guide"
+  make_prior_adoption "$forgeflow_case_target"
+  printf 'outside guide\n' >"$forgeflow_case_outside"
+  rm "$forgeflow_case_target/AGENTS.md"
+  ln -s "$forgeflow_case_outside" "$forgeflow_case_target/AGENTS.md"
+
+  "$forgeflow_repo/scripts/bootstrap" --upgrade "$forgeflow_case_target" \
+    >/dev/null 2>&1 ||
+    fail '--upgrade refused a repository whose AGENTS.md is a symlink'
+
+  if [ "$(cat "$forgeflow_case_outside")" != 'outside guide' ]; then
+    fail '--upgrade wrote through an AGENTS.md symlink'
+  fi
+
+  forgeflow_case_target="$forgeflow_test_dir/upgrade-directory-guide"
+  make_prior_adoption "$forgeflow_case_target"
+  rm "$forgeflow_case_target/AGENTS.md"
+  mkdir "$forgeflow_case_target/AGENTS.md"
+
+  "$forgeflow_repo/scripts/bootstrap" --upgrade "$forgeflow_case_target" \
+    >/dev/null 2>&1 ||
+    fail '--upgrade refused a repository whose AGENTS.md is a directory'
+}
+
+run_case 'AC-002' upgrade_replaces_templates_and_preserves_the_adopter_guide
+
+upgrade_reports_the_adopter_guide_status() {
+  forgeflow_case_version=$(cat "$forgeflow_repo/VERSION")
+
+  forgeflow_case_target="$forgeflow_test_dir/upgrade-stale"
+  make_prior_adoption "$forgeflow_case_target"
+  printf 'version=0.2.1\nrevision=unknown\n' \
+    >"$forgeflow_case_target/$forgeflow_marker_relative"
+
+  forgeflow_case_output=$("$forgeflow_repo/scripts/bootstrap" --upgrade \
+    "$forgeflow_case_target" 2>&1)
+
+  for forgeflow_case_expected in \
+    'AGENTS.md' \
+    '0.2.1' \
+    "$forgeflow_case_version" \
+    'docs/upgrading.md'
+  do
+    printf '%s\n' "$forgeflow_case_output" |
+      grep -Fq -- "$forgeflow_case_expected" ||
+      fail "a stale upgrade did not report $forgeflow_case_expected"
+  done
+
+  # The marker records the last bootstrap or upgrade, not the provenance of
+  # AGENTS.md, which this command never reads.
+  if printf '%s\n' "$forgeflow_case_output" |
+    grep -Fq -- 'AGENTS.md was installed for'; then
+    fail 'the upgrade warning claims a provenance the marker cannot prove'
+  fi
+
+  # A marker recorded by a newer checkout is still a difference worth naming,
+  # and the wording must not call it an older version.
+  forgeflow_case_target="$forgeflow_test_dir/upgrade-newer-marker"
+  make_prior_adoption "$forgeflow_case_target"
+  printf 'version=99.0.0\nrevision=unknown\n' \
+    >"$forgeflow_case_target/$forgeflow_marker_relative"
+  forgeflow_case_output=$("$forgeflow_repo/scripts/bootstrap" --upgrade \
+    "$forgeflow_case_target" 2>&1)
+
+  for forgeflow_case_expected in '99.0.0' "$forgeflow_case_version"
+  do
+    printf '%s\n' "$forgeflow_case_output" |
+      grep -Fq -- "$forgeflow_case_expected" ||
+      fail "an upgrade from a newer marker did not name $forgeflow_case_expected"
+  done
+
+  # A marker whose value carries trailing blanks or a carriage return records
+  # the same version and must not be reported as a difference.
+  forgeflow_case_target="$forgeflow_test_dir/upgrade-padded-marker"
+  make_prior_adoption "$forgeflow_case_target"
+  printf 'version=%s \r\nrevision=unknown\n' "$forgeflow_case_version" \
+    >"$forgeflow_case_target/$forgeflow_marker_relative"
+  forgeflow_case_output=$("$forgeflow_repo/scripts/bootstrap" --upgrade \
+    "$forgeflow_case_target" 2>&1)
+
+  if printf '%s\n' "$forgeflow_case_output" |
+    grep -Fq -- 'docs/upgrading.md'; then
+    fail 'trailing blanks in the marker were reported as a version difference'
+  fi
+
+  forgeflow_case_target="$forgeflow_test_dir/upgrade-no-marker"
+  make_prior_adoption "$forgeflow_case_target"
+  forgeflow_case_output=$("$forgeflow_repo/scripts/bootstrap" --upgrade \
+    "$forgeflow_case_target" 2>&1)
+
+  printf '%s\n' "$forgeflow_case_output" | grep -Fq -- 'AGENTS.md' ||
+    fail 'an upgrade without a marker did not report AGENTS.md as unchanged'
+  if printf '%s\n' "$forgeflow_case_output" |
+    grep -Fq -- 'docs/upgrading.md'; then
+    fail 'an upgrade without a marker warned about a version it cannot know'
+  fi
+
+  forgeflow_case_target="$forgeflow_test_dir/upgrade-current"
+  make_prior_adoption "$forgeflow_case_target"
+  printf 'version=%s\nrevision=unknown\n' "$forgeflow_case_version" \
+    >"$forgeflow_case_target/$forgeflow_marker_relative"
+  forgeflow_case_output=$("$forgeflow_repo/scripts/bootstrap" --upgrade \
+    "$forgeflow_case_target" 2>&1)
+
+  if printf '%s\n' "$forgeflow_case_output" |
+    grep -Fq -- 'docs/upgrading.md'; then
+    fail 'an upgrade from the current version warned about a stale AGENTS.md'
+  fi
+}
+
+upgrade_without_a_version_difference_stays_quiet() {
+  forgeflow_case_version=$(cat "$forgeflow_repo/VERSION")
+
+  forgeflow_case_target="$forgeflow_test_dir/quiet-no-marker"
+  make_prior_adoption "$forgeflow_case_target"
+  forgeflow_case_output=$("$forgeflow_repo/scripts/bootstrap" --upgrade \
+    "$forgeflow_case_target" 2>&1)
+
+  printf '%s\n' "$forgeflow_case_output" | grep -Fq -- 'AGENTS.md' ||
+    fail 'an upgrade without a marker did not report AGENTS.md as unchanged'
+  if printf '%s\n' "$forgeflow_case_output" |
+    grep -Fq -- 'docs/upgrading.md'; then
+    fail 'an upgrade without a marker warned about a version it cannot know'
+  fi
+
+  if [ "$(marker_field "$forgeflow_case_target/$forgeflow_marker_relative" version)" != \
+    "$forgeflow_case_version" ]; then
+    fail 'an upgrade without a marker did not create one'
+  fi
+
+  forgeflow_case_target="$forgeflow_test_dir/quiet-current-marker"
+  make_prior_adoption "$forgeflow_case_target"
+  printf 'version=%s\nrevision=unknown\n' "$forgeflow_case_version" \
+    >"$forgeflow_case_target/$forgeflow_marker_relative"
+  forgeflow_case_output=$("$forgeflow_repo/scripts/bootstrap" --upgrade \
+    "$forgeflow_case_target" 2>&1)
+
+  if printf '%s\n' "$forgeflow_case_output" |
+    grep -Fq -- 'docs/upgrading.md'; then
+    fail 'an upgrade from the current version warned about a stale AGENTS.md'
+  fi
+}
+
+run_case 'AC-005' upgrade_reports_the_adopter_guide_status
+run_case 'AC-006' upgrade_without_a_version_difference_stays_quiet
+
+upgrade_refuses_a_repository_that_never_adopted() {
+  forgeflow_case_target="$forgeflow_test_dir/upgrade-unadopted"
+  mkdir -p "$forgeflow_case_target"
+
+  forgeflow_case_output=$("$forgeflow_repo/scripts/bootstrap" --upgrade \
+    "$forgeflow_case_target" 2>&1) && fail '--upgrade accepted an unadopted repository'
+
+  printf '%s\n' "$forgeflow_case_output" | grep -Fq -- 'bootstrap' ||
+    fail '--upgrade did not point at a fresh bootstrap'
+
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --upgrade \
+    "$forgeflow_case_target"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --upgrade --dry-run \
+    "$forgeflow_case_target"
+
+  forgeflow_case_entry_count=$(find "$forgeflow_case_target" ! -path "$forgeflow_case_target" | wc -l | tr -d ' ')
+  if [ "$forgeflow_case_entry_count" -ne 0 ]; then
+    fail '--upgrade wrote into an unadopted repository'
+  fi
+}
+
+run_case 'AC-009' upgrade_refuses_a_repository_that_never_adopted
+
+# The listing is read from a file rather than a pipe so that a failing inode or
+# checksum fails the case instead of silently dropping a line in a subshell.
+tree_manifest() {
+  forgeflow_manifest_listing="$forgeflow_test_dir/manifest.listing"
+
+  find "$1" | LC_ALL=C sort >"$forgeflow_manifest_listing"
+
+  while IFS= read -r forgeflow_manifest_path
+  do
+    if [ -f "$forgeflow_manifest_path" ]; then
+      printf '%s %s %s\n' "$forgeflow_manifest_path" \
+        "$(inode "$forgeflow_manifest_path")" \
+        "$(cksum <"$forgeflow_manifest_path")"
+    else
+      printf '%s %s dir\n' "$forgeflow_manifest_path" \
+        "$(inode "$forgeflow_manifest_path")"
+    fi
+  done <"$forgeflow_manifest_listing"
+}
+
+upgrade_dry_run_previews_without_writing() {
+  forgeflow_case_target="$forgeflow_test_dir/upgrade-dry-run"
+  make_prior_adoption "$forgeflow_case_target"
+
+  forgeflow_case_before="$forgeflow_test_dir/upgrade-dry-run.before"
+  forgeflow_case_after="$forgeflow_test_dir/upgrade-dry-run.after"
+  tree_manifest "$forgeflow_case_target" >"$forgeflow_case_before"
+
+  forgeflow_case_canonical=$(cd -P "$forgeflow_case_target" >/dev/null 2>&1 && pwd)
+
+  forgeflow_case_output=$("$forgeflow_repo/scripts/bootstrap" --upgrade \
+    --dry-run "$forgeflow_case_target")
+  forgeflow_case_reversed=$("$forgeflow_repo/scripts/bootstrap" --dry-run \
+    --upgrade "$forgeflow_case_target")
+
+  for forgeflow_case_relative in \
+    specs/stories/_template/story.md \
+    specs/stories/_template/acceptance.md \
+    specs/stories/_template/task.md \
+    "$forgeflow_marker_relative"
+  do
+    printf '%s\n' "$forgeflow_case_output" |
+      grep -Fq -- "$forgeflow_case_canonical/$forgeflow_case_relative" ||
+      fail "--upgrade --dry-run did not preview $forgeflow_case_relative"
+    printf '%s\n' "$forgeflow_case_reversed" |
+      grep -Fq -- "$forgeflow_case_canonical/$forgeflow_case_relative" ||
+      fail "--dry-run --upgrade did not preview $forgeflow_case_relative"
+  done
+
+  if printf '%s\n' "$forgeflow_case_output" | grep -Fq -- '/AGENTS.md'; then
+    fail '--upgrade --dry-run previewed a write to AGENTS.md'
+  fi
+
+  tree_manifest "$forgeflow_case_target" >"$forgeflow_case_after"
+  cmp "$forgeflow_case_before" "$forgeflow_case_after" >/dev/null ||
+    fail '--upgrade --dry-run changed the repository'
+}
+
+run_case 'AC-003' upgrade_dry_run_previews_without_writing
+
+upgrade_argument_errors_are_usage_errors() {
+  forgeflow_case_target="$forgeflow_test_dir/upgrade-args"
+  make_prior_adoption "$forgeflow_case_target"
+
+  forgeflow_case_before="$forgeflow_test_dir/upgrade-args.before"
+  forgeflow_case_after="$forgeflow_test_dir/upgrade-args.after"
+  tree_manifest "$forgeflow_case_target" >"$forgeflow_case_before"
+
+  expect_exit_status 2 "$forgeflow_repo/scripts/bootstrap" --upgrade --force \
+    "$forgeflow_case_target"
+  expect_exit_status 2 "$forgeflow_repo/scripts/bootstrap" --force --upgrade \
+    "$forgeflow_case_target"
+  expect_exit_status 2 "$forgeflow_repo/scripts/bootstrap" --upgrade --upgrade \
+    "$forgeflow_case_target"
+  expect_exit_status 2 "$forgeflow_repo/scripts/bootstrap" \
+    "$forgeflow_case_target" --upgrade
+  expect_exit_status 2 "$forgeflow_repo/scripts/bootstrap" --upgrade \
+    "$forgeflow_case_target" "$forgeflow_case_target"
+
+  tree_manifest "$forgeflow_case_target" >"$forgeflow_case_after"
+  cmp "$forgeflow_case_before" "$forgeflow_case_after" >/dev/null ||
+    fail 'a usage error changed the repository'
+}
+
+assert_refusal_changes_nothing() {
+  forgeflow_case_before="$forgeflow_test_dir/$forgeflow_case_label.before"
+  forgeflow_case_after="$forgeflow_test_dir/$forgeflow_case_label.after"
+
+  tree_manifest "$forgeflow_case_target" >"$forgeflow_case_before"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --upgrade \
+    "$forgeflow_case_target"
+  tree_manifest "$forgeflow_case_target" >"$forgeflow_case_after"
+
+  cmp "$forgeflow_case_before" "$forgeflow_case_after" >/dev/null ||
+    fail "a refused upgrade changed the repository: $forgeflow_case_label"
+}
+
+upgrade_refuses_unsafe_managed_paths() {
+  forgeflow_case_target="$forgeflow_test_dir/upgrade-template-symlink"
+  forgeflow_case_outside="$forgeflow_test_dir/upgrade-outside-templates"
+
+  mkdir -p "$forgeflow_case_target/specs/stories" "$forgeflow_case_outside"
+  ln -s "$forgeflow_case_outside" "$forgeflow_case_target/specs/stories/_template"
+
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --upgrade \
+    "$forgeflow_case_target"
+
+  if [ -e "$forgeflow_case_outside/story.md" ]; then
+    fail '--upgrade wrote through a template directory symlink'
+  fi
+
+  forgeflow_case_target="$forgeflow_test_dir/upgrade-template-directory"
+  make_prior_adoption "$forgeflow_case_target"
+  rm "$forgeflow_case_target/specs/stories/_template/story.md"
+  mkdir "$forgeflow_case_target/specs/stories/_template/story.md"
+
+  forgeflow_case_label='template-directory'
+  assert_refusal_changes_nothing
+
+  if [ ! -d "$forgeflow_case_target/specs/stories/_template/story.md" ]; then
+    fail '--upgrade replaced a managed path with the wrong file type'
+  fi
+
+  forgeflow_case_target="$forgeflow_test_dir/upgrade-marker-symlink"
+  forgeflow_case_outside="$forgeflow_test_dir/upgrade-outside-marker"
+
+  make_prior_adoption "$forgeflow_case_target"
+  printf 'outside marker\n' >"$forgeflow_case_outside"
+  ln -s "$forgeflow_case_outside" "$forgeflow_case_target/$forgeflow_marker_relative"
+
+  forgeflow_case_label='marker-symlink'
+  assert_refusal_changes_nothing
+
+  if [ "$(cat "$forgeflow_case_outside")" != 'outside marker' ]; then
+    fail '--upgrade wrote through a marker symlink'
+  fi
+
+  forgeflow_case_target="$forgeflow_test_dir/upgrade-marker-directory"
+  make_prior_adoption "$forgeflow_case_target"
+  mkdir "$forgeflow_case_target/$forgeflow_marker_relative"
+
+  forgeflow_case_label='marker-directory'
+  assert_refusal_changes_nothing
+
+  if [ ! -d "$forgeflow_case_target/$forgeflow_marker_relative" ]; then
+    fail '--upgrade replaced a marker path with the wrong file type'
+  fi
+}
+
+run_case 'AC-008' upgrade_argument_errors_are_usage_errors
+run_case 'AC-010' upgrade_refuses_unsafe_managed_paths
+
+adopter_documentation_agrees_on_the_upgrade_contract() {
+  forgeflow_case_upgrading="$forgeflow_repo/docs/upgrading.md"
+
+  [ -f "$forgeflow_case_upgrading" ] ||
+    fail 'docs/upgrading.md is missing'
+
+  for forgeflow_case_expected in \
+    '--upgrade' \
+    '--dry-run' \
+    '--force' \
+    'specs/.forgeflow-adoption' \
+    'AGENTS.md' \
+    '../protocol/versioning.md'
+  do
+    grep -Fq -- "$forgeflow_case_expected" "$forgeflow_case_upgrading" ||
+      fail "docs/upgrading.md does not document $forgeflow_case_expected"
+  done
+
+  for forgeflow_case_restated in \
+    'Trust Boundary Fields' \
+    'Superseded Behavior'
+  do
+    if grep -Fq -- "$forgeflow_case_restated" "$forgeflow_case_upgrading"; then
+      fail "docs/upgrading.md restates migration steps owned by protocol/versioning.md"
+    fi
+  done
+
+  for forgeflow_case_page in README.md docs/getting-started.md
+  do
+    grep -Fq -- 'upgrading.md' "$forgeflow_repo/$forgeflow_case_page" ||
+      fail "$forgeflow_case_page does not link the upgrade page"
+  done
+
+  grep -Fq -- 'specs/.forgeflow-adoption' "$forgeflow_repo/docs/getting-started.md" ||
+    fail 'docs/getting-started.md does not name the adoption marker path'
+  grep -Fq -- 'specs/.forgeflow-adoption' "$forgeflow_repo/protocol/versioning.md" ||
+    fail 'protocol/versioning.md does not classify the adoption marker'
+  grep -Fq -- '--upgrade' "$forgeflow_repo/docs/getting-started.md" ||
+    fail 'docs/getting-started.md does not name the --upgrade option'
+}
+
+run_case 'AC-012' adopter_documentation_agrees_on_the_upgrade_contract
 
 printf 'bootstrap tests passed\n'

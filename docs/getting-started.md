@@ -16,12 +16,17 @@ This creates:
 ```text
 AGENTS.md
 specs/
+├── .forgeflow-adoption
 └── stories/
     └── _template/
         ├── story.md
         ├── acceptance.md
         └── task.md
 ```
+
+`specs/.forgeflow-adoption` records the protocol version and ForgeFlow revision
+this snapshot came from. It is what a later `--upgrade` reads; see
+[Upgrading an adopting repository](upgrading.md).
 
 The script refuses to replace any managed file. Review conflicts manually; use
 `--force` only when replacing those exact files is intentional.
@@ -32,6 +37,11 @@ Preview the same static safety and conflict checks without changing the target:
 ./scripts/bootstrap --dry-run /path/to/repository
 ./scripts/bootstrap --force --dry-run /path/to/repository
 ```
+
+`--upgrade` moves an existing adoption to newer Story templates without writing
+`AGENTS.md`; it is documented in
+[Upgrading an adopting repository](upgrading.md) and is mutually exclusive with
+`--force`.
 
 `--force` and `--dry-run` may appear in either order before the optional target,
 but each flag may appear only once. A dry run reports the files it would install

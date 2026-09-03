@@ -53,10 +53,11 @@ will remain unchanged.
 
 ## Snapshots and releases
 
-Bootstrap installs a copy-time snapshot. It does not record, negotiate, or
-automatically upgrade the protocol version in an adopting repository. Adopters
-review new templates and migration guidance before deliberately replacing
-managed files.
+Bootstrap installs a copy-time snapshot and records which snapshot it installed
+in `specs/.forgeflow-adoption`. It does not negotiate or automatically upgrade
+the protocol version in an adopting repository. Adopters review new templates
+and migration guidance before deliberately replacing managed files, whether with
+`--force` or with `--upgrade`.
 
 The repository may contain a new `VERSION` value before that revision is
 published. Publishing a release requires a Git tag named
@@ -89,11 +90,29 @@ Nothing else in an existing adoption changes: `make verify` semantics, bootstrap
 arguments, and Doctor behavior are unaffected, and a repository that never runs
 `scripts/story-check` is not blocked by the new field.
 
+The adoption marker `specs/.forgeflow-adoption` and the bootstrap `--upgrade`
+option are **Additive** capabilities: a repository adopted before either existed
+keeps working unchanged, `--upgrade` creates a missing marker rather than
+refusing, and no existing bootstrap invocation changes meaning. The marker is a
+managed file, so a plain bootstrap refuses to overwrite one that already exists.
+Changes to the marker's path or field format, or to `--upgrade`'s command form
+and safety guarantees, are changes to the versioned surface. The adopter-facing
+procedure is [Upgrading an adopting repository](../docs/upgrading.md).
+
 The Handoff Contract, `scripts/story-check`, and `scripts/handoff-check` are
 **Additive** capabilities: a repository without a handoff or without either
 checker keeps working unchanged, and neither command is required by
 `make verify` in an adopting repository. Changes to their command forms, result
 names, or exit semantics are changes to the versioned surface.
+
+Doctor's contract-drift reporting is **Additive**: it adds three static-mode
+result lines, composes the two checkers through their existing command forms,
+and changes no exit status. It does add one new value to Doctor's `Result`
+line, `CONTRACT_DRIFT`. A consumer that matches Doctor's output for
+`STRUCTURE_OK` will stop matching for a repository whose Stories, handoff, or
+adopted version drifted from this checkout, even though the exit status is
+unchanged at `0`. Match the exit status, or accept both values, when the
+distinction does not matter.
 
 ## Repository release readiness
 

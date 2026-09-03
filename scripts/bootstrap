@@ -3,7 +3,8 @@
 set -eu
 
 usage() {
-  printf 'Usage: %s [--force] [--dry-run] [repository-directory]\n' "$0" >&2
+  printf 'Usage: %s [--force | --upgrade] [--dry-run] [repository-directory]\n' \
+    "$0" >&2
 }
 
 install_managed_file() {
@@ -35,7 +36,94 @@ install_managed_file() {
   rmdir "$forgeflow_install_stage"
 }
 
+forgeflow_marker_relative='specs/.forgeflow-adoption'
+forgeflow_cr=$(printf '\r')
+forgeflow_tab=$(printf '\t')
+
+trim_trailing_blanks() {
+  forgeflow_trimmed=$1
+
+  while :; do
+    case "$forgeflow_trimmed" in
+      *"$forgeflow_cr") forgeflow_trimmed=${forgeflow_trimmed%"$forgeflow_cr"} ;;
+      *"$forgeflow_tab") forgeflow_trimmed=${forgeflow_trimmed%"$forgeflow_tab"} ;;
+      *' ') forgeflow_trimmed=${forgeflow_trimmed% } ;;
+      *) break ;;
+    esac
+  done
+}
+
+# An inherited Git environment would silently redirect every lookup below at
+# another repository, so it is cleared for the duration of the query.
+forgeflow_git() {
+  (
+    unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR \
+      GIT_OBJECT_DIRECTORY GIT_CEILING_DIRECTORIES
+    git -C "$forgeflow_root" "$@"
+  )
+}
+
+# The revision is evidence about the snapshot that was copied. Anything this
+# checkout cannot prove about itself is recorded as unknown: a work tree with
+# uncommitted changes must not claim the bare HEAD SHA, and a state that cannot
+# be read is not evidence of a clean tree.
+resolve_snapshot_revision() {
+  forgeflow_revision='unknown'
+
+  command -v git >/dev/null 2>&1 || return 0
+
+  forgeflow_toplevel=$(forgeflow_git rev-parse --show-toplevel 2>/dev/null) ||
+    return 0
+
+  if [ "$forgeflow_toplevel" != "$forgeflow_root" ]; then
+    return 0
+  fi
+
+  forgeflow_head=$(forgeflow_git rev-parse HEAD 2>/dev/null) || return 0
+
+  forgeflow_status=$(forgeflow_git status --porcelain 2>/dev/null) || return 0
+
+  if [ -n "$forgeflow_status" ]; then
+    forgeflow_revision="$forgeflow_head-dirty"
+  else
+    forgeflow_revision="$forgeflow_head"
+  fi
+}
+
+write_adoption_marker() {
+  forgeflow_marker_destination=$1
+  forgeflow_marker_parent=$(dirname "$forgeflow_marker_destination")
+  forgeflow_marker_stage="$forgeflow_marker_parent/.forgeflow-marker.$$"
+
+  resolve_snapshot_revision
+
+  if ! (umask 077 && mkdir "$forgeflow_marker_stage"); then
+    printf 'Could not create staging directory: %s\n' \
+      "$forgeflow_marker_stage" >&2
+    return 1
+  fi
+
+  if ! {
+    printf 'version=%s\n' "$forgeflow_version"
+    printf 'revision=%s\n' "$forgeflow_revision"
+  } >"$forgeflow_marker_stage/marker"; then
+    rm -f "$forgeflow_marker_stage/marker"
+    rmdir "$forgeflow_marker_stage"
+    return 1
+  fi
+
+  if ! mv -f "$forgeflow_marker_stage/marker" \
+    "$forgeflow_marker_destination"; then
+    rm -f "$forgeflow_marker_stage/marker"
+    rmdir "$forgeflow_marker_stage"
+    return 1
+  fi
+
+  rmdir "$forgeflow_marker_stage"
+}
+
 forgeflow_force=0
+forgeflow_upgrade=0
 forgeflow_dry_run=0
 forgeflow_target=
 forgeflow_target_set=0
@@ -48,11 +136,18 @@ while [ "$#" -gt 0 ]; do
 
   case "$1" in
     --force)
-      if [ "$forgeflow_force" -eq 1 ]; then
+      if [ "$forgeflow_force" -eq 1 ] || [ "$forgeflow_upgrade" -eq 1 ]; then
         usage
         exit 2
       fi
       forgeflow_force=1
+      ;;
+    --upgrade)
+      if [ "$forgeflow_upgrade" -eq 1 ] || [ "$forgeflow_force" -eq 1 ]; then
+        usage
+        exit 2
+      fi
+      forgeflow_upgrade=1
       ;;
     --dry-run)
       if [ "$forgeflow_dry_run" -eq 1 ]; then
@@ -92,11 +187,52 @@ forgeflow_script_dir=$(
   pwd
 )
 forgeflow_root=$(dirname "$forgeflow_script_dir")
+if [ ! -f "$forgeflow_root/VERSION" ]; then
+  printf 'ForgeFlow VERSION is missing: %s\n' "$forgeflow_root/VERSION" >&2
+  exit 1
+fi
+
+forgeflow_version=$(sed -n '1p' "$forgeflow_root/VERSION")
+trim_trailing_blanks "$forgeflow_version"
+forgeflow_version=$forgeflow_trimmed
+
+case "$forgeflow_version" in
+  '' | *[!0-9.]*)
+    printf 'ForgeFlow VERSION is not a protocol version: %s\n' \
+      "$forgeflow_root/VERSION" >&2
+    exit 1
+    ;;
+esac
 
 forgeflow_managed_files='templates/AGENTS.md AGENTS.md
 templates/story/story.md specs/stories/_template/story.md
 templates/story/acceptance.md specs/stories/_template/acceptance.md
 templates/story/task.md specs/stories/_template/task.md'
+
+forgeflow_managed_destinations="AGENTS.md
+specs/stories/_template/story.md
+specs/stories/_template/acceptance.md
+specs/stories/_template/task.md
+$forgeflow_marker_relative"
+
+# An upgrade moves the templates and the marker only. AGENTS.md is
+# repository-owned once installed, so it leaves the managed surface entirely.
+forgeflow_upgrade_files='templates/story/story.md specs/stories/_template/story.md
+templates/story/acceptance.md specs/stories/_template/acceptance.md
+templates/story/task.md specs/stories/_template/task.md'
+
+forgeflow_upgrade_destinations="specs/stories/_template/story.md
+specs/stories/_template/acceptance.md
+specs/stories/_template/task.md
+$forgeflow_marker_relative"
+
+if [ "$forgeflow_upgrade" -eq 1 ]; then
+  forgeflow_active_files=$forgeflow_upgrade_files
+  forgeflow_active_destinations=$forgeflow_upgrade_destinations
+else
+  forgeflow_active_files=$forgeflow_managed_files
+  forgeflow_active_destinations=$forgeflow_managed_destinations
+fi
 
 while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
   forgeflow_source="$forgeflow_root/$forgeflow_template_relative"
@@ -106,8 +242,17 @@ while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
     exit 1
   fi
 done <<EOF
-$forgeflow_managed_files
+$forgeflow_active_files
 EOF
+
+if [ "$forgeflow_upgrade" -eq 1 ] &&
+  { [ -L "$forgeflow_target/specs/stories" ] ||
+    [ ! -d "$forgeflow_target/specs/stories" ]; }; then
+  printf 'No ForgeFlow adoption to upgrade: %s\n' \
+    "$forgeflow_target/specs/stories" >&2
+  printf 'Run a fresh bootstrap before --upgrade.\n' >&2
+  exit 1
+fi
 
 for forgeflow_relative_directory in \
   specs \
@@ -129,7 +274,7 @@ do
   fi
 done
 
-while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
+while IFS= read -r forgeflow_relative_path; do
   forgeflow_destination="$forgeflow_target/$forgeflow_relative_path"
 
   if [ -L "$forgeflow_destination" ]; then
@@ -144,19 +289,19 @@ while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
     exit 1
   fi
 done <<EOF
-$forgeflow_managed_files
+$forgeflow_active_destinations
 EOF
 
-if [ "$forgeflow_force" -eq 0 ]; then
+if [ "$forgeflow_force" -eq 0 ] && [ "$forgeflow_upgrade" -eq 0 ]; then
   forgeflow_conflicts=
 
-  while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
+  while IFS= read -r forgeflow_relative_path; do
     if [ -e "$forgeflow_target/$forgeflow_relative_path" ]; then
       forgeflow_conflicts="${forgeflow_conflicts}
   $forgeflow_target/$forgeflow_relative_path"
     fi
   done <<EOF
-$forgeflow_managed_files
+$forgeflow_active_destinations
 EOF
 
   if [ -n "$forgeflow_conflicts" ]; then
@@ -168,7 +313,7 @@ EOF
 fi
 
 if [ "$forgeflow_dry_run" -eq 1 ]; then
-  while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
+  while IFS= read -r forgeflow_relative_path; do
     forgeflow_destination="$forgeflow_target/$forgeflow_relative_path"
 
     if [ -e "$forgeflow_destination" ]; then
@@ -177,7 +322,7 @@ if [ "$forgeflow_dry_run" -eq 1 ]; then
       printf 'Would install %s\n' "$forgeflow_destination"
     fi
   done <<EOF
-$forgeflow_managed_files
+$forgeflow_active_destinations
 EOF
 
   printf 'ForgeFlow dry run completed for %s\n' "$forgeflow_target"
@@ -189,7 +334,39 @@ while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
   install_managed_file "$forgeflow_root/$forgeflow_template_relative" \
     "$forgeflow_target/$forgeflow_relative_path"
 done <<EOF
-$forgeflow_managed_files
+$forgeflow_active_files
 EOF
+
+forgeflow_previous_version=
+if [ "$forgeflow_upgrade" -eq 1 ] &&
+  [ -f "$forgeflow_target/$forgeflow_marker_relative" ]; then
+  if ! forgeflow_previous_version=$(
+    sed -n 's/^version=//p;/^version=/q' \
+      "$forgeflow_target/$forgeflow_marker_relative"
+  ); then
+    printf 'Could not read the adoption marker: %s\n' \
+      "$forgeflow_target/$forgeflow_marker_relative" >&2
+    exit 1
+  fi
+
+  trim_trailing_blanks "$forgeflow_previous_version"
+  forgeflow_previous_version=$forgeflow_trimmed
+fi
+
+write_adoption_marker "$forgeflow_target/$forgeflow_marker_relative"
+
+if [ "$forgeflow_upgrade" -eq 1 ]; then
+  printf 'AGENTS.md was left unchanged; it is owned by this repository.\n'
+
+  if [ -n "$forgeflow_previous_version" ] &&
+    [ "$forgeflow_previous_version" != "$forgeflow_version" ]; then
+    printf 'WARNING: this adoption last recorded ForgeFlow %s and these templates are %s.\n' \
+      "$forgeflow_previous_version" "$forgeflow_version" >&2
+    printf 'AGENTS.md was not written and may predate either version; see docs/upgrading.md.\n' >&2
+  fi
+
+  printf 'ForgeFlow templates upgraded in %s\n' "$forgeflow_target"
+  exit 0
+fi
 
 printf 'ForgeFlow initialized in %s\n' "$forgeflow_target"
