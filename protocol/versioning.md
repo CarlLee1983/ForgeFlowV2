@@ -113,6 +113,11 @@ they accepted and rejected before, and no adopter changes anything. Published
 `handoff-check` reports `HANDOFF_CONTRACT_INCOMPLETE` for a conformant handoff
 and Repository Doctor composes that into a `CONTRACT_DRIFT` that does not exist.
 
+Documenting the adoption marker in the README and Repository Contract, using
+the current protocol version in Doctor's sample output, and listing the example
+traceability checks is **Corrective** for `0.3.2`. These changes align the
+documentation with existing behavior and require no adopter changes.
+
 Doctor's contract-drift reporting is **Additive**: it adds three static-mode
 result lines, composes the two checkers through their existing command forms,
 and changes no exit status. It does add one new value to Doctor's `Result`

@@ -59,12 +59,16 @@ It installs:
 ```text
 AGENTS.md
 specs/
+├── .forgeflow-adoption
 └── stories/
     └── _template/
         ├── story.md
         ├── acceptance.md
         └── task.md
 ```
+
+The adoption marker records the installed protocol version and source revision
+for later template upgrades.
 
 The script refuses to overwrite any managed file. If replacing those exact
 files is intentional, pass `--force` explicitly:
@@ -143,8 +147,8 @@ pnpm install --frozen-lockfile
 make verify
 ```
 
-Its `make verify` runs formatting, linting, static type checking, and
-tests through one deterministic entry point.
+Its `make verify` runs formatting, linting, static type checking, Story
+traceability, and tests through one deterministic entry point.
 
 ## Go example
 
@@ -155,7 +159,7 @@ go -C examples/go mod download
 make -C examples/go verify
 ```
 
-Its gate checks formatting, `go vet`, Staticcheck, and tests.
+Its gate checks formatting, `go vet`, Staticcheck, Story traceability, and tests.
 
 ## Verify this repository
 
