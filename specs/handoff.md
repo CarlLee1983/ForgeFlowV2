@@ -28,8 +28,8 @@ workflow:
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: docs/readme-hero
-  commit: 2e7677d25d3177410a38d446b4f9eebdd0d61d91
+  branch: main
+  commit: bf3553d7df85ca6a4ea094d3392f9200f300edcf
   dirty_worktree: false
   story_owned_paths: []
   known_unrelated_paths: []
