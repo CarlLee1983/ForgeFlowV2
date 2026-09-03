@@ -26,15 +26,9 @@ workflow:
 baseline:
   repository: CarlLee1983/ForgeFlowV2
   branch: feat/ff-210-adoption-marker
-  commit: 730a7828a3cca52770c58a145f43863cd98c02da
-  dirty_worktree: true
-  story_owned_paths:
-    - scripts/doctor
-    - tests/doctor.sh
-    - docs/doctor.md
-    - docs/contract-checks.md
-    - protocol/versioning.md
-    - specs/handoff.md
+  commit: 4c392a556167a77bf602e7e1dc81591bb124d071
+  dirty_worktree: false
+  story_owned_paths: []
   known_unrelated_paths: []
 
 verification:
@@ -46,8 +40,13 @@ verification:
 
 * FF-210 is delivered on this branch and FF-211 continues on the same branch
   because it reads the adoption marker FF-210 installs.
-* FF-211 is implemented and awaiting human review. Root `make verify` passes on
-  this tree; the worktree is dirty only because FF-211 is not yet committed.
+* FF-211 is delivered and awaiting human review. Root `make verify` passes on
+  the baseline commit and the worktree is clean, so no path attribution is
+  needed.
+* The baseline commit also carries this repository's own root `AGENTS.md`, which
+  was missing: Doctor reported `STRUCTURE_INCOMPLETE` against ForgeFlow itself
+  while the Repository Contract required that file of every adopter. Doctor now
+  reports `STRUCTURE_OK` for this repository.
 * A code review raised one CRITICAL and three HIGH findings, all fixed: static
   mode used `sed` and so aborted with no `Result` line under an empty `PATH`;
   an incomplete ForgeFlow checkout was reported as a target failure; the marker
