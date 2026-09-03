@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: none
+  current_story: FF-212
   next_story: pending
   completed_stories:
     - FF-201
@@ -22,38 +22,35 @@ workflow:
     - FF-209
     - FF-210
     - FF-211
-  status: done
+  status: ready_for_implementation
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: main
+  branch: feat/ff-212-builtin-contract-checks
   commit: 96df251e69232507602aa65dabfa30d1b3b41497
-  dirty_worktree: false
-  story_owned_paths: []
+  dirty_worktree: true
+  story_owned_paths:
+    - specs/stories/FF-212-checkers-without-external-utilities/
+    - specs/handoff.md
   known_unrelated_paths: []
 
 verification:
   last_command: make verify
-  result: pass
+  result: not_run
 ```
 
 ## Notes
 
-* FF-210 and FF-211 were delivered together in PR #4 and merged to `main` as
-  `96df251e69232507602aa65dabfa30d1b3b41497`, which is this baseline. Root
-  `make verify` passes on it and the worktree is clean.
-* The baseline commit also carries this repository's own root `AGENTS.md`, which
-  was missing: Doctor reported `STRUCTURE_INCOMPLETE` against ForgeFlow itself
-  while the Repository Contract required that file of every adopter. Doctor now
-  reports `STRUCTURE_OK` for this repository.
-* No next Story has been selected. Candidates are recorded here as prose, never
-  as `next_story`. Two are open:
-  * `scripts/story-check` and `scripts/handoff-check` use `grep`, `sort`, and
-    `uniq`, so under an empty `PATH` `handoff-check` returns
-    `HANDOFF_CONTRACT_INCOMPLETE` for a valid handoff. Composed by Doctor, that
-    surfaces as a false `CONTRACT_DRIFT`. FF-211 could not fix it because its
-    `AC-012` required both checkers to stay byte-identical.
-  * ForgeFlow does not install its own adoption marker, so Doctor reports
-    `Adopted version: UNKNOWN` against this repository. That is correct today —
-    ForgeFlow is not an adopter of itself — but it means the marker path has no
-    coverage from this repository's own Doctor run.
+* FF-210 and FF-211 shipped in `v0.3.0`, published from
+  `7e2299971b07afdc925d141e17d87fb5a0908d15` on `main`, which is this baseline.
+* FF-212 was approved from the first candidate recorded after that release: both
+  contract checkers call external utilities, so under an empty `PATH`
+  `handoff-check` reports `HANDOFF_CONTRACT_INCOMPLETE` for a valid handoff and
+  Doctor composes that into a false `CONTRACT_DRIFT`.
+* The worktree is dirty because the approved Story and this handoff are not yet
+  committed; both paths are Story-owned.
+* `verification.result` is `not_run` for the FF-212 implementation. Root
+  `make verify` passed on the baseline commit.
+* Still open, not selected: ForgeFlow installs no adoption marker for itself, so
+  Doctor reports `Adopted version: UNKNOWN` against this repository. That is
+  correct today and is recorded only so the gap is not mistaken for a defect.
