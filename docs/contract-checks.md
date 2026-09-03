@@ -5,6 +5,12 @@ ForgeFlow ships two static, read-only checkers for the artifacts humans write:
 Both report structure only. Neither executes repository code, replaces
 `make verify`, nor authorizes a merge.
 
+Both are written with shell builtins alone and invoke no external command. A
+checker's verdict therefore depends on the file it was given and nothing else:
+an unusual or empty `PATH` cannot turn a conformant artifact into an
+`INCOMPLETE` result, which matters because Repository Doctor composes both
+verdicts into its own.
+
 ## Story contract check
 
 ```sh

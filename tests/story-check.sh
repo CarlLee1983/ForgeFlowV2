@@ -166,6 +166,141 @@ complete_security_story() {
   add_matrix "$forgeflow_valid_row"
 }
 
+add_matrix_with_separator() {
+  forgeflow_matrix_separator_row=$1
+  shift
+
+  {
+    printf '\n## Security Fixture Matrix\n\n'
+    printf '| Source field | Payload | Expected result | Persisted locations | Verification |\n'
+    printf '%s\n' "$forgeflow_matrix_separator_row"
+
+    for forgeflow_matrix_row in "$@"
+    do
+      printf '%s\n' "$forgeflow_matrix_row"
+    done
+  } >>"$forgeflow_story_dir/acceptance.md"
+}
+
+run_story_check_without_utilities() {
+  forgeflow_empty_path="$forgeflow_test_dir/empty-path"
+  mkdir -p "$forgeflow_empty_path"
+  forgeflow_command_output="$forgeflow_test_dir/$forgeflow_case_id.no-path"
+
+  if PATH="$forgeflow_empty_path" "$forgeflow_story_check" "$@" \
+    >"$forgeflow_command_output" 2>&1; then
+    forgeflow_command_status=0
+  else
+    forgeflow_command_status=$?
+  fi
+}
+
+assert_same_story_verdict_without_utilities() {
+  forgeflow_normal_output="$forgeflow_test_dir/$forgeflow_case_id.normal"
+
+  run_story_check "$@"
+  cp "$forgeflow_command_output" "$forgeflow_normal_output"
+  forgeflow_normal_status=$forgeflow_command_status
+
+  run_story_check_without_utilities "$@"
+
+  if [ "$forgeflow_command_status" -ne "$forgeflow_normal_status" ]; then
+    fail "an empty PATH changed the exit status from $forgeflow_normal_status to $forgeflow_command_status"
+  fi
+
+  cmp "$forgeflow_normal_output" "$forgeflow_command_output" >/dev/null ||
+    fail 'an empty PATH changed the output'
+}
+
+the_story_verdict_does_not_depend_on_external_utilities() {
+  complete_security_story empty-path
+  assert_same_story_verdict_without_utilities "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Result: STORY_CONTRACT_OK'
+}
+
+an_incomplete_story_verdict_does_not_depend_on_external_utilities() {
+  new_story empty-path-incomplete yes no
+  assert_same_story_verdict_without_utilities "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'Result: STORY_CONTRACT_INCOMPLETE'
+}
+
+assert_separator_accepted() {
+  new_story "sep-ok-$2" yes no
+  add_story_section '## Trust Boundary Fields' \
+    '* `request.sql` — the raw statement supplied by the caller'
+  add_matrix_with_separator "$1" "$forgeflow_valid_row"
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Result: STORY_CONTRACT_OK'
+}
+
+assert_separator_rejected() {
+  new_story "sep-bad-$2" yes no
+  add_story_section '## Trust Boundary Fields' \
+    '* `request.sql` — the raw statement supplied by the caller'
+  add_matrix_with_separator "$1" "$forgeflow_valid_row"
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'five-column separator row'
+}
+
+usage_and_incomplete_results_survive_an_empty_path() {
+  new_story empty-path-usage no no
+  assert_same_story_verdict_without_utilities "$forgeflow_test_dir/missing-story"
+  assert_status 2
+
+  assert_same_story_verdict_without_utilities --unknown
+  assert_status 2
+  assert_output_contains 'Usage:'
+}
+
+the_builtin_guarantee_is_documented() {
+  grep -Fq 'shell builtins alone' "$forgeflow_repo/docs/contract-checks.md" ||
+    fail 'docs/contract-checks.md does not state the builtin-only guarantee'
+  grep -Fq 'share' "$forgeflow_repo/docs/doctor.md" ||
+    fail 'docs/doctor.md does not say the checkers share the guarantee'
+  grep -Fq "Doctor's builtin-only" "$forgeflow_repo/docs/doctor.md" ||
+    fail 'docs/doctor.md no longer names the property it says is shared'
+  if grep -Fq 'builtin-only property is Doctor' \
+    "$forgeflow_repo/docs/doctor.md"; then
+    fail 'docs/doctor.md still claims the guarantee is Doctor own'
+  fi
+}
+
+story_check_uses_no_external_utilities() {
+  # Tests may use external commands; the scripts under test may not. This scan
+  # is a tripwire that names the utilities these scripts once used, not proof of
+  # the guarantee: the empty-PATH cases are what establish it. Comment lines are
+  # dropped after numbering so a reported line refers to the file.
+  forgeflow_scan_output="$forgeflow_test_dir/$forgeflow_case_id.scan"
+
+  grep -nE '(^|[ 	(|&;`]|\$\()(grep|sed|awk|sort|uniq|tr|cut|head|tail|wc|expr|cat|find|basename|dirname|readlink|stat|date|mktemp|xargs|git)([ 	]|$)' \
+    "$forgeflow_story_check" | grep -v '^[0-9][0-9]*:[[:space:]]*#' \
+    >"$forgeflow_scan_output" || :
+
+  if [ -s "$forgeflow_scan_output" ]; then
+    fail "the script still calls an external utility: $(cat "$forgeflow_scan_output")"
+  fi
+}
+
+the_matrix_separator_form_is_unchanged() {
+  assert_separator_accepted '| --- | --- | --- | --- | --- |' 1
+  assert_separator_accepted '|---|---|---|---|---|' 2
+  assert_separator_accepted '| :---: | :--- | ---: | --- | :---: |' 3
+  assert_separator_accepted '| - | - | - | - | - |' 4
+
+  assert_separator_rejected '| --- | --- | --- | --- |' 1
+  assert_separator_rejected '| --- | --- | --- | --- | --- | --- |' 2
+  assert_separator_rejected '--- | --- | --- | --- | --- |' 3
+  assert_separator_rejected '| --- | --- | text | --- | --- |' 4
+  assert_separator_rejected '| :: | --- | --- | --- | --- |' 5
+  assert_separator_rejected '| ---x | --- | --- | --- | --- |' 6
+  assert_separator_rejected '| -:- | --- | --- | --- | --- |' 7
+  assert_separator_rejected '| --- - | --- | --- | --- | --- |' 8
+}
+
 forgeflow_test_dir=$(mktemp -d "${TMPDIR:-/tmp}/forgeflow-story-check.XXXXXX")
 
 cleanup() {
@@ -437,5 +572,12 @@ run_case 'AC-009' operational_failures_exit_two
 run_case 'AC-010' root_verify_runs_story_contract_check
 run_case 'AC-011' every_story_gets_its_own_verdict
 run_case 'AC-012' fenced_examples_are_not_declarations
+
+run_case 'FF212-AC-002' the_story_verdict_does_not_depend_on_external_utilities
+run_case 'FF212-AC-008' an_incomplete_story_verdict_does_not_depend_on_external_utilities
+run_case 'FF212-AC-010' usage_and_incomplete_results_survive_an_empty_path
+run_case 'FF212-AC-007' the_matrix_separator_form_is_unchanged
+run_case 'FF212-AC-012' story_check_uses_no_external_utilities
+run_case 'FF212-AC-013' the_builtin_guarantee_is_documented
 
 printf 'story-check tests passed\n'
