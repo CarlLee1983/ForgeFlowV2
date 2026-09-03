@@ -24,9 +24,10 @@ specs/
 - `specs/stories/` stores approved intent and acceptance criteria.
 - `make verify` runs every automated check required before human review.
 
-The [bootstrap script](../scripts/bootstrap) installs the agent guide and Story
-templates. Each repository still owns its Makefile and technology-specific
-setup.
+The [bootstrap script](../scripts/bootstrap) installs the agent guide, Story
+templates, and a `specs/.forgeflow-adoption` marker recording the copied
+protocol snapshot. Each repository still owns its Makefile and
+technology-specific setup.
 
 ## Optional Repository Doctor
 

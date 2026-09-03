@@ -23,12 +23,13 @@ workflow:
     - FF-210
     - FF-211
     - FF-212
+    - FF-213
   status: done
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
   branch: main
-  commit: 94e7de17d753d3fd718314d604ccfcd808c95a47
+  commit: 31de0794cd1f471a8fa4ec9f825c43b49f68fc0a
   dirty_worktree: false
   story_owned_paths: []
   known_unrelated_paths: []
@@ -41,13 +42,13 @@ verification:
 ## Notes
 
 * FF-212 was merged in PR #5 as
-  `94e7de17d753d3fd718314d604ccfcd808c95a47`, which is this baseline. Root
-  `make verify` passes on it and the worktree is clean.
-* `v0.3.0` was published from `7e2299971b07afdc925d141e17d87fb5a0908d15`, before
-  FF-212, so the published `0.3.0` carries the defect FF-212 repairs. `VERSION`
-  is now `0.3.1`, classified **Corrective** in `protocol/versioning.md`. The
-  release itself remains a human-authorized operation under
-  `docs/releasing.md`.
+  `94e7de17d753d3fd718314d604ccfcd808c95a47`.
+* The corrective `v0.3.1` release was published from
+  `1096ef5125f1e2d7c304f65d5c7405b76aadf335` after PR #6 merged its release
+  preparation. The tag and GitHub Release both resolve to that baseline.
+* FF-213 was accepted at
+  `31de0794cd1f471a8fa4ec9f825c43b49f68fc0a`. It is a documentation-only
+  Corrective change for `0.3.2`; publication is a separate authorized action.
 * Two behavioral narrowings from FF-212 that the callers cannot reach: the
   replaced `grep` predicates matched if any line of a multi-line value matched,
   and `AC-004` listed leading and trailing spaces the parser trims before either
