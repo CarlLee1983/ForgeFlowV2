@@ -24,14 +24,30 @@ workflow:
     - FF-211
     - FF-212
     - FF-213
+    - FF-214
   status: done
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
   branch: main
-  commit: bf3553d7df85ca6a4ea094d3392f9200f300edcf
-  dirty_worktree: false
-  story_owned_paths: []
+  commit: b73a24c38911cd5aaf5334939f9f04c662ea5a6e
+  dirty_worktree: true
+  story_owned_paths:
+    - Makefile
+    - README.md
+    - VERSION
+    - docs/code-quality.md
+    - docs/doctor.md
+    - examples/typescript/package.json
+    - protocol/verification.md
+    - protocol/versioning.md
+    - specs/handoff.md
+    - specs/stories/FF-214-code-quality-guidance/acceptance.md
+    - specs/stories/FF-214-code-quality-guidance/story.md
+    - specs/stories/FF-214-code-quality-guidance/task.md
+    - templates/AGENTS.md
+    - tests/code-quality.sh
+    - tests/protocol.sh
   known_unrelated_paths: []
 
 verification:
@@ -51,6 +67,10 @@ verification:
   `7bbdf443ead484780e23df9abf055095d4c629e2`.
 * The README hero image was added at
   `2e7677d25d3177410a38d446b4f9eebdd0d61d91` after that release.
+* FF-214 adds repository-owned Code Quality Guidance, keeps `make verify` as the
+  sole canonical gate, and hardens the TypeScript example against ESLint
+  warnings. The Additive protocol version is now `0.3.3`; it has not been
+  tagged or published.
 * Two behavioral narrowings from FF-212 that the callers cannot reach: the
   replaced `grep` predicates matched if any line of a multi-line value matched,
   and `AC-004` listed leading and trailing spaces the parser trims before either

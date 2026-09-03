@@ -108,6 +108,7 @@ for forgeflow_required_file in \
   templates/story/task.md \
   templates/handoff.md \
   templates/ci/github-actions.yml \
+  docs/code-quality.md \
   docs/concepts.md \
   docs/contract-checks.md \
   docs/doctor.md \

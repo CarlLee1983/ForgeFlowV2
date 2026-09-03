@@ -48,6 +48,19 @@ The protocol is split into six small contracts:
 - [Repository adoption](protocol/repository-contract.md)
 - [Versioning and compatibility](protocol/versioning.md)
 
+## Code quality
+
+ForgeFlow can enforce Code Style without defining a cross-language style. The
+adopting repository owns its formatter, lint, type, static-analysis, and
+architecture rules and places the automated checks it requires behind
+`make verify`. The resulting enforcement comes from that canonical command,
+CI, and the repository's merge policy; design judgment remains with Human
+Review. See [Code Quality](docs/code-quality.md).
+
+A CI workflow alone does not prevent a GitHub merge from bypassing failed
+checks. A repository administrator must configure the corresponding required
+status check or ruleset separately.
+
 ## Adopt ForgeFlow in a repository
 
 Run the bootstrap script with the repository directory:

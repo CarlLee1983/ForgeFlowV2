@@ -118,6 +118,12 @@ the current protocol version in Doctor's sample output, and listing the example
 traceability checks is **Corrective** for `0.3.2`. These changes align the
 documentation with existing behavior and require no adopter changes.
 
+Code Quality Guidance is **Additive** for `0.3.3`: it explains how a repository
+can place its chosen automated quality tools behind the existing canonical
+gate and strengthens the distributed agent guidance without invalidating an
+existing adoption. It adds no required adoption file, Make target, tool, or
+artifact and changes no `make verify` PASS, FAIL, or Repair Loop semantics.
+
 Doctor's contract-drift reporting is **Additive**: it adds three static-mode
 result lines, composes the two checkers through their existing command forms,
 and changes no exit status. It does add one new value to Doctor's `Result`

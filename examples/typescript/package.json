@@ -9,7 +9,7 @@
   },
   "scripts": {
     "format:check": "prettier --check \"**/*.{js,json,md,ts}\"",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts"
   },

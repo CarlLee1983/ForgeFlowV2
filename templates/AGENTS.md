@@ -15,6 +15,15 @@ For implementation work:
 6. Run `make verify`.
 7. Repair failures until verification passes.
 
+## Code Quality
+
+* Follow the repository's existing formatter, lint, type, and architecture
+  settings.
+* Do not disable, bypass, or weaken existing rules merely to obtain PASS.
+* Keep new code consistent with neighboring code and the existing architecture.
+* Treat `make verify` as the authority for every automated judgment.
+* Leave design judgments that cannot be automated to Human Review.
+
 ## Completion
 
 A task is not complete until:

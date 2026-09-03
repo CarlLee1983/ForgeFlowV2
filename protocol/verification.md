@@ -22,9 +22,19 @@ checks can include:
 - unit, integration, and acceptance tests
 - generated-file or schema consistency checks
 
-ForgeFlow does not require a language, framework, test runner, or CI provider.
-Project-specific commands and setup remain in repository tooling and
-documentation rather than in the ForgeFlow protocol.
+Repository-adopted formatters, linters, type checkers, static analyzers, and
+architecture checkers should be placed behind this same command when their
+results are required for review readiness. Each check must be deterministic,
+non-interactive, suitable for CI, and return a nonzero status on failure.
+Mutating commands such as automatic formatting remain separate so verification
+does not rewrite source files to obtain PASS.
+
+ForgeFlow constrains the verification interface and its PASS/FAIL semantics,
+not the tools behind it. It does not require a language, framework, formatter,
+linter, type checker, architecture checker, test runner, CI provider, or an
+additional Make target. Project-specific commands and setup remain in
+repository tooling and documentation rather than in the ForgeFlow protocol.
+`make verify` remains the only authoritative completion gate.
 
 ## Optional Doctor invocation
 
