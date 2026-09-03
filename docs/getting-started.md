@@ -103,6 +103,12 @@ Replace the example command with the repository's format, lint, type,
 architecture, unit, integration, and acceptance checks. Keep
 `make verify` as the single review-readiness interface.
 
+The repository owns its tools and rule severity. Verification should use
+non-mutating check modes; keep commands that rewrite files, such as `format`,
+separate from `make verify`. Repair a failing check rather than disabling or
+weakening it merely to obtain PASS. See [Code Quality](code-quality.md) for the
+automated and Human Review boundaries.
+
 ## 4. Create and approve a Story
 
 Copy the template to a Story directory:
@@ -174,6 +180,10 @@ Copy [the GitHub Actions template](../templates/ci/github-actions.yml) into the
 target repository and add its toolchain/dependency setup steps. Keep the final
 verification step as `make verify` so local and CI completion use the
 same contract.
+
+The workflow runs the check but does not make it mandatory for merging. A
+repository administrator must separately configure the matching required
+status check or ruleset in GitHub.
 
 ## Validate the included examples
 

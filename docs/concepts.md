@@ -10,6 +10,11 @@ Rules that can be evaluated mechanically belong in formatters, linters, type
 checkers, architecture checks, tests, or other commands behind
 `make verify`.
 
+The repository owns those tools and rules; ForgeFlow standardizes only the
+verification interface. Naming, abstraction quality, and other contextual
+design judgments remain with Human Review. See
+[Code Quality](code-quality.md).
+
 The protocol does not assume that an agent will remember every instruction or
 declare its own work complete.
 

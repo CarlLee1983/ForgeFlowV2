@@ -31,6 +31,10 @@ run_case() {
 guidance_defines_the_enforcement_boundary() {
   [ -s "$forgeflow_repo/docs/code-quality.md" ] || return 1
 
+  contains docs/getting-started.md '[Code Quality](code-quality.md)'
+  contains docs/getting-started.md 'status check or ruleset'
+  contains docs/concepts.md '[Code Quality](code-quality.md)'
+
   for forgeflow_term in \
     'repository-owned concern' \
     'does not prescribe one cross-language style' \
