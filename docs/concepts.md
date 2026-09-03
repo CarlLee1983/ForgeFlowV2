@@ -12,8 +12,8 @@ checkers, architecture checks, tests, or other commands behind
 
 The repository owns those tools and rules; ForgeFlow standardizes only the
 verification interface. Naming, abstraction quality, and other contextual
-design judgments remain with Human Review. See
-[Code Quality](code-quality.md).
+design judgments remain with Human Review. See [Code Quality](code-quality.md)
+and [Human Review](human-review.md).
 
 The protocol does not assume that an agent will remember every instruction or
 declare its own work complete.
@@ -34,6 +34,10 @@ automated requirements hold; it is not product approval and does not merge the
 change.
 
 See [the Verification Contract](../protocol/verification.md).
+
+Human Review then evaluates product intent, design, and architecture. Only a
+human accepts the work; requested implementation changes require a new complete
+`make verify` PASS. Human Review is not an LLM score or automated approval.
 
 ## Repair loop
 

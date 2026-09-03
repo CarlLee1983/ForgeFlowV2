@@ -131,8 +131,6 @@ readme_explains_enforcement_and_github_boundary() {
 }
 
 versioning_records_an_additive_patch() {
-  grep -Fqx '0.3.3' "$forgeflow_repo/VERSION" || return 1
-  contains docs/doctor.md 'Adopted version: 0.3.3'
   contains protocol/versioning.md \
     'Code Quality Guidance is **Additive** for `0.3.3`'
   contains protocol/versioning.md \

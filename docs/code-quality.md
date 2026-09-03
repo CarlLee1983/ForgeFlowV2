@@ -53,4 +53,7 @@ required status check or ruleset.
 
 Automated PASS only makes the change eligible for Human Review. It does not
 approve product intent or replace design and architecture judgment.
-
+The contextual dimensions and outcomes are defined in
+[Human Review](human-review.md). Any requested implementation change must pass
+the complete `make verify` again before returning to review; an LLM score or
+automated approval cannot substitute for human acceptance.

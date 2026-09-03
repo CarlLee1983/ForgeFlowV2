@@ -55,7 +55,10 @@ adopting repository owns its formatter, lint, type, static-analysis, and
 architecture rules and places the automated checks it requires behind
 `make verify`. The resulting enforcement comes from that canonical command,
 CI, and the repository's merge policy; design judgment remains with Human
-Review. See [Code Quality](docs/code-quality.md).
+Review. See [Code Quality](docs/code-quality.md) and
+[Human Review](docs/human-review.md). A requested implementation change returns
+to implementation and requires a new complete `make verify` PASS; Human Review
+is neither an LLM score nor automated approval.
 
 A CI workflow alone does not prevent a GitHub merge from bypassing failed
 checks. A repository administrator must configure the corresponding required

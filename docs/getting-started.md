@@ -174,6 +174,11 @@ A human reviews the verified implementation for product intent and architecture,
 then follows the repository's normal merge policy. Automated PASS makes work
 eligible for review; it does not approve or merge it.
 
+Use the [Human Review guidance](human-review.md) for contextual review questions
+and outcomes. If review requests an implementation change, run the complete
+`make verify` again before returning to review. An agent or LLM may prepare
+evidence, but only a human can accept the review.
+
 ## CI
 
 Copy [the GitHub Actions template](../templates/ci/github-actions.yml) into the

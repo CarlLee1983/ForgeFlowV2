@@ -34,6 +34,22 @@ the completion authority.
 6. Run useful focused checks while developing, then run `make verify`
    from the repository root.
 
+## Review Preparation
+
+After PASS, assemble:
+
+- a Story and acceptance criteria mapping summary;
+- important design and boundary decisions or architecture impacts;
+- test and verification evidence;
+- assumptions, unresolved risks, and suggested attention points.
+
+This report supports review without self-approval. Only a human may accept
+REVIEW and advance the Story to DONE. When review requests implementation
+changes, return to implementation and run full `make verify` again before
+REVIEW. When feedback changes or exposes missing requirements, enter
+SPEC_BLOCKED so a human can revise and reapprove the Story instead of changing
+its intent during review.
+
 ## Repair Verification Failures
 
 When verification fails, use its output to find the root cause, repair the

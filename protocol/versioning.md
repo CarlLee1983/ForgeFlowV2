@@ -124,6 +124,12 @@ gate and strengthens the distributed agent guidance without invalidating an
 existing adoption. It adds no required adoption file, Make target, tool, or
 artifact and changes no `make verify` PASS, FAIL, or Repair Loop semantics.
 
+Human Review Guidance is **Additive** for `0.3.4`: it adds optional contextual
+review guidance and permits REVIEW to return through existing lifecycle states
+without invalidating an existing adoption. It adds no required adoption file,
+Make target, tool, or artifact; adds no lifecycle state; and changes no existing
+transition or `make verify` PASS, FAIL, or Repair Loop semantics.
+
 Doctor's contract-drift reporting is **Additive**: it adds three static-mode
 result lines, composes the two checkers through their existing command forms,
 and changes no exit status. It does add one new value to Doctor's `Result`

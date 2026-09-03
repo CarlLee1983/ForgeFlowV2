@@ -15,6 +15,21 @@ For implementation work:
 6. Run `make verify`.
 7. Repair failures until verification passes.
 
+## Review Preparation
+
+After PASS, prepare Human Review with:
+
+* a Story and acceptance criteria mapping summary
+* important design and boundary decisions or architecture impacts
+* test and verification evidence
+* assumptions, unresolved risks, and suggested attention points
+
+This report supports review without self-approval. Only a human may accept
+REVIEW and advance the Story to DONE. If review requests an implementation
+change, return to implementation and run full `make verify` again before
+REVIEW. If feedback changes or exposes missing requirements, move the Story to
+SPEC_BLOCKED for human revision and approval instead of changing Story intent.
+
 ## Code Quality
 
 * Follow the repository's existing formatter, lint, type, and architecture
