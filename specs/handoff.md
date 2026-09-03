@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: FF-216
+  current_story: none
   next_story: pending
   completed_stories:
     - FF-201
@@ -26,36 +26,16 @@ workflow:
     - FF-213
     - FF-214
     - FF-215
-  status: review
+    - FF-216
+  status: done
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
   branch: main
-  commit: 8e0eb8c10bbd3d6d4d654de42ff7eee115d8c8a4
+  commit: 473104a21a535c0739e01b6c47a48fef7ff13ec1
   dirty_worktree: true
   story_owned_paths:
-    - Makefile
-    - VERSION
-    - docs/contract-checks.md
-    - docs/doctor.md
-    - docs/getting-started.md
-    - docs/human-review.md
-    - docs/releasing.md
-    - docs/upgrading.md
-    - protocol/handoff.md
-    - protocol/verification.md
-    - protocol/versioning.md
-    - skills/story-development/SKILL.md
     - specs/handoff.md
-    - specs/stories/FF-215-human-review-guidance/task.md
-    - specs/stories/FF-216-review-integrity-and-state-consistency/acceptance.md
-    - specs/stories/FF-216-review-integrity-and-state-consistency/story.md
-    - specs/stories/FF-216-review-integrity-and-state-consistency/task.md
-    - templates/AGENTS.md
-    - templates/handoff.md
-    - tests/human-review.sh
-    - tests/protocol.sh
-    - tests/review-integrity.sh
   known_unrelated_paths: []
 
 verification:
@@ -84,7 +64,8 @@ verification:
   `8e0eb8c10bbd3d6d4d654de42ff7eee115d8c8a4` after Human Review accepted the
   committed implementation on `main`, so the Story is DONE.
 * FF-216 corrects review-integrity and state-consistency guidance as protocol
-  version `0.3.5`. It is in REVIEW and is not a completed Story.
+  version `0.3.5`. Human Review accepted the Story, and PR #8 merged it into
+  `main` as `473104a21a535c0739e01b6c47a48fef7ff13ec1`, so it is DONE.
 * Release, tag, and CI state is remote and time-sensitive. Query it at decision
   time under `docs/releasing.md`; this handoff is not its long-term source of
   truth.
