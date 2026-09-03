@@ -27,6 +27,36 @@ or a universal set of code structures.
 * Does it add unapproved behavior or omit a required failure case?
 * Does error behavior match the Story's Expected Errors?
 
+### Contract truthfulness and evidence freshness
+
+Static contract checks confirm declared structure, not whether the declarations
+match reality. Human Review asks:
+
+* Does `Security sensitive` reflect the actual trust boundaries,
+  authorization, confidential data, external input, and persistence behavior?
+* Does `Baseline conformance` reflect any actual replacement of existing
+  behavior or tests?
+* When either declaration is `yes`, do `Trust Boundary Fields`,
+  `Security Fixture Matrix`, or `Superseded Behavior` completely describe the
+  real change?
+* Was either declaration set to `no` merely to avoid the conditional sections?
+  That is not acceptable.
+* Do the Story, Acceptance Criteria, Classification, implementation, and tests
+  agree?
+
+Review also confirms that verification evidence belongs to the implementation
+currently under review:
+
+* Require a complete `make verify` PASS from the current implementation.
+* A change to source code, tests, configuration, or another behavior-affecting
+  file immediately invalidates the prior PASS. Run complete `make verify` again
+  before returning to REVIEW.
+* For a final handoff-only documentation change that does not affect the
+  implementation, attribute its paths explicitly. The human reviewer decides
+  whether it affects behavior and requires re-verification.
+* A handoff checker validates the consistency of the recorded declaration. It
+  does not prove that PASS occurred or remains fresh.
+
 ### Naming and readability
 
 * Do names express business intent and use the repository's existing domain
@@ -151,6 +181,8 @@ weakening tests or guessing the requirement.
 
 ## Compatibility
 
-This guidance adds no required adopter artifact and no Make target.
-There is no automated approval. It adds no lifecycle state and changes no
+This guidance adds no required adopter artifact and no required review artifact.
+It adds no reviewer metadata and no Make target, including no adopter Make
+target. There is no automated approval or automatic Classification inference.
+It adds no lifecycle state and changes no
 existing PASS, FAIL, or Repair Loop semantics.

@@ -6,10 +6,11 @@ release-check: verify
 	./scripts/release-check
 
 verify-protocol:
-	sh -n tests/protocol.sh tests/code-quality.sh tests/human-review.sh
+	sh -n tests/protocol.sh tests/code-quality.sh tests/human-review.sh tests/review-integrity.sh
 	./tests/protocol.sh
 	./tests/code-quality.sh
 	./tests/human-review.sh
+	./tests/review-integrity.sh
 
 verify-bootstrap:
 	sh -n scripts/bootstrap tests/bootstrap.sh

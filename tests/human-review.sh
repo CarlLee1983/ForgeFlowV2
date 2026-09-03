@@ -215,9 +215,9 @@ compatibility_keeps_the_existing_protocol_surface() {
   lacks templates/story/story.md 'Architecture Impact'
 }
 
-versioning_records_the_additive_patch() {
-  grep -Fqx '0.3.4' "$forgeflow_repo/VERSION" || return 1
-  contains docs/doctor.md 'Adopted version: 0.3.4'
+versioning_keeps_human_review_history_and_current_version() {
+  grep -Fqx '0.3.5' "$forgeflow_repo/VERSION" || return 1
+  contains docs/doctor.md 'Adopted version: 0.3.5'
   contains protocol/versioning.md 'Human Review Guidance is **Additive** for `0.3.4`'
   for forgeflow_term in \
     'no required adoption file' \
@@ -248,7 +248,7 @@ run_case 'AC-006' specification_blockers_require_human_resolution
 run_case 'AC-007' review_preparation_is_distributed_without_self_approval
 run_case 'AC-008' navigation_explains_the_human_review_boundary
 run_case 'AC-009' compatibility_keeps_the_existing_protocol_surface
-run_case 'AC-010' versioning_records_the_additive_patch
+run_case 'AC-010' versioning_keeps_human_review_history_and_current_version
 run_case 'AC-011' contract_cases_and_root_gate_are_composed
 
 printf 'human review tests passed\n'

@@ -12,6 +12,11 @@ release candidate's version, commit, strict worktree cleanliness, and local tag
 consistency. Its PASS is local-only evidence. It never fetches, pushes, changes
 tags, calls GitHub, or creates a release.
 
+Remote tag, Release, and CI state is time-sensitive evidence. Query it through
+this runbook when making a release or review decision; a handoff may preserve a
+historical publication fact but is not the long-term source of truth for
+current remote state.
+
 ## 1. Classify and prepare the change
 
 Classify every adopter-facing change as breaking, additive, or corrective under

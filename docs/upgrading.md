@@ -76,6 +76,23 @@ it.
 make previously valid Stories incomplete, and fixing them is a migration step
 you perform and `scripts/story-check` verifies.
 
+## Reconcile repository-owned agent guidance
+
+An adoption marker upgraded to the current version does not mean
+repository-owned `AGENTS.md` is current. Bootstrap never merges or overwrites
+`AGENTS.md` in upgrade mode, so adopters manually compare the current
+`templates/AGENTS.md` and reconcile guidance that fits their repository:
+
+* when upgrading to 0.3.3 or later, compare the Code Quality guidance;
+* when upgrading to 0.3.4 or later, compare Review Preparation and human-only
+  acceptance guidance; and
+* when upgrading to 0.3.5 or later, compare Classification truthfulness and
+  verification freshness guidance.
+
+This is a manual reconciliation step. A marker update proves only which managed
+Story-template snapshot bootstrap installed; it does not prove that the
+repository-owned guide carries the same guidance version.
+
 ## Per-version migration steps
 
 The required repository changes for each version, including the `0.3.0` Story

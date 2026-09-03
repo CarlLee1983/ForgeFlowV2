@@ -43,6 +43,13 @@ After PASS, assemble:
 - test and verification evidence;
 - assumptions, unresolved risks, and suggested attention points.
 
+Check Classification truthfulness against the actual trust boundaries and
+baseline behavior, including the required conditional evidence. Confirm
+verification freshness: the complete PASS must cover the current
+implementation. A source, test, configuration, or other behavior-affecting
+change after PASS requires a new full `make verify`; attribute a final
+handoff-only documentation change so the human can judge its impact.
+
 This report supports review without self-approval. Only a human may accept
 REVIEW and advance the Story to DONE. When review requests implementation
 changes, return to implementation and run full `make verify` again before
