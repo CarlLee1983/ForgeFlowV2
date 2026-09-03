@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: FF-215
+  current_story: none
   next_story: pending
   completed_stories:
     - FF-201
@@ -25,32 +25,16 @@ workflow:
     - FF-212
     - FF-213
     - FF-214
-  status: review
+    - FF-215
+  status: done
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
   branch: main
-  commit: 08405dab5e88c80c17b636c2ee0221104072e3d7
+  commit: e7021f37cb4945a2a2bf34918e5f833cc474ed04
   dirty_worktree: true
   story_owned_paths:
-    - Makefile
-    - README.md
-    - VERSION
-    - docs/code-quality.md
-    - docs/concepts.md
-    - docs/doctor.md
-    - docs/getting-started.md
-    - docs/human-review.md
-    - protocol/lifecycle.md
-    - protocol/versioning.md
-    - skills/story-development/SKILL.md
     - specs/handoff.md
-    - specs/stories/FF-215-human-review-guidance/acceptance.md
-    - specs/stories/FF-215-human-review-guidance/story.md
-    - specs/stories/FF-215-human-review-guidance/task.md
-    - templates/AGENTS.md
-    - tests/code-quality.sh
-    - tests/human-review.sh
   known_unrelated_paths: []
 
 verification:
@@ -77,7 +61,8 @@ verification:
 * FF-215 adds optional Human Review Guidance and review-return transitions
   through existing lifecycle states. The Additive protocol version is now
   `0.3.4`; it has not been tagged or published. Automated verification has
-  passed, but only a human can accept REVIEW and advance the Story to DONE.
+  passed, and Human Review accepted the committed implementation on `main`, so
+  the Story is DONE.
 * Two behavioral narrowings from FF-212 that the callers cannot reach: the
   replaced `grep` predicates matched if any line of a multi-line value matched,
   and `AC-004` listed leading and trailing spaces the parser trims before either
