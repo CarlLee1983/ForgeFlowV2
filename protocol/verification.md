@@ -54,7 +54,10 @@ services, or use the network.
   failing check well enough to begin diagnosis.
 
 PASS does not approve the product intent, waive human review, or merge the
-change. FAIL cannot be reclassified by an agent.
+change. It is evidence for the implementation that the complete command
+checked. A later source, test, configuration, or other behavior-affecting
+change invalidates that PASS for review and requires another complete
+`make verify`. FAIL cannot be reclassified by an agent.
 
 Doctor's `STRUCTURE_OK` result is only a static structure result, while
 `VERIFIED_LOCAL` is local automated evidence. Neither checks CI or merge policy

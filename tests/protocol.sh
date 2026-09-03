@@ -127,7 +127,11 @@ for forgeflow_required_file in \
   tests/doctor.sh \
   tests/story-check.sh \
   tests/handoff-check.sh \
-  tests/release-check.sh
+  tests/release-check.sh \
+  tests/review-integrity.sh \
+  specs/stories/FF-216-review-integrity-and-state-consistency/story.md \
+  specs/stories/FF-216-review-integrity-and-state-consistency/acceptance.md \
+  specs/stories/FF-216-review-integrity-and-state-consistency/task.md
 do
   if [ ! -s "$forgeflow_repo/$forgeflow_required_file" ]; then
     fail "required artifact is missing or empty: $forgeflow_required_file"
@@ -456,6 +460,8 @@ forgeflow_story_contract_acceptance="$forgeflow_repo/specs/stories/FF-208-securi
 forgeflow_story_contract_tests="$forgeflow_repo/tests/story-check.sh"
 forgeflow_handoff_acceptance="$forgeflow_repo/specs/stories/FF-209-handoff-contract/acceptance.md"
 forgeflow_handoff_tests="$forgeflow_repo/tests/handoff-check.sh"
+forgeflow_review_integrity_acceptance="$forgeflow_repo/specs/stories/FF-216-review-integrity-and-state-consistency/acceptance.md"
+forgeflow_review_integrity_tests="$forgeflow_repo/tests/review-integrity.sh"
 
 check_acceptance_mapping \
   "$forgeflow_story_contract_acceptance" "$forgeflow_story_contract_tests" \
@@ -464,6 +470,10 @@ check_acceptance_mapping \
 check_acceptance_mapping \
   "$forgeflow_handoff_acceptance" "$forgeflow_handoff_tests" \
   001 002 003 004 005 006 007 008 009 010
+
+check_acceptance_mapping \
+  "$forgeflow_review_integrity_acceptance" "$forgeflow_review_integrity_tests" \
+  001 002 003 004 005 006 007 008 009 010 011 012
 
 for forgeflow_contract_artifact in \
   scripts/story-check \

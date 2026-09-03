@@ -177,7 +177,9 @@ eligible for review; it does not approve or merge it.
 Use the [Human Review guidance](human-review.md) for contextual review questions
 and outcomes. If review requests an implementation change, run the complete
 `make verify` again before returning to review. An agent or LLM may prepare
-evidence, but only a human can accept the review.
+evidence, but only a human can accept the review. Review also checks that Story
+Classification matches the real implementation and that the PASS still applies
+to the exact implementation under review.
 
 ## CI
 

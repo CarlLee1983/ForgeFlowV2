@@ -130,6 +130,16 @@ without invalidating an existing adoption. It adds no required adoption file,
 Make target, tool, or artifact; adds no lifecycle state; and changes no existing
 transition or `make verify` PASS, FAIL, or Repair Loop semantics.
 
+Review integrity and state consistency is **Corrective** for `0.3.5`: it
+reconciles contradictory completion and publication records and clarifies that
+Human Review checks Classification truthfulness and verification freshness.
+Existing valid adoptions remain valid: the change adds no required file, field,
+review attestation, lifecycle state, automated judgment, or adopter Make target,
+and changes no existing PASS, FAIL, or Repair Loop semantics. Because
+`bootstrap --upgrade` intentionally leaves repository-owned `AGENTS.md`
+untouched, adopters manually compare the 0.3.3 through 0.3.5 agent guidance as
+described in [Upgrading an Adopting Repository](../docs/upgrading.md).
+
 Doctor's contract-drift reporting is **Additive**: it adds three static-mode
 result lines, composes the two checkers through their existing command forms,
 and changes no exit status. It does add one new value to Doctor's `Result`

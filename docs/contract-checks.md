@@ -51,9 +51,11 @@ because most Stories need one of them. Delete the section that the Story's
 Classification does not require; keeping it while declaring `no` is reported as
 a contradiction.
 
-The check never decides whether a declared classification is truthful. A Story
+The check checks declared structure, not Classification truthfulness. A Story
 that claims `Security sensitive: no` for work that handles credentials passes
-the check and fails human review.
+the checker and fails Human Review. Human Review compares the real trust
+boundaries, baseline changes, and conditional evidence, and confirms that the
+Story, Acceptance Criteria, Classification, implementation, and tests agree.
 
 ## Handoff contract check
 
@@ -79,8 +81,10 @@ rather than repaired.
 | `ERROR` | `2` | Invalid invocation, or a missing, unreadable, or symlinked handoff. |
 
 `verification.result` records what the last run claimed. The checker does not
-re-run it, so a stale `pass` is a human-review concern, not a check failure.
-Prose outside the block, and comments inside it, are ignored.
+re-run it and does not prove that the recorded command ran. Human Review checks
+that the PASS is genuine and fresh for the implementation under review. A
+stale `pass` is a review concern, not a checker failure. Prose outside the
+block, and comments inside it, are ignored.
 
 ## Composed by Doctor
 

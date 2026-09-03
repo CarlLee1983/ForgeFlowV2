@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: none
+  current_story: FF-216
   next_story: pending
   completed_stories:
     - FF-201
@@ -26,15 +26,36 @@ workflow:
     - FF-213
     - FF-214
     - FF-215
-  status: done
+  status: review
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
   branch: main
-  commit: e7021f37cb4945a2a2bf34918e5f833cc474ed04
+  commit: 8e0eb8c10bbd3d6d4d654de42ff7eee115d8c8a4
   dirty_worktree: true
   story_owned_paths:
+    - Makefile
+    - VERSION
+    - docs/contract-checks.md
+    - docs/doctor.md
+    - docs/getting-started.md
+    - docs/human-review.md
+    - docs/releasing.md
+    - docs/upgrading.md
+    - protocol/handoff.md
+    - protocol/verification.md
+    - protocol/versioning.md
+    - skills/story-development/SKILL.md
     - specs/handoff.md
+    - specs/stories/FF-215-human-review-guidance/task.md
+    - specs/stories/FF-216-review-integrity-and-state-consistency/acceptance.md
+    - specs/stories/FF-216-review-integrity-and-state-consistency/story.md
+    - specs/stories/FF-216-review-integrity-and-state-consistency/task.md
+    - templates/AGENTS.md
+    - templates/handoff.md
+    - tests/human-review.sh
+    - tests/protocol.sh
+    - tests/review-integrity.sh
   known_unrelated_paths: []
 
 verification:
@@ -54,15 +75,19 @@ verification:
   `7bbdf443ead484780e23df9abf055095d4c629e2`.
 * The README hero image was added at
   `2e7677d25d3177410a38d446b4f9eebdd0d61d91` after that release.
-* FF-214 adds repository-owned Code Quality Guidance, keeps `make verify` as the
-  sole canonical gate, and hardens the TypeScript example against ESLint
-  warnings. The Additive protocol version is now `0.3.3`; it has not been
-  tagged or published.
-* FF-215 adds optional Human Review Guidance and review-return transitions
-  through existing lifecycle states. The Additive protocol version is now
-  `0.3.4`; it has not been tagged or published. Automated verification has
-  passed, and Human Review accepted the committed implementation on `main`, so
-  the Story is DONE.
+* FF-214 delivered repository-owned Code Quality Guidance as protocol version
+  `0.3.3`, kept `make verify` as the sole canonical gate, and hardened the
+  TypeScript example against ESLint warnings.
+* FF-215 delivered optional Human Review Guidance and review-return transitions
+  through existing lifecycle states as protocol version `0.3.4`. The `v0.3.4`
+  tag and GitHub Release were published from
+  `8e0eb8c10bbd3d6d4d654de42ff7eee115d8c8a4` after Human Review accepted the
+  committed implementation on `main`, so the Story is DONE.
+* FF-216 corrects review-integrity and state-consistency guidance as protocol
+  version `0.3.5`. It is in REVIEW and is not a completed Story.
+* Release, tag, and CI state is remote and time-sensitive. Query it at decision
+  time under `docs/releasing.md`; this handoff is not its long-term source of
+  truth.
 * Two behavioral narrowings from FF-212 that the callers cannot reach: the
   replaced `grep` predicates matched if any line of a multi-line value matched,
   and `AC-004` listed leading and trailing spaces the parser trims before either

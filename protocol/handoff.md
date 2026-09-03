@@ -77,3 +77,7 @@ for `HANDOFF_CONTRACT_INCOMPLETE`, and `2` for an operational error. It records
 what the last verification claimed; it never runs verification, edits the
 handoff, or authorizes a merge. Use
 [the handoff template](../templates/handoff.md) as the canonical layout.
+
+Remote tag, Release, and CI state is time-sensitive evidence. A handoff may
+record a historical fact, but it is not the long-term source of truth for
+current remote state; query the remote when that evidence is needed.

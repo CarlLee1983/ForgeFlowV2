@@ -17,7 +17,7 @@ This optional file tracks execution progress. Product requirements belong in
 
 * Baseline: `08405dab5e88c80c17b636c2ee0221104072e3d7` on `main`.
 * No unrelated working-tree changes existed before FF-215 began.
-* Focused FF-215 checks and root `make verify` pass. Human Review remains
-  pending; the Story is not DONE.
+* Focused FF-215 checks and root `make verify` passed. Human Review accepted the
+  committed implementation on `main`, so FF-215 is DONE.
 * Independent review found two contract-test false positives; both were repaired
   and confirmed resolved without changing the Story or product guidance.
