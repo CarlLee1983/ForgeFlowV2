@@ -62,6 +62,48 @@ target syntax remain `UNCONFIRMED`; an unconfirmed result never proves that
 `make verify` is absent. Static mode always reports
 `Verification: NOT_RUN`.
 
+## Contract drift
+
+Once the required structure is confirmed, static mode composes the two
+[contract checks](contract-checks.md) against the same repository and reports
+three more lines:
+
+```text
+Adopted version: 0.3.0
+Story contract: STORY_CONTRACT_OK
+Handoff: HANDOFF_CONTRACT_OK
+```
+
+`Adopted version:` is the `version` field of the FF-210 adoption marker
+`specs/.forgeflow-adoption`, or `UNKNOWN` when the repository has no marker.
+`Story contract:` runs `scripts/story-check` over every directory under
+`specs/stories/` except `_template/`, and is `NO_STORIES` when there are none.
+`Handoff:` runs `scripts/handoff-check` on `specs/handoff.md`, and is
+`NOT_PRESENT` when that file does not exist.
+
+Three signals are drift: an adopted version different from this checkout's
+`VERSION`, `STORY_CONTRACT_INCOMPLETE`, and `HANDOFF_CONTRACT_INCOMPLETE`. Any
+of them prints a `WARN` line and makes the result `CONTRACT_DRIFT` instead of
+`STRUCTURE_OK`. **Drift does not change the exit status**, which stays `0`:
+static mode reports what it found and never becomes a gate. A missing marker,
+`NO_STORIES`, and `NOT_PRESENT` are reported but are not drift.
+
+The composed checks are read-only, are given paths rather than being run from
+inside the target, and never follow a symlink. A handoff, marker, or Story
+directory that is a symlink, is unreadable, or that a checker cannot parse
+reports `ERROR` and exits `2`. So does an incomplete ForgeFlow checkout: Doctor
+needs its own `VERSION`, `scripts/story-check`, and `scripts/handoff-check`, and
+says so rather than blaming the target repository. Run Doctor from a checkout
+rather than through a symlink placed on `PATH`.
+
+When the required structure itself is incomplete, the checks do not run and all
+three lines report `NOT_CHECKED`. The three lines occupy the same position, just
+above the `Result:` block, in every outcome.
+
+Contract results are a static-mode capability. `--run-verify` output is
+otherwise unchanged: a structure failure reports the same three `NOT_CHECKED`
+lines in either mode, and a run that reaches verification reports none.
+
 ## Explicit local verification
 
 Use execution mode only for a repository you trust:
@@ -96,14 +138,15 @@ Doctor uses these process exit codes:
 When both incomplete structure and an unconfirmable error are found, `2` takes
 precedence over `1`.
 
-The result labels distinguish `STRUCTURE_OK`, `STRUCTURE_INCOMPLETE`,
-`VERIFIED_LOCAL`, `VERIFICATION_FAILED`, and `ERROR`. In all Doctor outcomes,
+The result labels distinguish `STRUCTURE_OK`, `CONTRACT_DRIFT`,
+`STRUCTURE_INCOMPLETE`, `VERIFIED_LOCAL`, `VERIFICATION_FAILED`, and `ERROR`. In all Doctor outcomes,
 CI and merge policy remain `NOT_CHECKED`.
 
 | Evidence | What it means | What it does not mean |
 | --- | --- | --- |
 | Bootstrap success | The managed guide and Story-template files were installed. | The adopter-owned gate exists or adoption is complete. |
-| `STRUCTURE_OK` | Doctor could confirm the three required structural paths. | `make verify`, CI, or human review passed. |
+| `STRUCTURE_OK` | Doctor could confirm the three required structural paths, and found no contract drift. | `make verify`, CI, or human review passed. |
+| `CONTRACT_DRIFT` | The structure is complete, but the Stories, handoff, or adopted version no longer match this checkout's protocol version. | The repository is broken, or that the drift blocks anything; the exit status is still `0`. |
 | `VERIFIED_LOCAL` | The repository-configured automated gate returned zero in that local execution. | CI passed, the tests are sufficient, or the change may merge. |
 | Human review | A person evaluates requirements, design, and test sufficiency. | Repository merge policy has automatically been satisfied. |
 | Merge decision | The repository's own policy permits the reviewed change to merge. | Doctor made or automated that decision. |

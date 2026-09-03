@@ -75,3 +75,15 @@ rather than repaired.
 `verification.result` records what the last run claimed. The checker does not
 re-run it, so a stale `pass` is a human-review concern, not a check failure.
 Prose outside the block, and comments inside it, are ignored.
+
+## Composed by Doctor
+
+[Repository Doctor](doctor.md) runs both checks in static mode once the
+required structure is confirmed, using their documented command forms and
+adding no options to either. An `INCOMPLETE` result from either check is
+reported as drift: Doctor prints a `WARN` line and reports
+`Result: CONTRACT_DRIFT` instead of `STRUCTURE_OK`, while its exit status stays
+`0`. An `ERROR` from either check is reported as `ERROR` and exits `2`.
+
+Running either check directly stays exactly as documented above; Doctor is a
+convenience that composes them, not a replacement for them.

@@ -8,8 +8,8 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: FF-210
-  next_story: FF-211
+  current_story: FF-211
+  next_story: pending
   completed_stories:
     - FF-201
     - FF-202
@@ -20,19 +20,19 @@ workflow:
     - FF-207
     - FF-208
     - FF-209
+    - FF-210
   status: review
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
   branch: feat/ff-210-adoption-marker
-  commit: f14da0095cf04d42df3d7a82822e072639beba9e
+  commit: 730a7828a3cca52770c58a145f43863cd98c02da
   dirty_worktree: true
   story_owned_paths:
-    - scripts/bootstrap
-    - tests/bootstrap.sh
-    - docs/upgrading.md
-    - docs/getting-started.md
-    - README.md
+    - scripts/doctor
+    - tests/doctor.sh
+    - docs/doctor.md
+    - docs/contract-checks.md
     - protocol/versioning.md
     - specs/handoff.md
   known_unrelated_paths: []
@@ -44,15 +44,18 @@ verification:
 
 ## Notes
 
-* FF-209 completed with FF-208; PR #3 merged both into `main` as
-  `f14da0095cf04d42df3d7a82822e072639beba9e`, which is this branch's baseline.
-* FF-210 and FF-211 were approved together after a scope review. FF-210 lands
-  first because FF-211 reads the adoption marker FF-210 installs.
-* FF-210 is implemented and awaiting human review. Every acceptance criterion
-  has a named case in `tests/bootstrap.sh`, and root `make verify` passes on
-  this tree.
-* The worktree is dirty because the FF-210 implementation is not yet committed;
-  every dirty path is Story-owned.
-* A code review of the implementation raised three HIGH findings, all about the
-  marker or its warning claiming more than the evidence supports. All three are
-  fixed and pinned by cases under `AC-004` and `AC-005`.
+* FF-210 is delivered on this branch and FF-211 continues on the same branch
+  because it reads the adoption marker FF-210 installs.
+* FF-211 is implemented and awaiting human review. Root `make verify` passes on
+  this tree; the worktree is dirty only because FF-211 is not yet committed.
+* A code review raised one CRITICAL and three HIGH findings, all fixed: static
+  mode used `sed` and so aborted with no `Result` line under an empty `PATH`;
+  an incomplete ForgeFlow checkout was reported as a target failure; the marker
+  version was compared without the normalization `scripts/bootstrap` applies
+  when it writes the file; and a refused Story path reported `NOT_CHECKED`
+  instead of `ERROR`.
+* Open, not in FF-211's scope: `scripts/story-check` and `scripts/handoff-check`
+  use `grep`, `sort`, and `uniq`, so under an empty `PATH` `handoff-check`
+  returns `HANDOFF_CONTRACT_INCOMPLETE` for a valid handoff. Composed by Doctor,
+  that surfaces as a false `CONTRACT_DRIFT`. FF-211 cannot fix it because its
+  `AC-012` requires both checkers to stay byte-identical.

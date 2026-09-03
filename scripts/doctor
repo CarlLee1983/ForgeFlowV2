@@ -253,6 +253,205 @@ else
   exit 2
 fi
 
+# Resolved with shell builtins only: Doctor must behave identically when the
+# caller's PATH holds no external utilities.
+case "$0" in
+  */*) forgeflow_script_dir=${0%/*} ;;
+  *) forgeflow_script_dir=. ;;
+esac
+
+forgeflow_script_dir=$(
+  CDPATH='' cd -P "$forgeflow_script_dir" >/dev/null 2>&1 || exit 1
+  pwd
+)
+forgeflow_root=${forgeflow_script_dir%/*}
+
+if [ -z "$forgeflow_root" ]; then
+  forgeflow_root='/'
+fi
+forgeflow_marker_relative='specs/.forgeflow-adoption'
+forgeflow_cr=$(printf '\r')
+forgeflow_tab=$(printf '\t')
+
+trim_trailing_blanks() {
+  forgeflow_trimmed=$1
+
+  while :; do
+    case "$forgeflow_trimmed" in
+      *"$forgeflow_cr") forgeflow_trimmed=${forgeflow_trimmed%"$forgeflow_cr"} ;;
+      *"$forgeflow_tab") forgeflow_trimmed=${forgeflow_trimmed%"$forgeflow_tab"} ;;
+      *' ') forgeflow_trimmed=${forgeflow_trimmed% } ;;
+      *) break ;;
+    esac
+  done
+}
+
+# Read with shell builtins only: static mode must behave identically when the
+# caller's PATH holds no external utilities.
+read_first_line() {
+  forgeflow_first_line=''
+
+  {
+    IFS= read -r forgeflow_first_line || [ -n "$forgeflow_first_line" ]
+  } <"$1" || return 1
+
+  trim_trailing_blanks "$forgeflow_first_line"
+  forgeflow_first_line=$forgeflow_trimmed
+}
+
+read_marker_version() {
+  forgeflow_marker_version=''
+
+  while IFS= read -r forgeflow_marker_line ||
+    [ -n "$forgeflow_marker_line" ]
+  do
+    case "$forgeflow_marker_line" in
+      version=*)
+        forgeflow_marker_version=${forgeflow_marker_line#version=}
+        trim_trailing_blanks "$forgeflow_marker_version"
+        forgeflow_marker_version=$forgeflow_trimmed
+        [ -n "$forgeflow_marker_version" ] || return 1
+        return 0
+        ;;
+    esac
+  done <"$1"
+
+  return 1
+}
+forgeflow_adopted_version='UNKNOWN'
+forgeflow_story_contract='NOT_CHECKED'
+forgeflow_handoff_contract='NOT_CHECKED'
+forgeflow_contract_drift=0
+forgeflow_contract_error=0
+forgeflow_static_result='STRUCTURE_OK'
+
+# The composed checkers are read-only and are given paths rather than being run
+# from inside the target, so static mode never executes repository-owned code.
+read_adoption_marker() {
+  forgeflow_marker_path="$forgeflow_target/$forgeflow_marker_relative"
+
+  if [ -L "$forgeflow_marker_path" ]; then
+    printf 'ERROR Adoption marker is a symlink and cannot be safely read: %s\n' \
+      "$forgeflow_marker_relative"
+    forgeflow_contract_error=1
+    return 0
+  fi
+
+  if [ ! -e "$forgeflow_marker_path" ]; then
+    printf 'INFO  No adoption marker; the adopted protocol version is unknown\n'
+    return 0
+  fi
+
+  if [ ! -f "$forgeflow_marker_path" ] || [ ! -r "$forgeflow_marker_path" ]; then
+    printf 'ERROR Adoption marker cannot be read: %s\n' \
+      "$forgeflow_marker_relative"
+    forgeflow_contract_error=1
+    return 0
+  fi
+
+  if ! read_marker_version "$forgeflow_marker_path"; then
+    printf 'ERROR Adoption marker records no version: %s\n' \
+      "$forgeflow_marker_relative"
+    forgeflow_contract_error=1
+    return 0
+  fi
+
+  forgeflow_adopted_version=$forgeflow_marker_version
+
+  if [ "$forgeflow_adopted_version" != "$forgeflow_version" ]; then
+    printf 'WARN  Adopted version %s differs from this checkout %s\n' \
+      "$forgeflow_adopted_version" "$forgeflow_version"
+    forgeflow_contract_drift=1
+  fi
+}
+
+check_story_contract() {
+  set --
+
+  for forgeflow_story_entry in "$forgeflow_target"/specs/stories/*
+  do
+    case "${forgeflow_story_entry##*/}" in
+      _template) continue ;;
+    esac
+
+    # A dangling symlink fails -e, so the link test comes first.
+    if [ -L "$forgeflow_story_entry" ]; then
+      printf 'ERROR Story path is a symlink and cannot be safely read: %s\n' \
+        "${forgeflow_story_entry##*/}"
+      forgeflow_story_contract='ERROR'
+      forgeflow_contract_error=1
+      return 0
+    fi
+
+    [ -e "$forgeflow_story_entry" ] || continue
+    [ -d "$forgeflow_story_entry" ] || continue
+
+    set -- "$@" "$forgeflow_story_entry"
+  done
+
+  if [ "$#" -eq 0 ]; then
+    forgeflow_story_contract='NO_STORIES'
+    return 0
+  fi
+
+  if "$forgeflow_script_dir/story-check" "$@" >/dev/null 2>&1; then
+    forgeflow_story_status=0
+  else
+    forgeflow_story_status=$?
+  fi
+
+  case "$forgeflow_story_status" in
+    0) forgeflow_story_contract='STORY_CONTRACT_OK' ;;
+    1)
+      forgeflow_story_contract='STORY_CONTRACT_INCOMPLETE'
+      printf 'WARN  Stories do not satisfy the Story Contract of this checkout\n'
+      forgeflow_contract_drift=1
+      ;;
+    *)
+      forgeflow_story_contract='ERROR'
+      printf 'ERROR Story contract check could not read the Stories it was given\n'
+      forgeflow_contract_error=1
+      ;;
+  esac
+}
+
+check_handoff_contract() {
+  forgeflow_handoff_path="$forgeflow_target/specs/handoff.md"
+
+  if [ -L "$forgeflow_handoff_path" ]; then
+    printf 'ERROR Handoff is a symlink and cannot be safely read: specs/handoff.md\n'
+    forgeflow_contract_error=1
+    forgeflow_handoff_contract='ERROR'
+    return 0
+  fi
+
+  if [ ! -e "$forgeflow_handoff_path" ]; then
+    forgeflow_handoff_contract='NOT_PRESENT'
+    return 0
+  fi
+
+  if "$forgeflow_script_dir/handoff-check" "$forgeflow_handoff_path" \
+    >/dev/null 2>&1; then
+    forgeflow_handoff_status=0
+  else
+    forgeflow_handoff_status=$?
+  fi
+
+  case "$forgeflow_handoff_status" in
+    0) forgeflow_handoff_contract='HANDOFF_CONTRACT_OK' ;;
+    1)
+      forgeflow_handoff_contract='HANDOFF_CONTRACT_INCOMPLETE'
+      printf 'WARN  The handoff does not satisfy the Handoff Contract of this checkout\n'
+      forgeflow_contract_drift=1
+      ;;
+    *)
+      forgeflow_handoff_contract='ERROR'
+      printf 'ERROR Handoff contract check could not read specs/handoff.md\n'
+      forgeflow_contract_error=1
+      ;;
+  esac
+}
+
 forgeflow_structure_incomplete=0
 forgeflow_structure_error=0
 forgeflow_makefile_readable=0
@@ -365,6 +564,9 @@ fi
 printf 'INFO  Skill installation is optional\n\n'
 
 if [ "$forgeflow_structure_error" -eq 1 ]; then
+  printf 'Adopted version: %s\n' "$forgeflow_adopted_version"
+  printf 'Story contract: %s\n' "$forgeflow_story_contract"
+  printf 'Handoff: %s\n\n' "$forgeflow_handoff_contract"
   printf 'Result: ERROR\n'
   printf 'Verification: NOT_RUN\n'
   printf 'CI: NOT_CHECKED\n'
@@ -388,6 +590,9 @@ if [ "$forgeflow_structure_error" -eq 1 ]; then
 fi
 
 if [ "$forgeflow_structure_incomplete" -eq 1 ]; then
+  printf 'Adopted version: %s\n' "$forgeflow_adopted_version"
+  printf 'Story contract: %s\n' "$forgeflow_story_contract"
+  printf 'Handoff: %s\n\n' "$forgeflow_handoff_contract"
   printf 'Result: STRUCTURE_INCOMPLETE\n'
   printf 'Verification: NOT_RUN\n'
   printf 'CI: NOT_CHECKED\n'
@@ -407,6 +612,64 @@ if [ "$forgeflow_structure_incomplete" -eq 1 ]; then
   fi
 
   exit 1
+fi
+
+if [ "$forgeflow_run_verify" -eq 0 ]; then
+  forgeflow_installation_incomplete=
+
+  for forgeflow_required_component in \
+    "$forgeflow_root/VERSION" \
+    "$forgeflow_script_dir/story-check" \
+    "$forgeflow_script_dir/handoff-check"
+  do
+    if [ ! -f "$forgeflow_required_component" ] ||
+      [ ! -r "$forgeflow_required_component" ]; then
+      forgeflow_installation_incomplete=$forgeflow_required_component
+      break
+    fi
+  done
+
+  if [ -n "$forgeflow_installation_incomplete" ] ||
+    ! read_first_line "$forgeflow_root/VERSION"; then
+    printf 'ERROR This ForgeFlow installation is incomplete: %s\n\n' \
+      "${forgeflow_installation_incomplete:-$forgeflow_root/VERSION}"
+    printf 'Adopted version: NOT_CHECKED\n'
+    printf 'Story contract: NOT_CHECKED\n'
+    printf 'Handoff: NOT_CHECKED\n\n'
+    printf 'Result: ERROR\n'
+    printf 'Verification: NOT_RUN\n'
+    printf 'CI: NOT_CHECKED\n'
+    printf 'Merge policy: NOT_CHECKED\n\n'
+    printf 'Next:\n'
+    printf 'Run Doctor from a complete ForgeFlow checkout.\n'
+    exit 2
+  fi
+
+  forgeflow_version=$forgeflow_first_line
+
+  read_adoption_marker
+  check_story_contract
+  check_handoff_contract
+
+  printf 'Adopted version: %s\n' "$forgeflow_adopted_version"
+  printf 'Story contract: %s\n' "$forgeflow_story_contract"
+  printf 'Handoff: %s\n\n' "$forgeflow_handoff_contract"
+
+  if [ "$forgeflow_contract_error" -eq 1 ]; then
+    printf 'Result: ERROR\n'
+    printf 'Verification: NOT_RUN\n'
+    printf 'CI: NOT_CHECKED\n'
+    printf 'Merge policy: NOT_CHECKED\n\n'
+    printf 'Next:\n'
+    printf 'Review the unreadable contract paths, then run Doctor again.\n'
+    exit 2
+  fi
+
+  if [ "$forgeflow_contract_drift" -eq 1 ]; then
+    forgeflow_static_result='CONTRACT_DRIFT'
+  else
+    forgeflow_static_result='STRUCTURE_OK'
+  fi
 fi
 
 if [ "$forgeflow_run_verify" -eq 1 ]; then
@@ -460,11 +723,18 @@ if [ "$forgeflow_run_verify" -eq 1 ]; then
   exit 1
 fi
 
-printf 'Result: STRUCTURE_OK\n'
+printf 'Result: %s\n' "$forgeflow_static_result"
 printf 'Verification: NOT_RUN\n'
 printf 'CI: NOT_CHECKED\n'
 printf 'Merge policy: NOT_CHECKED\n\n'
 printf 'Next:\n'
-printf 'Review the repository gate, then run:\n'
+
+if [ "$forgeflow_static_result" = 'CONTRACT_DRIFT' ]; then
+  printf 'Run scripts/story-check and scripts/handoff-check against the\n'
+  printf 'repository for the drift detail, then review the repository gate and run:\n'
+else
+  printf 'Review the repository gate, then run:\n'
+fi
+
 printf '  make verify\n'
 printf 'from the target repository root.\n'

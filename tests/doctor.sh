@@ -156,6 +156,64 @@ snapshot_tree_without_atime() {
   ) >"$forgeflow_snapshot_output"
 }
 
+forgeflow_marker_relative='specs/.forgeflow-adoption'
+
+add_valid_story() {
+  cp -R "$forgeflow_repo/specs/stories/FF-210-adoption-snapshot-and-template-upgrade" \
+    "$1/specs/stories/FF-001-example"
+}
+
+add_valid_handoff() {
+  cat >"$1/specs/handoff.md" <<'FORGEFLOW_HANDOFF'
+# Handoff
+
+```yaml
+workflow:
+  current_story: FF-001
+  next_story: pending
+  completed_stories: []
+  status: implementing
+
+baseline:
+  repository: example/repository
+  branch: main
+  commit: 0123456789abcdef0123456789abcdef01234567
+  dirty_worktree: false
+  story_owned_paths: []
+  known_unrelated_paths: []
+
+verification:
+  last_command: make verify
+  result: not_run
+```
+FORGEFLOW_HANDOFF
+}
+
+add_marker() {
+  printf 'version=%s\nrevision=unknown\n' "$2" >"$1/$forgeflow_marker_relative"
+}
+
+create_adopted_fixture() {
+  create_complete_fixture "$1"
+  add_valid_story "$1"
+  add_valid_handoff "$1"
+  add_marker "$1" "$(cat "$forgeflow_repo/VERSION")"
+}
+
+doctor_reports_a_conformant_adoption() {
+  forgeflow_fixture="$forgeflow_test_dir/contract-ok"
+  create_adopted_fixture "$forgeflow_fixture"
+
+  run_doctor "$forgeflow_fixture"
+
+  assert_status 0
+  assert_output_contains "Adopted version: $(cat "$forgeflow_repo/VERSION")"
+  assert_output_contains 'Story contract: STORY_CONTRACT_OK'
+  assert_output_contains 'Handoff: HANDOFF_CONTRACT_OK'
+  assert_output_contains 'Result: STRUCTURE_OK'
+  assert_output_excludes 'CONTRACT_DRIFT'
+}
+
 bootstrap_requires_repository_makefile() {
   forgeflow_fixture="$forgeflow_test_dir/bootstrap"
   mkdir -p "$forgeflow_fixture"
@@ -748,5 +806,370 @@ run_case 'AC-009' incomplete_structure_blocks_explicit_verification
 run_case 'AC-010' cli_contract_and_repository_paths_are_unambiguous
 run_case 'AC-011' required_path_symlinks_and_permissions_are_unconfirmed_errors
 run_case 'AC-012' root_verify_runs_doctor_and_retains_existing_gates
+
+break_story_classification() {
+  grep -v '^## Classification' "$1/story.md" >"$1/story.md.new"
+  mv "$1/story.md.new" "$1/story.md"
+}
+
+doctor_enumerates_every_story_except_the_template() {
+  # A Story Doctor failed to enumerate would leave the result OK, so each
+  # fixture below is distinguishable only by which directories were checked.
+  forgeflow_fixture="$forgeflow_test_dir/contract-enumeration-second"
+  create_adopted_fixture "$forgeflow_fixture"
+  cp -R "$forgeflow_repo/specs/stories/FF-211-doctor-contract-drift" \
+    "$forgeflow_fixture/specs/stories/FF-002-example"
+  break_story_classification "$forgeflow_fixture/specs/stories/FF-002-example"
+
+  run_doctor "$forgeflow_fixture"
+  assert_status 0
+  assert_output_contains 'Story contract: STORY_CONTRACT_INCOMPLETE'
+
+  forgeflow_fixture="$forgeflow_test_dir/contract-enumeration-first"
+  create_adopted_fixture "$forgeflow_fixture"
+  cp -R "$forgeflow_repo/specs/stories/FF-211-doctor-contract-drift" \
+    "$forgeflow_fixture/specs/stories/FF-002-example"
+  break_story_classification "$forgeflow_fixture/specs/stories/FF-001-example"
+
+  run_doctor "$forgeflow_fixture"
+  assert_status 0
+  assert_output_contains 'Story contract: STORY_CONTRACT_INCOMPLETE'
+
+  # The same broken Story under _template/ must not be checked at all.
+  forgeflow_fixture="$forgeflow_test_dir/contract-enumeration-template"
+  create_adopted_fixture "$forgeflow_fixture"
+  cp -R "$forgeflow_repo/specs/stories/FF-211-doctor-contract-drift" \
+    "$forgeflow_fixture/specs/stories/_template"
+  break_story_classification "$forgeflow_fixture/specs/stories/_template"
+
+  run_doctor "$forgeflow_fixture"
+  assert_status 0
+  assert_output_contains 'Story contract: STORY_CONTRACT_OK'
+
+  # No option was added to story-check, and Doctor passes none.
+  grep -Fq -- '--repository' "$forgeflow_repo/scripts/story-check" &&
+    fail 'story-check grew a repository option this Story excluded'
+
+  grep -Fq -- '--repository' "$forgeflow_repo/scripts/doctor" &&
+    fail 'Doctor invokes a story-check option this Story excluded'
+
+  return 0
+}
+
+incomplete_stories_are_drift_without_changing_the_exit_status() {
+  forgeflow_fixture="$forgeflow_test_dir/contract-story-drift"
+  create_adopted_fixture "$forgeflow_fixture"
+  grep -v '^## Classification' \
+    "$forgeflow_fixture/specs/stories/FF-001-example/story.md" \
+    >"$forgeflow_fixture/specs/stories/FF-001-example/story.md.new"
+  mv "$forgeflow_fixture/specs/stories/FF-001-example/story.md.new" \
+    "$forgeflow_fixture/specs/stories/FF-001-example/story.md"
+
+  run_doctor "$forgeflow_fixture"
+
+  assert_status 0
+  assert_output_contains 'Story contract: STORY_CONTRACT_INCOMPLETE'
+  assert_output_contains 'Result: CONTRACT_DRIFT'
+  assert_output_contains 'WARN  Stories do not satisfy the Story Contract'
+  assert_output_excludes 'Result: STRUCTURE_OK'
+}
+
+an_incomplete_handoff_is_drift() {
+  forgeflow_fixture="$forgeflow_test_dir/contract-handoff-drift"
+  create_adopted_fixture "$forgeflow_fixture"
+  printf '# Handoff\n\nNo lifecycle block.\n' \
+    >"$forgeflow_fixture/specs/handoff.md"
+
+  run_doctor "$forgeflow_fixture"
+
+  assert_status 0
+  assert_output_contains 'Handoff: HANDOFF_CONTRACT_INCOMPLETE'
+  assert_output_contains 'Result: CONTRACT_DRIFT'
+}
+
+an_adopted_version_difference_is_drift() {
+  forgeflow_fixture="$forgeflow_test_dir/contract-version-drift"
+  create_adopted_fixture "$forgeflow_fixture"
+  add_marker "$forgeflow_fixture" '0.2.1'
+
+  run_doctor "$forgeflow_fixture"
+
+  assert_status 0
+  assert_output_contains 'Adopted version: 0.2.1'
+  assert_output_contains "$(cat "$forgeflow_repo/VERSION")"
+  assert_output_contains 'Result: CONTRACT_DRIFT'
+}
+
+a_missing_marker_is_reported_but_is_not_drift() {
+  forgeflow_fixture="$forgeflow_test_dir/contract-no-marker"
+  create_adopted_fixture "$forgeflow_fixture"
+  rm "$forgeflow_fixture/$forgeflow_marker_relative"
+
+  run_doctor "$forgeflow_fixture"
+
+  assert_status 0
+  assert_output_contains 'Adopted version: UNKNOWN'
+  assert_output_contains 'INFO  No adoption marker'
+  assert_output_contains 'Result: STRUCTURE_OK'
+  assert_output_excludes 'CONTRACT_DRIFT'
+}
+
+an_absent_story_or_handoff_is_not_drift() {
+  forgeflow_fixture="$forgeflow_test_dir/contract-absent"
+  create_complete_fixture "$forgeflow_fixture"
+  add_marker "$forgeflow_fixture" "$(cat "$forgeflow_repo/VERSION")"
+  cp -R "$forgeflow_repo/templates/story" \
+    "$forgeflow_fixture/specs/stories/_template"
+
+  run_doctor "$forgeflow_fixture"
+
+  assert_status 0
+  assert_output_contains 'Story contract: NO_STORIES'
+  assert_output_contains 'Handoff: NOT_PRESENT'
+  assert_output_contains 'Result: STRUCTURE_OK'
+  assert_output_excludes 'WARN'
+  assert_output_excludes 'CONTRACT_DRIFT'
+}
+
+a_structure_failure_reports_the_contracts_as_not_checked() {
+  forgeflow_fixture="$forgeflow_test_dir/contract-no-makefile"
+  create_adopted_fixture "$forgeflow_fixture"
+  rm "$forgeflow_fixture/Makefile"
+
+  run_doctor "$forgeflow_fixture"
+
+  assert_status 1
+  assert_output_contains 'Result: STRUCTURE_INCOMPLETE'
+  assert_output_contains 'Story contract: NOT_CHECKED'
+  assert_output_contains 'Handoff: NOT_CHECKED'
+  assert_output_excludes 'STORY_CONTRACT_OK'
+  assert_output_excludes 'HANDOFF_CONTRACT_OK'
+}
+
+contract_checks_leave_the_repository_unchanged() {
+  forgeflow_fixture="$forgeflow_test_dir/contract-no-write"
+  create_adopted_fixture "$forgeflow_fixture"
+  add_marker "$forgeflow_fixture" '0.2.1'
+
+  forgeflow_before="$forgeflow_test_dir/contract-no-write.before"
+  forgeflow_after="$forgeflow_test_dir/contract-no-write.after"
+  snapshot_tree_without_atime "$forgeflow_fixture" "$forgeflow_before"
+
+  run_doctor "$forgeflow_fixture"
+  assert_status 0
+  assert_output_contains 'Result: CONTRACT_DRIFT'
+
+  snapshot_tree_without_atime "$forgeflow_fixture" "$forgeflow_after"
+  cmp "$forgeflow_before" "$forgeflow_after" >/dev/null ||
+    fail 'the contract checks changed the repository'
+
+  # AC-009 also covers paths outside the repository: the ForgeFlow checkout the
+  # composed checkers live in must be untouched.
+  forgeflow_checkout_marker="$forgeflow_repo/$forgeflow_marker_relative"
+  forgeflow_checkout_before="$forgeflow_test_dir/checkout-marker.before"
+  forgeflow_checkout_after="$forgeflow_test_dir/checkout-marker.after"
+
+  if [ -e "$forgeflow_checkout_marker" ]; then
+    cksum <"$forgeflow_checkout_marker" >"$forgeflow_checkout_before"
+  else
+    printf 'absent\n' >"$forgeflow_checkout_before"
+  fi
+
+  run_doctor "$forgeflow_fixture"
+  assert_status 0
+
+  if [ -e "$forgeflow_checkout_marker" ]; then
+    cksum <"$forgeflow_checkout_marker" >"$forgeflow_checkout_after"
+  else
+    printf 'absent\n' >"$forgeflow_checkout_after"
+  fi
+
+  cmp "$forgeflow_checkout_before" "$forgeflow_checkout_after" >/dev/null ||
+    fail 'the contract checks wrote to the ForgeFlow checkout'
+}
+
+unreadable_contract_paths_are_errors() {
+  forgeflow_outside="$forgeflow_test_dir/contract-outside-handoff"
+  printf 'outside handoff\n' >"$forgeflow_outside"
+
+  forgeflow_fixture="$forgeflow_test_dir/contract-handoff-symlink"
+  create_adopted_fixture "$forgeflow_fixture"
+  rm "$forgeflow_fixture/specs/handoff.md"
+  ln -s "$forgeflow_outside" "$forgeflow_fixture/specs/handoff.md"
+
+  run_doctor "$forgeflow_fixture"
+  assert_status 2
+  assert_output_contains 'Result: ERROR'
+  assert_output_contains 'Handoff is a symlink'
+
+  if [ "$(cat "$forgeflow_outside")" != 'outside handoff' ]; then
+    fail 'Doctor wrote through a handoff symlink'
+  fi
+}
+
+unreadable_markers_and_story_paths_are_errors() {
+  forgeflow_outside="$forgeflow_test_dir/contract-outside-handoff"
+
+  forgeflow_fixture="$forgeflow_test_dir/contract-marker-symlink"
+  create_adopted_fixture "$forgeflow_fixture"
+  rm "$forgeflow_fixture/$forgeflow_marker_relative"
+  ln -s "$forgeflow_outside" "$forgeflow_fixture/$forgeflow_marker_relative"
+
+  run_doctor "$forgeflow_fixture"
+  assert_status 2
+  assert_output_contains 'Result: ERROR'
+
+  forgeflow_fixture="$forgeflow_test_dir/contract-marker-no-version"
+  create_adopted_fixture "$forgeflow_fixture"
+  printf 'revision=unknown\n' >"$forgeflow_fixture/$forgeflow_marker_relative"
+
+  run_doctor "$forgeflow_fixture"
+  assert_status 2
+  assert_output_contains 'Adoption marker records no version'
+
+  forgeflow_fixture="$forgeflow_test_dir/contract-marker-unreadable"
+  create_adopted_fixture "$forgeflow_fixture"
+  chmod 000 "$forgeflow_fixture/$forgeflow_marker_relative"
+  run_doctor "$forgeflow_fixture"
+  chmod 600 "$forgeflow_fixture/$forgeflow_marker_relative"
+  assert_status 2
+  assert_output_contains 'Adoption marker cannot be read'
+
+  forgeflow_fixture="$forgeflow_test_dir/contract-story-symlink"
+  create_adopted_fixture "$forgeflow_fixture"
+  ln -s "$forgeflow_test_dir/contract-outside-story" \
+    "$forgeflow_fixture/specs/stories/FF-003-linked"
+
+  run_doctor "$forgeflow_fixture"
+  assert_status 2
+  assert_output_contains 'Story path is a symlink'
+  assert_output_contains 'Story contract: ERROR'
+  assert_output_excludes 'Story contract: NOT_CHECKED'
+}
+
+the_composed_checkers_keep_their_own_command_forms() {
+  grep -Fq 'Usage: %s [story-directory ...]' "$forgeflow_repo/scripts/story-check" ||
+    fail 'story-check no longer advertises its documented command form'
+  grep -Fq 'Usage: %s [handoff-file]' "$forgeflow_repo/scripts/handoff-check" ||
+    fail 'handoff-check no longer advertises its documented command form'
+
+  # Doctor composes them by path only: no option is passed, and neither script
+  # is sourced or run from inside the target repository.
+  grep -n 'script_dir/story-check\|script_dir/handoff-check' \
+    "$forgeflow_repo/scripts/doctor" >"$forgeflow_test_dir/composition.lines"
+
+  while IFS= read -r forgeflow_composition_line
+  do
+    case "$forgeflow_composition_line" in
+      *' --'*)
+        fail "Doctor passes an option to a composed checker: $forgeflow_composition_line"
+        ;;
+    esac
+  done <"$forgeflow_test_dir/composition.lines"
+
+  [ -s "$forgeflow_test_dir/composition.lines" ] ||
+    fail 'Doctor does not compose the contract checkers'
+}
+
+the_new_result_lines_are_documented() {
+  for forgeflow_documented in \
+    'CONTRACT_DRIFT' \
+    'Story contract:' \
+    'Handoff:' \
+    'Adopted version:'
+  do
+    grep -Fq -- "$forgeflow_documented" "$forgeflow_repo/docs/doctor.md" ||
+      fail "docs/doctor.md does not document $forgeflow_documented"
+  done
+
+  grep -Fq -- 'CONTRACT_DRIFT' "$forgeflow_repo/docs/contract-checks.md" ||
+    fail 'docs/contract-checks.md does not document CONTRACT_DRIFT'
+  grep -Fq -- 'CONTRACT_DRIFT' "$forgeflow_repo/protocol/versioning.md" ||
+    fail 'protocol/versioning.md does not record the new result value'
+}
+
+# Doctor's own static path must use shell builtins only. The composed checkers
+# are byte-identical to their released versions and do rely on grep and sort, so
+# this case exercises a repository that invokes neither.
+static_mode_needs_no_external_utilities() {
+  forgeflow_fixture="$forgeflow_test_dir/contract-empty-path"
+  create_complete_fixture "$forgeflow_fixture"
+  add_marker "$forgeflow_fixture" "$(cat "$forgeflow_repo/VERSION")"
+
+  run_doctor_with_path "$forgeflow_test_dir/empty-path-static" \
+    "$forgeflow_fixture"
+
+  assert_status 0
+  assert_output_contains "Adopted version: $(cat "$forgeflow_repo/VERSION")"
+  assert_output_contains 'Story contract: NO_STORIES'
+  assert_output_contains 'Handoff: NOT_PRESENT'
+  assert_output_contains 'Result: STRUCTURE_OK'
+  assert_output_contains 'Merge policy: NOT_CHECKED'
+
+  forgeflow_drift_fixture="$forgeflow_test_dir/contract-empty-path-drift"
+  create_complete_fixture "$forgeflow_drift_fixture"
+  add_marker "$forgeflow_drift_fixture" '0.2.1'
+
+  run_doctor_with_path "$forgeflow_test_dir/empty-path-static" \
+    "$forgeflow_drift_fixture"
+
+  assert_status 0
+  assert_output_contains 'Adopted version: 0.2.1'
+  assert_output_contains 'Result: CONTRACT_DRIFT'
+}
+
+an_incomplete_forgeflow_installation_is_an_error() {
+  forgeflow_fixture="$forgeflow_test_dir/contract-broken-install"
+  create_adopted_fixture "$forgeflow_fixture"
+
+  forgeflow_partial="$forgeflow_test_dir/partial-checkout"
+  mkdir -p "$forgeflow_partial/scripts"
+  cp "$forgeflow_repo/scripts/doctor" "$forgeflow_partial/scripts/"
+
+  forgeflow_command_output="$forgeflow_test_dir/$forgeflow_case_id.installation"
+
+  if "$forgeflow_partial/scripts/doctor" "$forgeflow_fixture" \
+    >"$forgeflow_command_output" 2>&1; then
+    forgeflow_command_status=0
+  else
+    forgeflow_command_status=$?
+  fi
+
+  assert_status 2
+  assert_output_contains 'Result: ERROR'
+  assert_output_contains 'Verification: NOT_RUN'
+}
+
+a_marker_written_with_carriage_returns_is_not_drift() {
+  forgeflow_fixture="$forgeflow_test_dir/contract-crlf-marker"
+  create_adopted_fixture "$forgeflow_fixture"
+  printf 'version=%s\r\nrevision=unknown\r\n' "$(cat "$forgeflow_repo/VERSION")" \
+    >"$forgeflow_fixture/$forgeflow_marker_relative"
+
+  run_doctor "$forgeflow_fixture"
+
+  assert_status 0
+  assert_output_contains "Adopted version: $(cat "$forgeflow_repo/VERSION")"
+  assert_output_contains 'Result: STRUCTURE_OK'
+  assert_output_excludes 'CONTRACT_DRIFT'
+  assert_output_excludes 'differs from this checkout'
+}
+
+run_case 'FF211-AC-001' doctor_reports_a_conformant_adoption
+run_case 'FF211-AC-002' doctor_enumerates_every_story_except_the_template
+run_case 'FF211-AC-003' incomplete_stories_are_drift_without_changing_the_exit_status
+run_case 'FF211-AC-004' an_incomplete_handoff_is_drift
+run_case 'FF211-AC-005' an_adopted_version_difference_is_drift
+run_case 'FF211-AC-006' a_missing_marker_is_reported_but_is_not_drift
+run_case 'FF211-AC-007' an_absent_story_or_handoff_is_not_drift
+run_case 'FF211-AC-008' a_structure_failure_reports_the_contracts_as_not_checked
+run_case 'FF211-AC-009' contract_checks_leave_the_repository_unchanged
+run_case 'FF211-AC-010' unreadable_contract_paths_are_errors
+run_case 'FF211-AC-011' unreadable_markers_and_story_paths_are_errors
+run_case 'FF211-AC-012' the_composed_checkers_keep_their_own_command_forms
+run_case 'FF211-AC-013' the_new_result_lines_are_documented
+run_case 'FF211-AC-014' static_mode_needs_no_external_utilities
+run_case 'FF211-AC-015' an_incomplete_forgeflow_installation_is_an_error
+run_case 'FF211-AC-016' a_marker_written_with_carriage_returns_is_not_drift
 
 printf 'doctor tests passed\n'

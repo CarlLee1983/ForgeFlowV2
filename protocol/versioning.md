@@ -105,6 +105,15 @@ checker keeps working unchanged, and neither command is required by
 `make verify` in an adopting repository. Changes to their command forms, result
 names, or exit semantics are changes to the versioned surface.
 
+Doctor's contract-drift reporting is **Additive**: it adds three static-mode
+result lines, composes the two checkers through their existing command forms,
+and changes no exit status. It does add one new value to Doctor's `Result`
+line, `CONTRACT_DRIFT`. A consumer that matches Doctor's output for
+`STRUCTURE_OK` will stop matching for a repository whose Stories, handoff, or
+adopted version drifted from this checkout, even though the exit status is
+unchanged at `0`. Match the exit status, or accept both values, when the
+distinction does not matter.
+
 ## Repository release readiness
 
 ForgeFlow maintainers can run root `make release-check` on a clean committed
