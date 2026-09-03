@@ -43,8 +43,52 @@ forgeflow_fail() {
   forgeflow_contract_incomplete=1
 }
 
+# Character sets are enumerated rather than written as ranges: a range such as
+# [A-Z] is collation-dependent and can match lowercase in some locales.
+forgeflow_upper='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+forgeflow_digit='0123456789'
+forgeflow_hex='0123456789abcdef'
+
 forgeflow_is_story_id() {
-  printf '%s\n' "$1" | grep -Eq '^[A-Z][A-Z0-9]*-[0-9]+$'
+  case "$1" in
+    *-*) ;;
+    *) return 1 ;;
+  esac
+
+  forgeflow_id_prefix=${1%%-*}
+  forgeflow_id_number=${1#*-}
+
+  case "$forgeflow_id_prefix" in
+    ["$forgeflow_upper"]) ;;
+    ["$forgeflow_upper"]*)
+      case "$forgeflow_id_prefix" in
+        *[!"$forgeflow_upper$forgeflow_digit"]*) return 1 ;;
+      esac
+      ;;
+    *) return 1 ;;
+  esac
+
+  case "$forgeflow_id_number" in
+    '') return 1 ;;
+    *[!"$forgeflow_digit"]*) return 1 ;;
+  esac
+
+  return 0
+}
+
+forgeflow_is_commit_sha() {
+  # Forty lowercase hexadecimal characters: the pattern fixes the length and the
+  # case guard fixes the alphabet.
+  case "$1" in
+    ????????????????????????????????????????) ;;
+    *) return 1 ;;
+  esac
+
+  case "$1" in
+    *[!"$forgeflow_hex"]*) return 1 ;;
+  esac
+
+  return 0
 }
 
 forgeflow_list_contains() {
@@ -64,8 +108,27 @@ FORGEFLOW_LIST
   return 1
 }
 
+# Linear rescanning is quadratic in the number of completed Stories, which is
+# the right trade at this scale: the sort-and-uniq pipeline it replaces is what
+# made the verdict depend on the caller's PATH.
 forgeflow_list_has_duplicate() {
-  printf '%s\n' "$1" | grep -v '^$' | sort | uniq -d | grep -q .
+  forgeflow_duplicate_seen=
+
+  while IFS= read -r forgeflow_duplicate_item; do
+    [ -n "$forgeflow_duplicate_item" ] || continue
+
+    if forgeflow_list_contains "$forgeflow_duplicate_seen" \
+      "$forgeflow_duplicate_item"; then
+      return 0
+    fi
+
+    forgeflow_duplicate_seen="$forgeflow_duplicate_seen
+$forgeflow_duplicate_item"
+  done <<FORGEFLOW_DUPLICATE
+$1
+FORGEFLOW_DUPLICATE
+
+  return 1
 }
 
 forgeflow_record_key() {
@@ -422,7 +485,7 @@ if forgeflow_require_single "$forgeflow_branch_count" 'baseline.branch'; then
 fi
 
 if forgeflow_require_single "$forgeflow_commit_count" 'baseline.commit'; then
-  printf '%s\n' "$forgeflow_commit" | grep -Eq '^[0-9a-f]{40}$' ||
+  forgeflow_is_commit_sha "$forgeflow_commit" ||
     forgeflow_fail 'baseline.commit must be a full 40-character commit SHA'
 fi
 

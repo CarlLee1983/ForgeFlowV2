@@ -45,6 +45,78 @@ forgeflow_trim() {
   done
 }
 
+# A markdown separator cell: optional spaces, an optional leading colon, one or
+# more dashes, an optional trailing colon, optional spaces. Written with shell
+# builtins so the verdict cannot depend on the caller's PATH.
+forgeflow_is_separator_cell() {
+  forgeflow_cell_rest=$1
+
+  while :; do
+    case "$forgeflow_cell_rest" in
+      ' '*) forgeflow_cell_rest=${forgeflow_cell_rest# } ;;
+      *) break ;;
+    esac
+  done
+
+  case "$forgeflow_cell_rest" in
+    :*) forgeflow_cell_rest=${forgeflow_cell_rest#:} ;;
+  esac
+
+  case "$forgeflow_cell_rest" in
+    -*) ;;
+    *) return 1 ;;
+  esac
+
+  while :; do
+    case "$forgeflow_cell_rest" in
+      -*) forgeflow_cell_rest=${forgeflow_cell_rest#-} ;;
+      *) break ;;
+    esac
+  done
+
+  case "$forgeflow_cell_rest" in
+    :*) forgeflow_cell_rest=${forgeflow_cell_rest#:} ;;
+  esac
+
+  while :; do
+    case "$forgeflow_cell_rest" in
+      ' '*) forgeflow_cell_rest=${forgeflow_cell_rest# } ;;
+      *) break ;;
+    esac
+  done
+
+  [ -z "$forgeflow_cell_rest" ]
+}
+
+forgeflow_is_five_column_separator() {
+  case "$1" in
+    '|'*) forgeflow_separator_rest=${1#'|'} ;;
+    *) return 1 ;;
+  esac
+
+  forgeflow_separator_count=0
+
+  while [ -n "$forgeflow_separator_rest" ]; do
+    case "$forgeflow_separator_rest" in
+      *'|'*) ;;
+      *) return 1 ;;
+    esac
+
+    forgeflow_separator_cell=${forgeflow_separator_rest%%'|'*}
+    forgeflow_separator_rest=${forgeflow_separator_rest#*'|'}
+
+    forgeflow_is_separator_cell "$forgeflow_separator_cell" || return 1
+
+    forgeflow_separator_count=$((forgeflow_separator_count + 1))
+
+    if [ "$forgeflow_separator_count" -gt 5 ]; then
+      return 1
+    fi
+  done
+
+  [ "$forgeflow_separator_count" -eq 5 ]
+}
+
 # A quoted literal is the smallest machine-checkable evidence that a fixture
 # records an exact value instead of prose such as "no credentials". Empty or
 # blank backticks are not evidence.
@@ -351,8 +423,7 @@ forgeflow_check_matrix() {
         if [ "$forgeflow_matrix_separator" -eq 0 ]; then
           forgeflow_matrix_separator=1
 
-          printf '%s\n' "$forgeflow_matrix_line" |
-            grep -Eq '^\|( *:?-+:? *\|){5}$' ||
+          forgeflow_is_five_column_separator "$forgeflow_matrix_line" ||
             forgeflow_story_fail 'security fixture matrix header must be followed by a five-column separator row'
 
           continue

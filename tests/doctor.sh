@@ -1088,10 +1088,10 @@ the_new_result_lines_are_documented() {
     fail 'protocol/versioning.md does not record the new result value'
 }
 
-# Doctor's own static path must use shell builtins only. The composed checkers
-# are byte-identical to their released versions and do rely on grep and sort, so
-# this case exercises a repository that invokes neither.
+# Doctor's own static path uses shell builtins only. This case exercises a
+# repository that invokes neither composed checker.
 static_mode_needs_no_external_utilities() {
+
   forgeflow_fixture="$forgeflow_test_dir/contract-empty-path"
   create_complete_fixture "$forgeflow_fixture"
   add_marker "$forgeflow_fixture" "$(cat "$forgeflow_repo/VERSION")"
@@ -1116,6 +1116,22 @@ static_mode_needs_no_external_utilities() {
   assert_status 0
   assert_output_contains 'Adopted version: 0.2.1'
   assert_output_contains 'Result: CONTRACT_DRIFT'
+}
+
+# Both composed checkers share Doctor's builtin-only property, so a conformant
+# repository must never be reported as drifted for want of a utility.
+the_composed_verdict_needs_no_external_utilities() {
+  forgeflow_fixture="$forgeflow_test_dir/contract-empty-path-composed"
+  create_adopted_fixture "$forgeflow_fixture"
+
+  run_doctor_with_path "$forgeflow_test_dir/empty-path-static" \
+    "$forgeflow_fixture"
+
+  assert_status 0
+  assert_output_contains 'Story contract: STORY_CONTRACT_OK'
+  assert_output_contains 'Handoff: HANDOFF_CONTRACT_OK'
+  assert_output_contains 'Result: STRUCTURE_OK'
+  assert_output_excludes 'CONTRACT_DRIFT'
 }
 
 an_incomplete_forgeflow_installation_is_an_error() {
@@ -1169,6 +1185,7 @@ run_case 'FF211-AC-011' unreadable_markers_and_story_paths_are_errors
 run_case 'FF211-AC-012' the_composed_checkers_keep_their_own_command_forms
 run_case 'FF211-AC-013' the_new_result_lines_are_documented
 run_case 'FF211-AC-014' static_mode_needs_no_external_utilities
+run_case 'FF212-AC-003' the_composed_verdict_needs_no_external_utilities
 run_case 'FF211-AC-015' an_incomplete_forgeflow_installation_is_an_error
 run_case 'FF211-AC-016' a_marker_written_with_carriage_returns_is_not_drift
 

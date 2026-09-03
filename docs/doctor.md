@@ -89,7 +89,9 @@ static mode reports what it found and never becomes a gate. A missing marker,
 `NO_STORIES`, and `NOT_PRESENT` are reported but are not drift.
 
 The composed checks are read-only, are given paths rather than being run from
-inside the target, and never follow a symlink. A handoff, marker, or Story
+inside the target, and never follow a symlink. They share Doctor's builtin-only
+property, so the composed verdict does not change with the caller's `PATH`.
+ A handoff, marker, or Story
 directory that is a symlink, is unreadable, or that a checker cannot parse
 reports `ERROR` and exits `2`. So does an incomplete ForgeFlow checkout: Doctor
 needs its own `VERSION`, `scripts/story-check`, and `scripts/handoff-check`, and
@@ -139,8 +141,8 @@ When both incomplete structure and an unconfirmable error are found, `2` takes
 precedence over `1`.
 
 The result labels distinguish `STRUCTURE_OK`, `CONTRACT_DRIFT`,
-`STRUCTURE_INCOMPLETE`, `VERIFIED_LOCAL`, `VERIFICATION_FAILED`, and `ERROR`. In all Doctor outcomes,
-CI and merge policy remain `NOT_CHECKED`.
+`STRUCTURE_INCOMPLETE`, `VERIFIED_LOCAL`, `VERIFICATION_FAILED`, and `ERROR`.
+In all Doctor outcomes, CI and merge policy remain `NOT_CHECKED`.
 
 | Evidence | What it means | What it does not mean |
 | --- | --- | --- |

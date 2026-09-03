@@ -297,6 +297,149 @@ block_and_invocation_errors_are_distinct() {
   assert_output_contains 'ForgeFlow Handoff Contract Check'
 }
 
+run_handoff_check_without_utilities() {
+  forgeflow_empty_path="$forgeflow_test_dir/empty-path"
+  mkdir -p "$forgeflow_empty_path"
+  forgeflow_command_output="$forgeflow_test_dir/$forgeflow_case_id.no-path"
+
+  if PATH="$forgeflow_empty_path" "$forgeflow_handoff_check" "$@" \
+    >"$forgeflow_command_output" 2>&1; then
+    forgeflow_command_status=0
+  else
+    forgeflow_command_status=$?
+  fi
+}
+
+assert_same_verdict_without_utilities() {
+  forgeflow_normal_output="$forgeflow_test_dir/$forgeflow_case_id.normal"
+
+  run_handoff_check "$@"
+  cp "$forgeflow_command_output" "$forgeflow_normal_output"
+  forgeflow_normal_status=$forgeflow_command_status
+
+  run_handoff_check_without_utilities "$@"
+
+  if [ "$forgeflow_command_status" -ne "$forgeflow_normal_status" ]; then
+    fail "an empty PATH changed the exit status from $forgeflow_normal_status to $forgeflow_command_status"
+  fi
+
+  cmp "$forgeflow_normal_output" "$forgeflow_command_output" >/dev/null ||
+    fail 'an empty PATH changed the output'
+}
+
+the_verdict_does_not_depend_on_external_utilities() {
+  assert_same_verdict_without_utilities "$forgeflow_repo/specs/handoff.md"
+  assert_status 0
+  assert_output_contains 'Result: HANDOFF_CONTRACT_OK'
+}
+
+assert_story_id_accepted() {
+  new_handoff "id-ok-$2"
+  edit_handoff "s/current_story: TST-005/current_story: $1/"
+  edit_handoff "s/next_story: TST-006/next_story: pending/"
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 0
+  assert_output_contains "current Story: $1"
+}
+
+assert_story_id_rejected() {
+  new_handoff "id-bad-$2"
+  edit_handoff "s/current_story: TST-005/current_story: $1/"
+  edit_handoff "s/next_story: TST-006/next_story: pending/"
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 1
+  assert_output_contains 'workflow.current_story must be one Story ID or none'
+}
+
+contradictions_and_usage_errors_survive_an_empty_path() {
+  new_handoff empty-path-contradiction
+  edit_handoff 's/next_story: TST-006/next_story: TST-005/'
+  assert_same_verdict_without_utilities "$forgeflow_handoff_file"
+  assert_status 1
+  assert_output_contains 'the same Story cannot be both current and next'
+
+  assert_same_verdict_without_utilities --unknown
+  assert_status 2
+  assert_output_contains 'Usage:'
+}
+
+handoff_check_uses_no_external_utilities() {
+  # Tests may use external commands; the scripts under test may not. This scan
+  # is a tripwire that names the utilities these scripts once used, not proof of
+  # the guarantee: the empty-PATH cases are what establish it. Comment lines are
+  # dropped after numbering so a reported line refers to the file.
+  forgeflow_scan_output="$forgeflow_test_dir/$forgeflow_case_id.scan"
+
+  grep -nE '(^|[ 	(|&;`]|\$\()(grep|sed|awk|sort|uniq|tr|cut|head|tail|wc|expr|cat|find|basename|dirname|readlink|stat|date|mktemp|xargs|git)([ 	]|$)' \
+    "$forgeflow_handoff_check" | grep -v '^[0-9][0-9]*:[[:space:]]*#' \
+    >"$forgeflow_scan_output" || :
+
+  if [ -s "$forgeflow_scan_output" ]; then
+    fail "the script still calls an external utility: $(cat "$forgeflow_scan_output")"
+  fi
+}
+
+the_story_id_form_is_unchanged() {
+  assert_story_id_accepted 'FF-001' 1
+  assert_story_id_accepted 'A-1' 2
+  assert_story_id_accepted 'DBCLI-004' 3
+  assert_story_id_accepted 'FF2-30' 4
+
+  assert_story_id_rejected 'ff-001' 1
+  assert_story_id_rejected 'FF001' 2
+  assert_story_id_rejected 'FF-' 3
+  assert_story_id_rejected '-1' 4
+  assert_story_id_rejected 'FF-1a' 5
+  assert_story_id_rejected '1F-1' 6
+  assert_story_id_rejected 'FF-1-2' 7
+  assert_story_id_rejected 'FF-01x' 8
+}
+
+assert_commit_accepted() {
+  new_handoff "sha-ok-$2"
+  edit_handoff "s/commit: [0-9a-f]*/commit: $1/"
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 0
+  assert_output_contains "$1"
+}
+
+assert_commit_rejected() {
+  new_handoff "sha-bad-$2"
+  edit_handoff "s/commit: [0-9a-f]*/commit: $1/"
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 1
+  assert_output_contains 'baseline.commit must be a full 40-character commit SHA'
+}
+
+the_baseline_commit_form_is_unchanged() {
+  assert_commit_accepted '0123456789abcdef0123456789abcdef01234567' 1
+  assert_commit_accepted 'ffffffffffffffffffffffffffffffffffffffff' 2
+
+  assert_commit_rejected '0123456789abcdef0123456789abcdef0123456' 1
+  assert_commit_rejected '0123456789abcdef0123456789abcdef012345678' 2
+  assert_commit_rejected '0123456789ABCDEF0123456789abcdef01234567' 3
+  assert_commit_rejected '0123456789abcdefg123456789abcdef01234567' 4
+}
+
+duplicate_detection_is_unchanged() {
+  new_handoff dup-yes
+  edit_handoff 's/    - TST-004/    - TST-004\n    - TST-004/'
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 1
+  assert_output_contains 'completed Story IDs must be unique'
+
+  new_handoff dup-distinct
+  edit_handoff 's/    - TST-004/    - TST-004\n    - TST-003/'
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 0
+  assert_output_contains 'completed Stories: 2'
+
+  new_handoff dup-empty
+  edit_handoff 's/^    - TST-004$//'
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_output_excludes 'completed Story IDs must be unique'
+}
+
 root_verify_validates_repository_handoff() {
   forgeflow_root_makefile="$forgeflow_repo/Makefile"
 
@@ -338,5 +481,12 @@ run_case 'AC-007' verification_state_is_required
 run_case 'AC-008' contradictory_lifecycle_states_are_rejected
 run_case 'AC-009' block_and_invocation_errors_are_distinct
 run_case 'AC-010' root_verify_validates_repository_handoff
+
+run_case 'FF212-AC-001' the_verdict_does_not_depend_on_external_utilities
+run_case 'FF212-AC-009' contradictions_and_usage_errors_survive_an_empty_path
+run_case 'FF212-AC-004' the_story_id_form_is_unchanged
+run_case 'FF212-AC-005' the_baseline_commit_form_is_unchanged
+run_case 'FF212-AC-006' duplicate_detection_is_unchanged
+run_case 'FF212-AC-012' handoff_check_uses_no_external_utilities
 
 printf 'handoff-check tests passed\n'
