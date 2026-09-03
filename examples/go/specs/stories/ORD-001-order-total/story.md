@@ -11,6 +11,11 @@ The Go example calculates an order total from cent-denominated line items and
 already has focused behavior tests. This Story makes the link from approved
 requirements to acceptance criteria to executable tests visible.
 
+## Classification
+
+* Security sensitive: no
+* Baseline conformance: no
+
 ## Scope
 
 ### In Scope

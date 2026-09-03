@@ -13,6 +13,11 @@ does not include a Story, stable acceptance identifiers, or a focused mapping
 check. A second language-specific adapter makes the portable pattern credible
 without defining a shared parser or schema.
 
+## Classification
+
+* Security sensitive: no
+* Baseline conformance: no
+
 ## Scope
 
 ### In Scope

@@ -16,6 +16,11 @@ FF-206 identifier is already assigned to the completed TypeScript executable
 Story, so this incremental Story uses the next unique identifier without
 changing that newer work.
 
+## Classification
+
+* Security sensitive: no
+* Baseline conformance: no
+
 ## Scope
 
 ### In Scope

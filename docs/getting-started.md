@@ -105,6 +105,18 @@ Complete `story.md` and `acceptance.md`. A human approves
 the Goal, scope, rules, expected errors, and acceptance criteria before the Story
 enters READY.
 
+Declare the Story's `## Classification`. When it is security sensitive, state the
+required redaction, rejection, and persistence cases as a
+[security fixture matrix](../protocol/story.md) with exact payloads instead of
+prose; when it changes baseline behavior, name the tests it supersedes. Check the
+declaration before implementation starts:
+
+```sh
+./scripts/story-check specs/stories/ORD-123-refund-order
+```
+
+See [Contract checks](contract-checks.md) for the result and exit semantics.
+
 ## 5. Implement with an agent
 
 Give any coding agent a bounded request:
@@ -126,7 +138,21 @@ On FAIL, diagnose the output, repair the root cause, and run the same command
 again. Preserve the Story and acceptance criteria. On PASS, produce the delivery
 report required by `AGENTS.md`.
 
-## 7. Review and merge
+## 7. Hand the work over
+
+When the work changes hands, record the state in a handoff so the next human or
+agent does not have to infer it:
+
+```sh
+cp /path/to/forgeflow/templates/handoff.md specs/handoff.md
+./scripts/handoff-check specs/handoff.md
+```
+
+The [Handoff Contract](../protocol/handoff.md) requires exactly one current
+Story, exactly one next Story, the repository baseline, and the last
+verification result.
+
+## 8. Review and merge
 
 A human reviews the verified implementation for product intent and architecture,
 then follows the repository's normal merge policy. Automated PASS makes work

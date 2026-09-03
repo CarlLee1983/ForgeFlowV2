@@ -37,11 +37,12 @@ returns to implementation, repairs the root cause without weakening the Story,
 and verifies again. A zero exit makes the work eligible for human review; it
 does not replace product or architecture judgment.
 
-The protocol is split into five small contracts:
+The protocol is split into six small contracts:
 
 - [Story](protocol/story.md)
 - [Verification](protocol/verification.md)
 - [Lifecycle](protocol/lifecycle.md)
+- [Handoff](protocol/handoff.md)
 - [Repository adoption](protocol/repository-contract.md)
 - [Versioning and compatibility](protocol/versioning.md)
 
@@ -89,6 +90,24 @@ in the requirements, and ask an agent to implement that Story ID.
 The full manual flow is documented in
 [Getting Started](docs/getting-started.md), with rationale in
 [ForgeFlow Concepts](docs/concepts.md).
+
+## Check Story and handoff contracts
+
+Two static, read-only checkers report contract gaps before an agent starts
+implementing:
+
+```sh
+./scripts/story-check [story-directory ...]
+./scripts/handoff-check [handoff-file]
+```
+
+`story-check` reports a missing Classification, a security-sensitive Story
+without an executable [security fixture matrix](protocol/story.md), or a
+baseline-conformance Story that does not name the behavior it supersedes.
+`handoff-check` reports a handoff whose [lifecycle block](protocol/handoff.md)
+does not state exactly one current Story, exactly one next Story, the repository
+baseline, and the last verification result. Neither replaces `make verify` or
+human review. See [Contract checks](docs/contract-checks.md).
 
 ## Diagnose an adoption (optional)
 

@@ -12,6 +12,11 @@ workflow of its own and the v0.1 gate has only been exercised locally on macOS.
 The repository-specific workflow must install its real toolchains and locked
 dependencies before invoking the same root gate used locally.
 
+## Classification
+
+* Security sensitive: no
+* Baseline conformance: no
+
 ## Scope
 
 ### In Scope

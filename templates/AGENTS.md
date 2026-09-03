@@ -6,7 +6,8 @@ This repository follows the ForgeFlow development protocol.
 
 For implementation work:
 
-1. Read the assigned Story.
+1. Read the assigned Story, including its Classification and, when present, its
+   security fixture matrix and superseded behavior.
 2. Read its acceptance criteria.
 3. Inspect relevant existing code.
 4. Implement the smallest coherent change.
@@ -42,3 +43,8 @@ Report:
 * verification result
 * assumptions
 * remaining risks
+
+When work changes hands, record the handoff lifecycle block: exactly one current
+Story, exactly one next Story or `pending`, completed Story IDs, the repository
+baseline, and the last verification command and result. Never leave the next
+Story to be inferred from list order.

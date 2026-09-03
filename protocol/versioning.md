@@ -73,6 +73,28 @@ or static and execution-mode safety guarantees are changes to the versioned
 surface. This classification records the optional capability only; it does not
 change `VERSION`, create a tag, or publish a release.
 
+The Story `## Classification` declaration is a **Breaking** change to the Story
+Contract: it adds a required Story field, so an existing Story written against
+an earlier snapshot must be updated before `scripts/story-check` reports
+`STORY_CONTRACT_OK`. Migration for `0.3.0`:
+
+1. Add a `## Classification` section to every Story, declaring
+   `Security sensitive` and `Baseline conformance` as `yes` or `no`.
+2. For a Story declaring `Security sensitive: yes`, add `## Trust Boundary
+   Fields` to `story.md` and a `## Security Fixture Matrix` to `acceptance.md`.
+3. For a Story declaring `Baseline conformance: yes`, add
+   `## Superseded Behavior` to `story.md`.
+
+Nothing else in an existing adoption changes: `make verify` semantics, bootstrap
+arguments, and Doctor behavior are unaffected, and a repository that never runs
+`scripts/story-check` is not blocked by the new field.
+
+The Handoff Contract, `scripts/story-check`, and `scripts/handoff-check` are
+**Additive** capabilities: a repository without a handoff or without either
+checker keeps working unchanged, and neither command is required by
+`make verify` in an adopting repository. Changes to their command forms, result
+names, or exit semantics are changes to the versioned surface.
+
 ## Repository release readiness
 
 ForgeFlow maintainers can run root `make release-check` on a clean committed
