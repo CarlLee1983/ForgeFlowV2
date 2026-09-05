@@ -16,8 +16,9 @@ the completion authority.
    requirement, identify the exact blocker before changing code.
 2. Extract the Goal, in-scope behavior, out-of-scope boundary, inputs, outputs,
    business rules, expected errors, constraints, and every acceptance item. The
-   implementation contract is complete when each acceptance item maps to an
-   observable behavior or verification check. When the Story is security
+   implementation contract is complete when each acceptance item maps through
+   its Acceptance Evidence row to an observable behavior or verification check,
+   fixture or precondition, and expected observation. When the Story is security
    sensitive, treat every row of its security fixture matrix as a required case
    with an exact payload and expected persisted output; when it declares
    superseded behavior, change the named tests deliberately instead of treating
@@ -39,6 +40,7 @@ the completion authority.
 After PASS, assemble:
 
 - a Story and acceptance criteria mapping summary;
+- the Acceptance Evidence row used for each criterion;
 - important design and boundary decisions or architecture impacts;
 - test and verification evidence;
 - assumptions, unresolved risks, and suggested attention points.

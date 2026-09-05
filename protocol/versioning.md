@@ -162,6 +162,31 @@ pre-1.0 PATCH releases may contain compatible additions as well as repairs.
 No Breaking change or migration is introduced. See the
 [release notes](../docs/releases/0.3.6.md).
 
+FF-222 Acceptance Evidence is **Breaking** for `0.4.0`: a Story that already
+passes `scripts/story-check --ready` must add the required `## Acceptance
+Evidence` map before it passes again. This is a pre-1.0 MINOR release because
+the readiness contract now requires one exact row per AC. Default
+`scripts/story-check`, Doctor, `make verify`, and bootstrap command forms keep
+their existing semantics.
+
+Migration for `0.4.0`:
+
+1. Run `./scripts/bootstrap --upgrade /path/to/repository` to install the new
+   Story template and adoption marker. Manually reconcile repository-owned
+   `AGENTS.md`; upgrade intentionally never replaces it.
+2. For every Story checked with `--ready`, add exactly one `## Acceptance
+   Evidence` row for each checkbox AC. Use `test`, `command`, or `human`, and
+   name exact backticked evidence, fixture or precondition, and expected
+   observation. Resolve an unavailable external invariant through Human Review
+   or `SPEC_BLOCKED`; do not invent an automated proof.
+3. Run `./scripts/story-check --ready <story-directory>` before implementation.
+   A no-argument readiness invocation discovers every Story, so migrate every
+   discovered Story before using that form.
+
+The checker validates the declaration only. Existing evidence tables are
+harmless to older checkers, but rollback requires pinning to the `0.3.6`
+checker, templates, and guidance.
+
 Doctor's contract-drift reporting is **Additive**: it adds three static-mode
 result lines, composes the two checkers through their existing command forms,
 and changes no exit status. It does add one new value to Doctor's `Result`

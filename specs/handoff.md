@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: none
+  current_story: FF-222
   next_story: pending
   completed_stories:
     - FF-201
@@ -32,21 +32,37 @@ workflow:
     - FF-219
     - FF-220
     - FF-221
-  status: done
+  status: review
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: docs/ff-221-release-completion
-  commit: 4d6dc963defde7fb93e08009730f40488284b592
+  branch: main
+  commit: 4524756dd014836a86344f0afde252809400170d
   dirty_worktree: true
   story_owned_paths:
+    - VERSION
+    - docs/contract-checks.md
+    - docs/doctor.md
+    - docs/getting-started.md
+    - docs/human-review.md
+    - docs/releases/0.4.0.md
+    - docs/upgrading.md
+    - protocol/story.md
+    - protocol/versioning.md
+    - scripts/story-check
+    - skills/story-development/SKILL.md
     - specs/handoff.md
-    - specs/stories/FF-217-story-markdown-parsing/task.md
-    - specs/stories/FF-218-story-readiness/task.md
-    - specs/stories/FF-219-bootstrap-recovery/task.md
-    - specs/stories/FF-220-shell-portability/task.md
-    - specs/stories/FF-221-release-036/task.md
-  known_unrelated_paths: []
+    - specs/stories/FF-222-acceptance-evidence/acceptance.md
+    - specs/stories/FF-222-acceptance-evidence/story.md
+    - specs/stories/FF-222-acceptance-evidence/task.md
+    - templates/AGENTS.md
+    - templates/story/acceptance.md
+    - tests/human-review.sh
+    - tests/review-integrity.sh
+    - tests/story-check.sh
+  known_unrelated_paths:
+    - docs/agentic-discipline.md
+    - docs/concepts.md
 
 verification:
   last_command: make verify
@@ -54,6 +70,11 @@ verification:
 ```
 
 ## Notes
+
+* FF-222 is ready for Human Review as the `0.4.0` Acceptance Evidence readiness migration.
+  The starting baseline was clean at `4524756dd014836a86344f0afde252809400170d`;
+  full `make verify` passed after the parser change. Human Review must assess
+  whether each declared fixture or external invariant is sufficient.
 
 * Carl accepted FF-217 through FF-220 and explicitly authorized commit and full
   release on 2026-09-05. Carl then merged PR #9 at

@@ -8,7 +8,9 @@ For implementation work:
 
 1. Read the assigned Story, including its Classification and, when present, its
    security fixture matrix and superseded behavior.
-2. Read its acceptance criteria.
+2. Read its acceptance criteria and Acceptance Evidence map. Confirm every AC
+   names a method, fixture or precondition, and expected observation before
+   implementation; a `human` row remains a required review case.
 3. Inspect relevant existing code.
 4. Implement the smallest coherent change.
 5. Add or update tests.
@@ -20,6 +22,7 @@ For implementation work:
 After PASS, prepare Human Review with:
 
 * a Story and acceptance criteria mapping summary
+* the acceptance-evidence row used for each criterion
 * important design and boundary decisions or architecture impacts
 * test and verification evidence
 * assumptions, unresolved risks, and suggested attention points

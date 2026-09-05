@@ -85,6 +85,15 @@ need no migration. This opt-in mode adds these exact minimum-content rules:
   `[ ] `, `[x] ` or `[X] `, then `AC-`, one or more ASCII digits, a colon, and
   non-placeholder text on the same line. IDs are compared exactly and may not
   repeat anywhere in the same file. Other line formats do not supply an AC.
+* `acceptance.md` has exactly one `## Acceptance Evidence` section with the
+  exact five-column header `AC`, `Method`, `Evidence`, `Fixture / precondition`,
+  and `Expected observation`. It has one row for every checkbox AC and no
+  unknown or duplicate IDs. `Method` is exactly `test`, `command`, or `human`;
+  the remaining cells are each one non-placeholder backticked value.
+  Evidence placeholders are the finite values empty, `*`, `-`, `TBD`, `tbd`,
+  `TODO`, `todo`, `N/A`, `n/a`, `...`, `<evidence>`, `<fixture>`,
+  `<fixture / precondition>`, and `<expected observation>`. Technical values
+  such as `<T>` remain valid when backticked.
 * All these readers use the fence rules above; examples do not supply content.
 
 The finite placeholder list is: empty text, bare `*` or `-`, `TBD`, `tbd`,
@@ -104,7 +113,8 @@ reports the original checks separately. `Result: STORY_READINESS_OK` (exit 0)
 means both structure and minimum content passed; `STORY_READINESS_INCOMPLETE`
 (exit 1) means either failed. Operational errors remain `ERROR` (exit 2).
 Neither result means human-approved READY, sound requirements, correct
-implementation, or Human Review acceptance. No AC must be automated.
+implementation, or Human Review acceptance. The map declares a planned proof;
+the checker never runs it or parses test sources. No AC must be automated.
 
 ## Handoff contract check
 

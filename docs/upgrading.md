@@ -128,7 +128,9 @@ repository-owned `AGENTS.md` is current. Bootstrap never merges or overwrites
 * when upgrading to 0.3.4 or later, compare Review Preparation and human-only
   acceptance guidance; and
 * when upgrading to 0.3.5 or later, compare Classification truthfulness and
-  verification freshness guidance.
+  verification freshness guidance; and
+* when upgrading to 0.4.0 or later, compare Acceptance Evidence guidance so
+  agents plan a fixture or precondition and observable result for every AC.
 
 This is a manual reconciliation step. A marker update proves only which managed
 Story-template snapshot bootstrap installed; it does not prove that the
@@ -137,7 +139,8 @@ repository-owned guide carries the same guidance version.
 ## Per-version migration steps
 
 The required repository changes for each version, including the `0.3.0` Story
-`## Classification` migration, are recorded with the change classification that
-justifies them in [Protocol Versioning](../protocol/versioning.md). Read that
-page's migration guidance for the version you are moving to, then run
-`./scripts/story-check` to confirm the result.
+`## Classification` migration and the `0.4.0` Acceptance Evidence migration,
+are recorded with the change classification that justifies them in [Protocol
+Versioning](../protocol/versioning.md). Read that page's migration guidance for
+the version you are moving to, then run `./scripts/story-check --ready` on each
+Story that uses readiness.

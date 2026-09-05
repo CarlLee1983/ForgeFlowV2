@@ -24,7 +24,7 @@ help() {
   printf '_template/ is checked relative to the current directory.\n\n'
   printf 'The check is static and read-only. It never executes repository code\n'
   printf 'and never replaces make verify or human review.\n'
-  printf '%s\n' '--ready also checks Goal, Scope, and unique nonempty checkbox AC IDs.'
+  printf '%s\n' '--ready also checks Goal, Scope, unique nonempty checkbox AC IDs, and Acceptance Evidence.'
   printf 'It checks minimum content, not human-approved READY.\n'
 }
 
@@ -527,6 +527,174 @@ forgeflow_ready_fail() {
   forgeflow_readiness_incomplete=$((forgeflow_readiness_incomplete + 1))
 }
 
+forgeflow_is_exact_literal() {
+  forgeflow_exact_literal=$1
+  forgeflow_trim "$forgeflow_exact_literal"
+  forgeflow_exact_literal=$forgeflow_trimmed
+
+  case "$forgeflow_exact_literal" in
+    \`*\`) ;;
+    *) return 1 ;;
+  esac
+
+  forgeflow_exact_literal=${forgeflow_exact_literal#\`}
+  forgeflow_exact_literal=${forgeflow_exact_literal%\`}
+  case "$forgeflow_exact_literal" in
+    ''|*'`'*) return 1 ;;
+    *[![:space:]]*) ;;
+    *) return 1 ;;
+  esac
+
+  forgeflow_is_evidence_placeholder "$forgeflow_exact_literal" && return 1
+  return 0
+}
+
+forgeflow_is_evidence_placeholder() {
+  case "$1" in
+    ''|'*'|'-'|TBD|tbd|TODO|todo|'N/A'|'n/a'|'...'|'<evidence>'|'<fixture>'|\
+    '<fixture / precondition>'|'<expected observation>') return 0 ;;
+  esac
+  return 1
+}
+
+forgeflow_check_acceptance_evidence_row() {
+  forgeflow_row=$1
+  forgeflow_row_number=$2
+  forgeflow_count_pipes "$forgeflow_row"
+  if [ "$forgeflow_pipe_count" -ne 6 ]; then
+    forgeflow_ready_fail "acceptance evidence row $forgeflow_row_number must declare five columns"
+    return
+  fi
+
+  forgeflow_row=${forgeflow_row#|}
+  forgeflow_next_cell
+  forgeflow_evidence_ac_cell=$forgeflow_cell
+  forgeflow_next_cell
+  forgeflow_evidence_method=$forgeflow_cell
+  forgeflow_next_cell
+  forgeflow_evidence_value=$forgeflow_cell
+  forgeflow_next_cell
+  forgeflow_evidence_fixture=$forgeflow_cell
+  forgeflow_next_cell
+  forgeflow_evidence_observation=$forgeflow_cell
+
+  if [ -n "$forgeflow_row" ]; then
+    forgeflow_ready_fail "acceptance evidence row $forgeflow_row_number must end after the fifth column"
+    return
+  fi
+
+  forgeflow_evidence_ac_id=
+  case "$forgeflow_evidence_ac_cell" in
+    \`AC-*\`)
+      forgeflow_evidence_ac_id=${forgeflow_evidence_ac_cell#\`}
+      forgeflow_evidence_ac_id=${forgeflow_evidence_ac_id%\`}
+      case "${forgeflow_evidence_ac_id#AC-}" in
+        ''|*[!0-9]*) forgeflow_evidence_ac_id= ;;
+      esac
+      ;;
+  esac
+  if [ -z "$forgeflow_evidence_ac_id" ] ||
+    [ "$forgeflow_evidence_ac_cell" != "\`$forgeflow_evidence_ac_id\`" ]; then
+    forgeflow_ready_fail "acceptance evidence row $forgeflow_row_number must name one exact backticked AC-<digits> ID"
+  else
+    case "$forgeflow_ac_ids" in
+      *" $forgeflow_evidence_ac_id "*) ;;
+      *) forgeflow_ready_fail "acceptance evidence row $forgeflow_row_number names unknown AC ID: $forgeflow_evidence_ac_id" ;;
+    esac
+    case "$forgeflow_evidence_ids" in
+      *" $forgeflow_evidence_ac_id "*) forgeflow_ready_fail "acceptance evidence duplicates AC ID: $forgeflow_evidence_ac_id" ;;
+    esac
+    forgeflow_evidence_ids="$forgeflow_evidence_ids$forgeflow_evidence_ac_id "
+  fi
+
+  case "$forgeflow_evidence_method" in
+    test|command|human) ;;
+    *) forgeflow_ready_fail "acceptance evidence row $forgeflow_row_number method must be test, command, or human" ;;
+  esac
+
+  for forgeflow_evidence_required in \
+    "evidence=$forgeflow_evidence_value" \
+    "fixture / precondition=$forgeflow_evidence_fixture" \
+    "expected observation=$forgeflow_evidence_observation"
+  do
+    forgeflow_evidence_column=${forgeflow_evidence_required%%=*}
+    forgeflow_evidence_cell=${forgeflow_evidence_required#*=}
+    if forgeflow_is_evidence_placeholder "$forgeflow_evidence_cell"; then
+      forgeflow_ready_fail "acceptance evidence row $forgeflow_row_number leaves $forgeflow_evidence_column unspecified"
+    elif ! forgeflow_is_exact_literal "$forgeflow_evidence_cell"; then
+      forgeflow_ready_fail "acceptance evidence row $forgeflow_row_number must give $forgeflow_evidence_column as one exact backticked value"
+    fi
+  done
+}
+
+forgeflow_check_acceptance_evidence() {
+  forgeflow_evidence_found=0
+  forgeflow_evidence_header=0
+  forgeflow_evidence_separator=0
+  forgeflow_evidence_rows=0
+  forgeflow_evidence_in_section=0
+  forgeflow_evidence_row_number=0
+  forgeflow_evidence_ids=' '
+  forgeflow_fence_length=0
+
+  while IFS= read -r forgeflow_evidence_line || [ -n "$forgeflow_evidence_line" ]; do
+    forgeflow_trim "$forgeflow_evidence_line"
+    forgeflow_evidence_line=$forgeflow_trimmed
+    forgeflow_update_fence "$forgeflow_evidence_line"
+    [ "$forgeflow_fence_changed" -eq 0 ] || continue
+    [ "$forgeflow_fence_length" -eq 0 ] || continue
+    case "$forgeflow_evidence_line" in
+      '#'* )
+        if [ "$forgeflow_evidence_line" = '## Acceptance Evidence' ]; then
+          forgeflow_evidence_found=$((forgeflow_evidence_found + 1))
+          forgeflow_evidence_in_section=1
+        else
+          forgeflow_evidence_in_section=0
+        fi
+        continue
+        ;;
+    esac
+    [ "$forgeflow_evidence_in_section" -eq 1 ] || continue
+    case "$forgeflow_evidence_line" in
+      '|'*)
+        if [ "$forgeflow_evidence_header" -eq 0 ]; then
+          if [ "$forgeflow_evidence_line" != "$forgeflow_evidence_header_row" ]; then
+            forgeflow_ready_fail 'acceptance evidence header must be exactly the documented five columns'
+          fi
+          forgeflow_evidence_header=1
+          continue
+        fi
+        if [ "$forgeflow_evidence_separator" -eq 0 ]; then
+          forgeflow_evidence_separator=1
+          forgeflow_is_five_column_separator "$forgeflow_evidence_line" ||
+            forgeflow_ready_fail 'acceptance evidence header must be followed by a five-column separator row'
+          continue
+        fi
+        forgeflow_evidence_row_number=$((forgeflow_evidence_row_number + 1))
+        forgeflow_evidence_rows=$((forgeflow_evidence_rows + 1))
+        forgeflow_check_acceptance_evidence_row \
+          "$forgeflow_evidence_line" "$forgeflow_evidence_row_number"
+        ;;
+    esac
+  done <"$forgeflow_acceptance_file"
+
+  if [ "$forgeflow_evidence_found" -eq 0 ]; then
+    forgeflow_ready_fail 'acceptance.md is missing ## Acceptance Evidence'
+  elif [ "$forgeflow_evidence_found" -ne 1 ]; then
+    forgeflow_ready_fail 'acceptance.md must declare ## Acceptance Evidence exactly once'
+  elif [ "$forgeflow_evidence_rows" -eq 0 ]; then
+    forgeflow_ready_fail 'acceptance evidence declares no rows'
+  fi
+
+  for forgeflow_evidence_required_ac in $forgeflow_ac_ids
+  do
+    case "$forgeflow_evidence_ids" in
+      *" $forgeflow_evidence_required_ac "*) ;;
+      *) forgeflow_ready_fail "acceptance evidence is missing AC ID: $forgeflow_evidence_required_ac" ;;
+    esac
+  done
+}
+
 forgeflow_check_readiness() {
   forgeflow_ready_section=
   forgeflow_goal_content=0
@@ -591,6 +759,7 @@ forgeflow_check_readiness() {
   done <"$forgeflow_acceptance_file"
   [ "$forgeflow_ac_count" -gt 0 ] ||
     forgeflow_ready_fail 'acceptance.md needs a checkbox AC-<digits>: criterion'
+  forgeflow_check_acceptance_evidence
 }
 
 forgeflow_check_story() {
@@ -718,6 +887,7 @@ forgeflow_check_story() {
 forgeflow_cr=$(printf '\r')
 forgeflow_tab=$(printf '\t')
 forgeflow_matrix_header_row='| Source field | Payload | Expected result | Persisted locations | Verification |'
+forgeflow_evidence_header_row='| AC | Method | Evidence | Fixture / precondition | Expected observation |'
 forgeflow_ready=0
 if [ "${1-}" = --ready ]; then
   forgeflow_ready=1
