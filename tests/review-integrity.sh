@@ -210,9 +210,7 @@ versioning_records_the_corrective_patch() {
     'This change is Corrective'
 }
 
-release_metadata_matches_036() {
-  grep -Fqx '0.3.6' "$forgeflow_repo/VERSION" || return 1
-  contains docs/doctor.md 'Adopted version: 0.3.6'
+release_metadata_for_036_is_preserved() {
   contains docs/releases/0.3.6.md 'No migration is required'
   contains docs/releases/0.3.6.md 'SIGKILL'
 }
@@ -248,7 +246,7 @@ run_case 'AC-007' agent_guidance_prepares_truthful_fresh_review
 run_case 'AC-008' upgrade_requires_manual_agent_guidance_reconciliation
 run_case 'AC-009' compatibility_adds_no_required_review_surface
 run_case 'AC-010' versioning_records_the_corrective_patch
-run_case 'FF221-AC-001' release_metadata_matches_036
+run_case 'FF221-AC-001' release_metadata_for_036_is_preserved
 run_case 'FF221-AC-002' versioning_records_the_corrective_patch
 run_case 'AC-011' every_acceptance_criterion_has_one_case
 run_case 'AC-012' root_gate_keeps_all_existing_checks

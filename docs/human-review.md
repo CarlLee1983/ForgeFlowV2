@@ -43,6 +43,9 @@ match reality. Human Review asks:
   That is not acceptable.
 * Do the Story, Acceptance Criteria, Classification, implementation, and tests
   agree?
+* Does every Acceptance Evidence row name a sufficient method, fixture or
+  precondition, and expected observation for its criterion? External facts and
+  weak fixtures require explicit human judgment rather than a fabricated PASS.
 
 Review also confirms that verification evidence belongs to the implementation
 currently under review:

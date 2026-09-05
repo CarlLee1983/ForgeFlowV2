@@ -59,6 +59,11 @@ ForgeFlow stores the process in ordinary repository artifacts rather than a
 vendor-specific agent runtime. Codex, Claude Code, Cursor, OpenCode, Gemini CLI,
 future agents, and human engineers can all follow the same Story and gate.
 
+Teams that want multiple specialist agents can use the [optional Agentic
+Discipline adoption pattern](agentic-discipline.md). It adds no protocol state
+or required runtime; the Story, `make verify`, and Human Review remain
+canonical.
+
 ## Conceptual lifecycle
 
 The shared state vocabulary makes handoffs understandable without requiring

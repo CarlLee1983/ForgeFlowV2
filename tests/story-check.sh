@@ -128,12 +128,26 @@ FORGEFLOW_FIXTURE
 * [ ] AC-004: Fixture regression.
 FORGEFLOW_FIXTURE
 
+  add_acceptance_evidence AC-001 AC-002 AC-003 AC-004
+
   cat >>"$forgeflow_story_dir/acceptance.md" <<'FORGEFLOW_FIXTURE'
 
 ## Verification Notes
 
 Fixture verification notes.
 FORGEFLOW_FIXTURE
+}
+
+add_acceptance_evidence() {
+  printf '\n## Acceptance Evidence\n\n' >>"$forgeflow_story_dir/acceptance.md"
+  printf '| AC | Method | Evidence | Fixture / precondition | Expected observation |\n' \
+    >>"$forgeflow_story_dir/acceptance.md"
+  printf '| --- | --- | --- | --- | --- |\n' >>"$forgeflow_story_dir/acceptance.md"
+  for forgeflow_evidence_ac in "$@"
+  do
+    printf '| `%s` | test | `tests/story-check.sh` | `fixture` | `passes` |\n' \
+      "$forgeflow_evidence_ac" >>"$forgeflow_story_dir/acceptance.md"
+  done
 }
 
 add_story_section() {
@@ -749,6 +763,7 @@ readiness_checks_ac_content_and_uniqueness() {
   new_story unique-ac no no
   printf '* [ ] AC-1: Returns 0.\n- [x] AC-2: Returns 1.\n* [X] AC-3: Manual inspection.\n' \
     >"$forgeflow_story_dir/acceptance.md"
+  add_acceptance_evidence AC-1 AC-2 AC-3
   run_story_check --ready "$forgeflow_story_dir"
   assert_status 0
   assert_output_contains 'Structure: STORY_CONTRACT_OK'
@@ -766,6 +781,7 @@ readiness_ignores_fenced_content() {
     assert_status 1
     assert_output_contains 'acceptance.md needs'
     printf '* [ ] AC-999: Real criterion.\n' >>"$forgeflow_story_dir/acceptance.md"
+    add_acceptance_evidence AC-999
     run_story_check --ready "$forgeflow_story_dir"
     assert_status 0
 
@@ -786,6 +802,7 @@ readiness_placeholders_are_exact_not_language_scores() {
     printf '## Classification\n* Security sensitive: no\n* Baseline conformance: no\n## Goal\n%s\n## Scope\n### In Scope\n* %s\n' \
       "$forgeflow_content" "$forgeflow_content" >"$forgeflow_story_dir/story.md"
     printf '* [ ] AC-001: %s\n' "$forgeflow_content" >"$forgeflow_story_dir/acceptance.md"
+    add_acceptance_evidence AC-001
     run_story_check --ready "$forgeflow_story_dir"
     assert_status 0
   done
@@ -844,6 +861,176 @@ readiness_documentation_and_templates_match() {
   grep -Fq 'Doctor' "$forgeflow_repo/docs/contract-checks.md" || fail 'Doctor semantics undocumented'
 }
 
+write_valid_acceptance_evidence() {
+  cat >"$forgeflow_story_dir/acceptance.md" <<'FORGEFLOW_FIXTURE'
+# Acceptance Criteria
+
+* [ ] AC-001: Automated behavior is checked.
+* [ ] AC-002: A command reports the outcome.
+* [ ] AC-003: A reviewer checks an external invariant.
+
+## Acceptance Evidence
+
+| AC | Method | Evidence | Fixture / precondition | Expected observation |
+| --- | --- | --- | --- | --- |
+| `AC-001` | test | `tests/story-check.sh:FF222-AC-001` | `valid fixture` | `STORY_READINESS_OK` |
+| `AC-002` | command | `make verify-story` | `repository checkout` | `exit 0` |
+| `AC-003` | human | `review\|record` | `external lifecycle statement` | `review notes` |
+
+```markdown
+| `AC-999` | test | TBD | TBD | TBD |
+```
+FORGEFLOW_FIXTURE
+}
+
+acceptance_evidence_rejects_invalid_maps() {
+  new_story missing-evidence no no
+  printf '# Acceptance Criteria\n\n* [ ] AC-001: Concrete criterion.\n' \
+    >"$forgeflow_story_dir/acceptance.md"
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'missing ## Acceptance Evidence'
+
+  new_story invalid-evidence no no
+  cat >"$forgeflow_story_dir/acceptance.md" <<'FORGEFLOW_FIXTURE'
+# Acceptance Criteria
+
+* [ ] AC-001: First concrete criterion.
+* [ ] AC-002: Second concrete criterion.
+
+## Acceptance Evidence
+
+| AC | Method | Evidence | Fixture / precondition | Expected observation |
+| --- | --- | --- | --- | --- |
+| `AC-001` | script | `<evidence>` | `fixture` | `observed` |
+| `AC-001` | test | `tests/story-check.sh` | `fixture` | `observed` |
+| `AC-999` | human | `review` | `fixture` | `observed` |
+FORGEFLOW_FIXTURE
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'method must be test, command, or human'
+  assert_output_contains 'must give evidence as one exact backticked value'
+  assert_output_contains 'duplicates AC ID: AC-001'
+  assert_output_contains 'names unknown AC ID: AC-999'
+  assert_output_contains 'missing AC ID: AC-002'
+
+  new_story malformed-header no no
+  cat >"$forgeflow_story_dir/acceptance.md" <<'FORGEFLOW_FIXTURE'
+# Acceptance Criteria
+
+* [ ] AC-001: Concrete criterion.
+
+## Acceptance Evidence
+
+| AC | Method | Evidence | Fixture | Expected observation |
+| --- | --- | --- | --- | --- |
+| `AC-001` | test | `test` | `fixture` | `observation` |
+FORGEFLOW_FIXTURE
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'header must be exactly the documented five columns'
+
+  new_story malformed-separator no no
+  cat >"$forgeflow_story_dir/acceptance.md" <<'FORGEFLOW_FIXTURE'
+# Acceptance Criteria
+
+* [ ] AC-001: Concrete criterion.
+
+## Acceptance Evidence
+
+| AC | Method | Evidence | Fixture / precondition | Expected observation |
+| --- | --- | --- | --- |
+| `AC-001` | test | `test` | `fixture` | `observation` |
+FORGEFLOW_FIXTURE
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'header must be followed by a five-column separator row'
+
+  new_story invalid-ac-cell no no
+  cat >"$forgeflow_story_dir/acceptance.md" <<'FORGEFLOW_FIXTURE'
+# Acceptance Criteria
+
+* [ ] AC-001: Concrete criterion.
+
+## Acceptance Evidence
+
+| AC | Method | Evidence | Fixture / precondition | Expected observation |
+| --- | --- | --- | --- | --- |
+| AC-001 | test | `test` | `fixture` | `observation` |
+FORGEFLOW_FIXTURE
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'must name one exact backticked AC-<digits> ID'
+
+  new_story duplicate-section no no
+  write_valid_acceptance_evidence
+  printf '\n## Acceptance Evidence\n' >>"$forgeflow_story_dir/acceptance.md"
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'must declare ## Acceptance Evidence exactly once'
+
+  new_story trailing-evidence-content no no
+  write_valid_acceptance_evidence
+  sed 's/`valid fixture` | `STORY_READINESS_OK` |$/`valid fixture` | `STORY_READINESS_OK` | trailing-garbage/' \
+    "$forgeflow_story_dir/acceptance.md" >"$forgeflow_story_dir/next.md"
+  mv "$forgeflow_story_dir/next.md" "$forgeflow_story_dir/acceptance.md"
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'must end after the fifth column'
+}
+
+acceptance_evidence_accepts_declared_methods() {
+  new_story exact-evidence no no
+  write_valid_acceptance_evidence
+  sed 's/`valid fixture`/`<T>`/' "$forgeflow_story_dir/acceptance.md" \
+    >"$forgeflow_story_dir/next.md"
+  mv "$forgeflow_story_dir/next.md" "$forgeflow_story_dir/acceptance.md"
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Result: STORY_READINESS_OK'
+}
+
+acceptance_evidence_preserves_portability() {
+  new_story portable-evidence no no
+  write_valid_acceptance_evidence
+  forgeflow_evidence_before=$(cksum "$forgeflow_story_dir/acceptance.md")
+  assert_same_story_verdict_without_utilities --ready "$forgeflow_story_dir"
+  assert_status 0
+  [ "$forgeflow_evidence_before" = "$(cksum "$forgeflow_story_dir/acceptance.md")" ] ||
+    fail 'acceptance evidence readiness changed the fixture'
+}
+
+acceptance_evidence_guidance_is_complete() {
+  for forgeflow_evidence_document in \
+    docs/contract-checks.md \
+    docs/releases/0.4.0.md \
+    protocol/story.md \
+    protocol/versioning.md \
+    docs/upgrading.md \
+    templates/story/acceptance.md \
+    templates/AGENTS.md \
+    skills/story-development/SKILL.md \
+    docs/human-review.md
+  do
+    grep -Fq 'Acceptance Evidence' "$forgeflow_repo/$forgeflow_evidence_document" ||
+      fail "$forgeflow_evidence_document omits Acceptance Evidence guidance"
+  done
+  grep -Fqx '0.4.0' "$forgeflow_repo/VERSION" || fail 'VERSION is not 0.4.0'
+  grep -Fq 'Breaking' "$forgeflow_repo/protocol/versioning.md" ||
+    fail 'versioning omits breaking classification'
+  grep -Fq '../../protocol/versioning.md' "$forgeflow_repo/docs/releases/0.4.0.md" ||
+    fail 'release notes omit the migration guidance link'
+}
+
+full_gate_is_the_acceptance_evidence_command() {
+  grep -Eq '^verify:' "$forgeflow_repo/Makefile" ||
+    fail 'Makefile omits the canonical verify target'
+  grep -Fq 'Run `make verify`' "$forgeflow_repo/templates/AGENTS.md" ||
+    fail 'agent template omits the canonical verify command'
+}
+
 run_case 'FF218-AC-001' readiness_is_opt_in
 run_case 'FF218-AC-002' readiness_requires_goal_scope_and_acceptance
 run_case 'FF218-AC-003' readiness_checks_ac_content_and_uniqueness
@@ -851,6 +1038,12 @@ run_case 'FF218-AC-004' readiness_ignores_fenced_content
 run_case 'FF218-AC-005' readiness_placeholders_are_exact_not_language_scores
 run_case 'FF218-AC-006' readiness_is_read_only_deterministic_and_path_independent
 run_case 'FF218-AC-007' readiness_documentation_and_templates_match
+
+run_case 'FF222-AC-001' acceptance_evidence_rejects_invalid_maps
+run_case 'FF222-AC-002' acceptance_evidence_accepts_declared_methods
+run_case 'FF222-AC-003' acceptance_evidence_preserves_portability
+run_case 'FF222-AC-004' acceptance_evidence_guidance_is_complete
+run_case 'FF222-AC-005' full_gate_is_the_acceptance_evidence_command
 
 run_case 'AC-001' complete_security_story_passes
 run_case 'AC-002' unclassified_story_needs_no_security_sections

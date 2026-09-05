@@ -63,6 +63,27 @@ Story-specific setup or focused commands belong under Verification Notes, but
 they supplement rather than replace repository-level `make verify`.
 Use [the Acceptance template](../templates/story/acceptance.md).
 
+### Acceptance evidence
+
+Before a Story is checked with `--ready`, `acceptance.md` maps every checkbox
+AC to one planned source of evidence:
+
+| Column | Purpose |
+| --- | --- |
+| AC | One exact backticked checkbox AC ID. |
+| Method | `test`, `command`, or `human`. |
+| Evidence | The exact test, command, or review record. |
+| Fixture / precondition | The exact data state or external condition needed. |
+| Expected observation | The exact assertion, exit result, or observation. |
+
+`scripts/story-check --ready` requires one `## Acceptance Evidence` section,
+the exact header, one valid row for every AC, and no unknown or duplicate AC
+rows. It validates only the declared map: it neither executes a command nor
+parses a repository's test sources. A `human` row is valid for a contextual or
+external fact, but must name the precondition and review observation so a gap
+is visible before implementation. `make verify` and Human Review determine
+whether declared evidence actually proves the result.
+
 ### Security fixture matrix
 
 A Story declaring `Security sensitive: yes` states its secrecy, redaction,
@@ -115,16 +136,17 @@ and never replaces `make verify` or human review.
 ## Sizing and readiness
 
 Optional `scripts/story-check --ready [story-directory ...]` checks minimum
-content as well as structure; defaults and Doctor do not change. It requires
+content and acceptance-evidence completeness as well as structure; defaults and Doctor do not change. It requires
 non-placeholder content under exact `## Goal` and `## Scope` headings and at
 least one unique checkbox `AC-<digits>:` with same-line content, for example
 `* [ ] AC-001: An empty order returns zero cents.` Subheadings do not count as
 content; fenced examples are ignored. The finite placeholders include
 `<acceptance criterion>` and the shipped Goal sentence. The complete supported
 syntax and exact placeholder list are in [Contract Checks](../docs/contract-checks.md#optional-minimum-content-readiness).
-`STORY_READINESS_OK` distinguishes minimum-content success from structural
+`STORY_READINESS_OK` distinguishes readiness success from structural
 `STORY_CONTRACT_OK`; neither grants human-approved READY. This mode does not
-score language, require automation per AC, or migrate historical Stories.
+score language, require automation per AC, execute evidence, or migrate
+historical Stories automatically.
 
 A Story is small enough when one coherent implementation can satisfy all of its
 acceptance criteria and be verified without partially delivering a second
@@ -136,6 +158,8 @@ A Story can enter READY when:
 - the Goal and scope are approved by a human;
 - business rules and expected errors are explicit;
 - acceptance criteria cover the required behavior;
+- every acceptance criterion has a concrete evidence method, fixture or
+  precondition, and expected observation;
 - the Classification is declared and its required sections are present;
 - unresolved decisions do not materially change the implementation.
 

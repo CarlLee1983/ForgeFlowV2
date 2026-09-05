@@ -123,6 +123,11 @@ Complete `story.md` and `acceptance.md`. A human approves
 the Goal, scope, rules, expected errors, and acceptance criteria before the Story
 enters READY.
 
+For `--ready`, add an [Acceptance Evidence](../protocol/story.md#acceptance-evidence)
+row for every AC. State the method, exact fixture or precondition, and expected
+observation. This exposes missing test data or external lifecycle assumptions
+before an agent starts implementation.
+
 Declare the Story's `## Classification`. When it is security sensitive, state the
 required redaction, rejection, and persistence cases as a
 [security fixture matrix](../protocol/story.md) with exact payloads instead of

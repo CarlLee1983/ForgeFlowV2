@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: none
+  current_story: FF-222
   next_story: pending
   completed_stories:
     - FF-201
@@ -32,20 +32,15 @@ workflow:
     - FF-219
     - FF-220
     - FF-221
-  status: done
+  status: review
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: docs/ff-221-release-completion
-  commit: 4d6dc963defde7fb93e08009730f40488284b592
+  branch: ff-222-acceptance-evidence-release
+  commit: 7327612397316a8d6bba9ed40a41df2e13197eb5
   dirty_worktree: true
   story_owned_paths:
     - specs/handoff.md
-    - specs/stories/FF-217-story-markdown-parsing/task.md
-    - specs/stories/FF-218-story-readiness/task.md
-    - specs/stories/FF-219-bootstrap-recovery/task.md
-    - specs/stories/FF-220-shell-portability/task.md
-    - specs/stories/FF-221-release-036/task.md
   known_unrelated_paths: []
 
 verification:
@@ -54,6 +49,18 @@ verification:
 ```
 
 ## Notes
+
+* Carl authorized commit and release on 2026-09-06. The release candidate
+  includes FF-222 and the reviewed optional Agentic Discipline documentation.
+  Acceptance review found trailing content accepted after the fifth evidence
+  column and a test coupled to the live Story. Both are repaired; the new
+  regression failed before the parser fix, and independent re-review confirmed
+  both findings resolved. Full `make verify` passed after the fixes.
+* The baseline above is the complete implementation commit. This handoff-only
+  follow-up records that baseline and release authorization. FF-222 remains in
+  REVIEW until the repository's required PR approval and merge policy are
+  satisfied. Local release readiness, exact-SHA CI, tag, and Release inspection
+  remain required before publication; no publication is claimed here.
 
 * Carl accepted FF-217 through FF-220 and explicitly authorized commit and full
   release on 2026-09-05. Carl then merged PR #9 at
