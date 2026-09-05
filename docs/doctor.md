@@ -69,7 +69,7 @@ Once the required structure is confirmed, static mode composes the two
 three more lines:
 
 ```text
-Adopted version: 0.3.5
+Adopted version: 0.3.6
 Story contract: STORY_CONTRACT_OK
 Handoff: HANDOFF_CONTRACT_OK
 ```

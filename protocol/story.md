@@ -82,8 +82,9 @@ Every column except the expected result carries a non-blank exact value in
 backticks, so that an implementing agent finds the required cases in the Story
 instead of discovering them one review loop at a time. A quoted payload may
 contain markup; only a whole-cell placeholder such as `<value>`, `TBD`, or an
-empty quotation is rejected. A cell cannot contain an unescaped `|`, because the
-row is split on that character.
+empty quotation is rejected. A pipe after an odd consecutive run of backslashes
+is part of the cell payload; an even run leaves it a delimiter. Payload
+characters are preserved.
 
 ## Checking the contract
 
@@ -96,7 +97,15 @@ superseded-behavior declaration:
 ```
 
 A fenced example inside a Story is documentation: its contents are never read as
-headings, declarations, or fixture rows.
+headings, declarations, or fixture rows. After surrounding spaces, tabs, and CR
+are trimmed, a run of at least three backticks or tildes opens a fence. Only the
+same character, at least the opening length, with no non-whitespace suffix
+closes it. Unclosed fences ignore through EOF.
+
+The checker supports this contract subset only, not general Markdown parsing:
+exact Classification bullets, conditional-section bullets, and the exact matrix
+header with outer table pipes. Inline backticks do not shield a raw pipe; use
+the documented backslash escape.
 
 It is read-only, exits `0` for `STORY_CONTRACT_OK`, `1` for
 `STORY_CONTRACT_INCOMPLETE`, and `2` for an operational error. It judges the
@@ -104,6 +113,18 @@ declared structure only; it never decides whether a classification is truthful
 and never replaces `make verify` or human review.
 
 ## Sizing and readiness
+
+Optional `scripts/story-check --ready [story-directory ...]` checks minimum
+content as well as structure; defaults and Doctor do not change. It requires
+non-placeholder content under exact `## Goal` and `## Scope` headings and at
+least one unique checkbox `AC-<digits>:` with same-line content, for example
+`* [ ] AC-001: An empty order returns zero cents.` Subheadings do not count as
+content; fenced examples are ignored. The finite placeholders include
+`<acceptance criterion>` and the shipped Goal sentence. The complete supported
+syntax and exact placeholder list are in [Contract Checks](../docs/contract-checks.md#optional-minimum-content-readiness).
+`STORY_READINESS_OK` distinguishes minimum-content success from structural
+`STORY_CONTRACT_OK`; neither grants human-approved READY. This mode does not
+score language, require automation per AC, or migrate historical Stories.
 
 A Story is small enough when one coherent implementation can satisfy all of its
 acceptance criteria and be verified without partially delivering a second

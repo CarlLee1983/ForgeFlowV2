@@ -197,6 +197,18 @@ repository workflow in [`.github/workflows/verify.yml`](.github/workflows/verify
 sets up its Linux toolchains and locked dependencies before invoking this same
 gate.
 
+An auxiliary portability check runs the existing shell behavior suites from an
+isolated, clean Git fixture without changing the canonical gate:
+
+```sh
+make verify-portability PORTABILITY_SHELL=/bin/sh
+make verify-portability PORTABILITY_SHELL=/bin/dash
+```
+
+CI configures this check on macOS with `/bin/sh` and Ubuntu with `/bin/dash`.
+Remote CI results remain unverified until those jobs execute; this does not
+claim coverage for other shells or platforms.
+
 ## Prepare a ForgeFlow release
 
 From a clean committed release candidate, run the local-only readiness gate:

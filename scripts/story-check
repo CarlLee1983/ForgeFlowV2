@@ -4,6 +4,7 @@ set -eu
 
 usage() {
   printf 'Usage: %s [story-directory ...]\n' "$0" >&2
+  printf '       %s --ready [story-directory ...]\n' "$0" >&2
   printf '       %s --help\n' "$0" >&2
 }
 
@@ -17,11 +18,14 @@ usage_error() {
 help() {
   printf 'ForgeFlow Story Contract Check\n\n'
   printf 'Usage: %s [story-directory ...]\n' "$0"
+  printf '       %s --ready [story-directory ...]\n' "$0"
   printf '       %s --help\n\n' "$0"
   printf 'Without arguments, every directory under specs/stories/ except\n'
   printf '_template/ is checked relative to the current directory.\n\n'
   printf 'The check is static and read-only. It never executes repository code\n'
   printf 'and never replaces make verify or human review.\n'
+  printf '%s\n' '--ready also checks Goal, Scope, and unique nonempty checkbox AC IDs.'
+  printf 'It checks minimum content, not human-approved READY.\n'
 }
 
 forgeflow_trim() {
@@ -38,11 +42,68 @@ forgeflow_trim() {
 
   while :; do
     case "$forgeflow_trimmed" in
+      "$forgeflow_cr"*) forgeflow_trimmed=${forgeflow_trimmed#"$forgeflow_cr"} ;;
       "$forgeflow_tab"*) forgeflow_trimmed=${forgeflow_trimmed#"$forgeflow_tab"} ;;
       ' '*) forgeflow_trimmed=${forgeflow_trimmed# } ;;
       *) break ;;
     esac
   done
+}
+
+# Track the documented Markdown fence subset with shell builtins. The caller
+# initializes forgeflow_fence_length=0 before reading a file.
+forgeflow_update_fence() {
+  forgeflow_fence_line=$1
+  forgeflow_fence_changed=0
+
+  if [ "$forgeflow_fence_length" -eq 0 ]; then
+    case "$forgeflow_fence_line" in
+      '`'*) forgeflow_fence_character='`' ;;
+      '~'*) forgeflow_fence_character='~' ;;
+      *) return ;;
+    esac
+
+    forgeflow_fence_rest=$forgeflow_fence_line
+    forgeflow_fence_run=0
+    while :; do
+      case "$forgeflow_fence_rest" in
+        "$forgeflow_fence_character"*)
+          forgeflow_fence_rest=${forgeflow_fence_rest#"$forgeflow_fence_character"}
+          forgeflow_fence_run=$((forgeflow_fence_run + 1))
+          ;;
+        *) break ;;
+      esac
+    done
+
+    if [ "$forgeflow_fence_run" -ge 3 ]; then
+      forgeflow_fence_length=$forgeflow_fence_run
+      forgeflow_fence_changed=1
+    fi
+    return
+  fi
+
+  case "$forgeflow_fence_line" in
+    "$forgeflow_fence_character"*) ;;
+    *) return ;;
+  esac
+
+  forgeflow_fence_rest=$forgeflow_fence_line
+  forgeflow_fence_run=0
+  while :; do
+    case "$forgeflow_fence_rest" in
+      "$forgeflow_fence_character"*)
+        forgeflow_fence_rest=${forgeflow_fence_rest#"$forgeflow_fence_character"}
+        forgeflow_fence_run=$((forgeflow_fence_run + 1))
+        ;;
+      *) break ;;
+    esac
+  done
+
+  if [ "$forgeflow_fence_run" -ge "$forgeflow_fence_length" ] &&
+    [ -z "$forgeflow_fence_rest" ]; then
+    forgeflow_fence_length=0
+    forgeflow_fence_changed=1
+  fi
 }
 
 # A markdown separator cell: optional spaces, an optional leading colon, one or
@@ -169,25 +230,16 @@ forgeflow_read_declaration() {
   forgeflow_declaration_value=
   forgeflow_declaration_count=0
   forgeflow_declaration_in_section=0
-  forgeflow_declaration_fenced=0
+  forgeflow_fence_length=0
 
   while IFS= read -r forgeflow_declaration_line ||
     [ -n "$forgeflow_declaration_line" ]; do
     forgeflow_trim "$forgeflow_declaration_line"
     forgeflow_declaration_line=$forgeflow_trimmed
 
-    case "$forgeflow_declaration_line" in
-      '```'*)
-        if [ "$forgeflow_declaration_fenced" -eq 0 ]; then
-          forgeflow_declaration_fenced=1
-        else
-          forgeflow_declaration_fenced=0
-        fi
-        continue
-        ;;
-    esac
-
-    [ "$forgeflow_declaration_fenced" -eq 0 ] || continue
+    forgeflow_update_fence "$forgeflow_declaration_line"
+    [ "$forgeflow_fence_changed" -eq 0 ] || continue
+    [ "$forgeflow_fence_length" -eq 0 ] || continue
 
     case "$forgeflow_declaration_line" in
       '#'*)
@@ -228,25 +280,16 @@ forgeflow_count_literal_bullets() {
   forgeflow_bullet_literal=0
   forgeflow_bullet_section_found=0
   forgeflow_bullet_in_section=0
-  forgeflow_bullet_fenced=0
+  forgeflow_fence_length=0
 
   while IFS= read -r forgeflow_bullet_line ||
     [ -n "$forgeflow_bullet_line" ]; do
     forgeflow_trim "$forgeflow_bullet_line"
     forgeflow_bullet_line=$forgeflow_trimmed
 
-    case "$forgeflow_bullet_line" in
-      '```'*)
-        if [ "$forgeflow_bullet_fenced" -eq 0 ]; then
-          forgeflow_bullet_fenced=1
-        else
-          forgeflow_bullet_fenced=0
-        fi
-        continue
-        ;;
-    esac
-
-    [ "$forgeflow_bullet_fenced" -eq 0 ] || continue
+    forgeflow_update_fence "$forgeflow_bullet_line"
+    [ "$forgeflow_fence_changed" -eq 0 ] || continue
+    [ "$forgeflow_fence_length" -eq 0 ] || continue
 
     case "$forgeflow_bullet_line" in
       '#'*)
@@ -285,16 +328,38 @@ forgeflow_count_literal_bullets() {
 }
 
 forgeflow_next_cell() {
-  case "$forgeflow_row" in
-    *'|'*)
-      forgeflow_cell=${forgeflow_row%%|*}
-      forgeflow_row=${forgeflow_row#*|}
-      ;;
-    *)
-      forgeflow_cell=$forgeflow_row
-      forgeflow_row=
-      ;;
-  esac
+  forgeflow_cell=
+
+  while :; do
+    case "$forgeflow_row" in
+      *'|'*)
+        forgeflow_cell_prefix=${forgeflow_row%%|*}
+        forgeflow_row=${forgeflow_row#*|}
+        forgeflow_backslashes=$forgeflow_cell_prefix
+        forgeflow_backslash_count=0
+        while :; do
+          case "$forgeflow_backslashes" in
+            *'\')
+              forgeflow_backslashes=${forgeflow_backslashes%'\'}
+              forgeflow_backslash_count=$((forgeflow_backslash_count + 1))
+              ;;
+            *) break ;;
+          esac
+        done
+        forgeflow_cell=$forgeflow_cell$forgeflow_cell_prefix
+        if [ $((forgeflow_backslash_count % 2)) -eq 1 ]; then
+          forgeflow_cell=$forgeflow_cell'|'
+        else
+          break
+        fi
+        ;;
+      *)
+        forgeflow_cell=$forgeflow_cell$forgeflow_row
+        forgeflow_row=
+        break
+        ;;
+    esac
+  done
 
   forgeflow_trim "$forgeflow_cell"
   forgeflow_cell=$forgeflow_trimmed
@@ -307,8 +372,22 @@ forgeflow_count_pipes() {
   while :; do
     case "$forgeflow_pipe_rest" in
       *'|'*)
+        forgeflow_pipe_prefix=${forgeflow_pipe_rest%%|*}
         forgeflow_pipe_rest=${forgeflow_pipe_rest#*|}
-        forgeflow_pipe_count=$((forgeflow_pipe_count + 1))
+        forgeflow_backslashes=$forgeflow_pipe_prefix
+        forgeflow_backslash_count=0
+        while :; do
+          case "$forgeflow_backslashes" in
+            *'\')
+              forgeflow_backslashes=${forgeflow_backslashes%'\'}
+              forgeflow_backslash_count=$((forgeflow_backslash_count + 1))
+              ;;
+            *) break ;;
+          esac
+        done
+        if [ $((forgeflow_backslash_count % 2)) -eq 0 ]; then
+          forgeflow_pipe_count=$((forgeflow_pipe_count + 1))
+        fi
         ;;
       *) break ;;
     esac
@@ -374,25 +453,16 @@ forgeflow_check_matrix() {
   forgeflow_matrix_rows=0
   forgeflow_matrix_in_section=0
   forgeflow_matrix_row_number=0
-  forgeflow_matrix_fenced=0
+  forgeflow_fence_length=0
 
   while IFS= read -r forgeflow_matrix_line ||
     [ -n "$forgeflow_matrix_line" ]; do
     forgeflow_trim "$forgeflow_matrix_line"
     forgeflow_matrix_line=$forgeflow_trimmed
 
-    case "$forgeflow_matrix_line" in
-      '```'*)
-        if [ "$forgeflow_matrix_fenced" -eq 0 ]; then
-          forgeflow_matrix_fenced=1
-        else
-          forgeflow_matrix_fenced=0
-        fi
-        continue
-        ;;
-    esac
-
-    [ "$forgeflow_matrix_fenced" -eq 0 ] || continue
+    forgeflow_update_fence "$forgeflow_matrix_line"
+    [ "$forgeflow_fence_changed" -eq 0 ] || continue
+    [ "$forgeflow_fence_length" -eq 0 ] || continue
 
     case "$forgeflow_matrix_line" in
       '#'*)
@@ -438,6 +508,91 @@ forgeflow_check_matrix() {
   done <"$forgeflow_matrix_file"
 }
 
+# Unlike matrix placeholders, readiness uses a finite list, not an angle-bracket
+# pattern: technical requirements such as <T> are valid content.
+forgeflow_ready_content() {
+  forgeflow_trim "$1"
+  case "$forgeflow_trimmed" in
+    '* '*|'- '*) forgeflow_trim "${forgeflow_trimmed#??}" ;;
+  esac
+  case "$forgeflow_trimmed" in
+    ''|'*'|'-'|TBD|tbd|TODO|todo|'N/A'|'n/a'|'...'|'<goal>'|'<scope>'|\
+    '<acceptance criterion>'|'Describe the user or business outcome.') return 1 ;;
+  esac
+  return 0
+}
+
+forgeflow_ready_fail() {
+  forgeflow_report 'FAIL' "readiness: $1"
+  forgeflow_readiness_incomplete=$((forgeflow_readiness_incomplete + 1))
+}
+
+forgeflow_check_readiness() {
+  forgeflow_ready_section=
+  forgeflow_goal_content=0
+  forgeflow_scope_content=0
+  forgeflow_fence_length=0
+  while IFS= read -r forgeflow_ready_line || [ -n "$forgeflow_ready_line" ]; do
+    forgeflow_trim "$forgeflow_ready_line"
+    forgeflow_ready_line=$forgeflow_trimmed
+    forgeflow_update_fence "$forgeflow_ready_line"
+    [ "$forgeflow_fence_changed" -eq 0 ] || continue
+    [ "$forgeflow_fence_length" -eq 0 ] || continue
+    case "$forgeflow_ready_line" in
+      '## Goal') forgeflow_ready_section=goal; continue ;;
+      '## Scope') forgeflow_ready_section=scope; continue ;;
+      '#'|'##'|'# '*|'## '*|"#$forgeflow_tab"*|"##$forgeflow_tab"*)
+        forgeflow_ready_section=; continue ;;
+      '###'*) continue ;;
+    esac
+    forgeflow_ready_content "$forgeflow_ready_line" || continue
+    case "$forgeflow_ready_section" in
+      goal) forgeflow_goal_content=1 ;;
+      scope) forgeflow_scope_content=1 ;;
+    esac
+  done <"$forgeflow_story_file"
+  [ "$forgeflow_goal_content" -eq 1 ] ||
+    forgeflow_ready_fail '## Goal needs non-placeholder content'
+  [ "$forgeflow_scope_content" -eq 1 ] ||
+    forgeflow_ready_fail '## Scope needs non-placeholder content'
+
+  forgeflow_ac_ids=' '
+  forgeflow_ac_count=0
+  forgeflow_fence_length=0
+  while IFS= read -r forgeflow_ready_line || [ -n "$forgeflow_ready_line" ]; do
+    forgeflow_trim "$forgeflow_ready_line"
+    forgeflow_ready_line=$forgeflow_trimmed
+    forgeflow_update_fence "$forgeflow_ready_line"
+    [ "$forgeflow_fence_changed" -eq 0 ] || continue
+    [ "$forgeflow_fence_length" -eq 0 ] || continue
+    case "$forgeflow_ready_line" in
+      '* '*|'- '*) forgeflow_ready_line=${forgeflow_ready_line#??} ;;
+      *) continue ;;
+    esac
+    case "$forgeflow_ready_line" in
+      '[ ] '*|'[x] '*|'[X] '*) forgeflow_ready_line=${forgeflow_ready_line#????} ;;
+      *) continue ;;
+    esac
+    case "$forgeflow_ready_line" in
+      AC-*:* ) ;;
+      *) continue ;;
+    esac
+    forgeflow_ac_id=${forgeflow_ready_line%%:*}
+    case "${forgeflow_ac_id#AC-}" in
+      ''|*[!0-9]*) continue ;;
+    esac
+    case "$forgeflow_ac_ids" in
+      *" $forgeflow_ac_id "*) forgeflow_ready_fail "duplicate AC ID: $forgeflow_ac_id" ;;
+    esac
+    forgeflow_ac_ids="$forgeflow_ac_ids$forgeflow_ac_id "
+    forgeflow_ac_count=$((forgeflow_ac_count + 1))
+    forgeflow_ready_content "${forgeflow_ready_line#*:}" ||
+      forgeflow_ready_fail "$forgeflow_ac_id needs non-placeholder same-line content"
+  done <"$forgeflow_acceptance_file"
+  [ "$forgeflow_ac_count" -gt 0 ] ||
+    forgeflow_ready_fail 'acceptance.md needs a checkbox AC-<digits>: criterion'
+}
+
 forgeflow_check_story() {
   forgeflow_story_directory=$1
   forgeflow_story_label=$forgeflow_story_directory
@@ -464,6 +619,10 @@ forgeflow_check_story() {
       return
     fi
   done
+
+  if [ "$forgeflow_ready" -eq 1 ]; then
+    forgeflow_check_readiness
+  fi
 
   forgeflow_read_declaration \
     "$forgeflow_story_file" '## Classification' 'Security sensitive'
@@ -559,10 +718,15 @@ forgeflow_check_story() {
 forgeflow_cr=$(printf '\r')
 forgeflow_tab=$(printf '\t')
 forgeflow_matrix_header_row='| Source field | Payload | Expected result | Persisted locations | Verification |'
+forgeflow_ready=0
+if [ "${1-}" = --ready ]; then
+  forgeflow_ready=1
+  shift
+fi
 
 case "${1-}" in
   --help)
-    if [ "$#" -ne 1 ]; then
+    if [ "$#" -ne 1 ] || [ "$forgeflow_ready" -eq 1 ]; then
       usage_error
       exit 2
     fi
@@ -576,6 +740,7 @@ case "${1-}" in
 esac
 
 forgeflow_contract_incomplete=0
+forgeflow_readiness_incomplete=0
 forgeflow_operational_error=0
 forgeflow_checked=0
 
@@ -604,6 +769,9 @@ if [ "$#" -eq 0 ]; then
 else
   for forgeflow_candidate in "$@"
   do
+    case "$forgeflow_candidate" in
+      -*) usage_error; exit 2 ;;
+    esac
     if [ ! -d "$forgeflow_candidate" ]; then
       printf 'ERROR Story directory is missing: %s\n' \
         "$forgeflow_candidate" >&2
@@ -630,6 +798,25 @@ if [ "$forgeflow_checked" -eq 0 ]; then
   printf 'Result: ERROR\n'
   printf 'Stories checked: 0\n'
   exit 2
+fi
+
+if [ "$forgeflow_ready" -eq 1 ]; then
+  if [ "$forgeflow_contract_incomplete" -gt 0 ]; then
+    printf 'Structure: STORY_CONTRACT_INCOMPLETE\n'
+  else
+    printf 'Structure: STORY_CONTRACT_OK\n'
+  fi
+  if [ "$forgeflow_contract_incomplete" -gt 0 ] ||
+    [ "$forgeflow_readiness_incomplete" -gt 0 ]; then
+    printf 'Result: STORY_READINESS_INCOMPLETE\n'
+    printf 'Stories checked: %s\n' "$forgeflow_checked"
+    printf 'Fill the reported structure or minimum content, then recheck.\n'
+    exit 1
+  fi
+  printf 'Result: STORY_READINESS_OK\n'
+  printf 'Stories checked: %s\n' "$forgeflow_checked"
+  printf 'Minimum content only, not human-approved READY. Run make verify and human review.\n'
+  exit 0
 fi
 
 if [ "$forgeflow_contract_incomplete" -gt 0 ]; then

@@ -140,6 +140,28 @@ and changes no existing PASS, FAIL, or Repair Loop semantics. Because
 untouched, adopters manually compare the 0.3.3 through 0.3.5 agent guidance as
 described in [Upgrading an Adopting Repository](../docs/upgrading.md).
 
+FF-217 is a **Corrective** change for `0.3.6` against the `0.3.5` baseline: it
+repairs documented Story Markdown parsing without changing command forms, result
+names, exit codes, required fields, or adopter migration.
+
+FF-218 optional `story-check --ready` is **Additive** for `0.3.6`: existing command forms,
+default results, Doctor behavior and historical Stories stay valid. Only callers
+opting in receive minimum-content checks and STORY_READINESS results. No
+migration is required.
+
+FF-219 bootstrap failure recovery is a **Corrective** safety repair for `0.3.6`:
+CLI forms and the marker format remain unchanged. Detected failures recover the
+prior managed contents/existence, or report unresolved paths and recovery copies.
+Preparing originals needs read access and staging space; failure is safe before
+replacement. No adopter migration is introduced, and crash
+atomicity is not promised. See [failure recovery](../docs/upgrading.md#failure-recovery).
+
+FF-220 adds repository-only Corrective portability coverage without changing
+the canonical gate. FF-221 prepares the compatible combined `0.3.6` release:
+pre-1.0 PATCH releases may contain compatible additions as well as repairs.
+No Breaking change or migration is introduced. See the
+[release notes](../docs/releases/0.3.6.md).
+
 Doctor's contract-drift reporting is **Additive**: it adds three static-mode
 result lines, composes the two checkers through their existing command forms,
 and changes no exit status. It does add one new value to Doctor's `Result`

@@ -51,8 +51,10 @@ can still fail if the filesystem changes concurrently.
 
 Run bootstrap only while you control the target repository and no other process
 is concurrently replacing its paths. The portable shell script rejects managed
-directory and file symlinks and replaces files atomically, but it is not a
-sandbox for an actively hostile, concurrently mutated filesystem.
+directory and file symlinks and uses single-file atomic replacement plus
+[cross-file failure recovery](upgrading.md#failure-recovery). This is not an
+atomic installation transaction or a sandbox for an actively hostile,
+concurrently mutated filesystem.
 
 Bootstrap success means only that the managed guide and Story-template files
 were installed. Bootstrap intentionally does not create a repository-owned

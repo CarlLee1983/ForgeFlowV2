@@ -897,4 +897,266 @@ adopter_documentation_agrees_on_the_upgrade_contract() {
 
 run_case 'AC-012' adopter_documentation_agrees_on_the_upgrade_contract
 
+prepare_recovery_fault() {
+  forgeflow_fault_root="$forgeflow_test_dir/$forgeflow_case_id-$1"
+  mkdir -p "$forgeflow_fault_root"
+  forgeflow_fault_root=$(cd -P "$forgeflow_fault_root" && pwd)
+  forgeflow_fault_target="$forgeflow_fault_root/target"
+  forgeflow_fault_bin="$forgeflow_fault_root/bin"
+  forgeflow_fault_output="$forgeflow_fault_root/output"
+  mkdir -p "$forgeflow_fault_bin" "$forgeflow_fault_target"
+  forgeflow_fault_after=0
+  forgeflow_fault_rollback=
+  forgeflow_fault_invalidate=0
+  forgeflow_fault_kind=mv
+  forgeflow_fault_relative=specs/stories/_template/acceptance.md
+  forgeflow_real_cp=$(command -v cp)
+  forgeflow_real_mv=$(command -v mv)
+  forgeflow_real_rm=$(command -v rm)
+  forgeflow_real_mkdir=$(command -v mkdir)
+  cat >"$forgeflow_fault_bin/shim" <<'FORGEFLOW_FAULT'
+#!/bin/sh
+set -eu
+fault_command=${0##*/}
+fault_source=
+fault_destination=
+for fault_arg in "$@"; do
+  case "$fault_arg" in
+    -*) ;;
+    *)
+      [ -n "$fault_source" ] || fault_source=$fault_arg
+      fault_destination=$fault_arg ;;
+  esac
+done
+case "$fault_command" in
+  cp) fault_real=$FF_REAL_CP ;;
+  mv) fault_real=$FF_REAL_MV ;;
+  rm) fault_real=$FF_REAL_RM ;;
+  mkdir) fault_real=$FF_REAL_MKDIR ;;
+esac
+fault_match=0
+if [ ! -f "$FF_FAULT_ROOT/triggered" ]; then
+  case "$FF_FAULT_KIND:$fault_command" in
+    mv:mv)
+      [ "$fault_destination" != "$FF_FAULT_TARGET/$FF_FAULT_RELATIVE" ] || fault_match=1 ;;
+    cp:cp)
+      [ "$fault_source" != "$FF_SOURCE/templates/story/$FF_FAULT_RELATIVE" ] || fault_match=1 ;;
+    backup:cp)
+      case "$fault_destination" in */original) fault_match=1 ;; esac ;;
+    mkdir:mkdir)
+      if [ "$FF_FAULT_RELATIVE" = stage ]; then
+        case "$fault_destination" in
+          "$FF_FAULT_TARGET"/.forgeflow-install.*|"$FF_FAULT_TARGET"/*/.forgeflow-install.*) fault_match=1 ;;
+        esac
+      elif [ "$fault_destination" = "$FF_FAULT_TARGET/$FF_FAULT_RELATIVE" ]; then
+        fault_match=1
+      fi ;;
+  esac
+fi
+if [ "$fault_match" -eq 1 ]; then
+  : >"$FF_FAULT_ROOT/triggered"
+  printf 'Injected %s failure: %s\n' "$fault_command" "$fault_destination" >&2
+  if [ "$FF_FAULT_AFTER" -eq 1 ]; then "$fault_real" "$@"; fi
+  exit 73
+fi
+if [ -f "$FF_FAULT_ROOT/triggered" ]; then
+  case "$fault_command:$fault_source" in
+    mv:*/restore)
+      if [ "$fault_destination" = "$FF_FAULT_TARGET/$FF_FAULT_ROLLBACK" ]; then
+        printf 'Injected rollback failure: %s\n' "$fault_destination" >&2
+        exit 74
+      fi ;;
+    rm:*)
+      if [ "$FF_FAULT_INVALIDATE" -eq 1 ] &&
+        [ "$fault_destination" = "$FF_FAULT_TARGET/specs/.forgeflow-adoption" ]; then
+        printf 'Injected invalidation failure\n' >&2
+        exit 75
+      fi ;;
+  esac
+fi
+exec "$fault_real" "$@"
+FORGEFLOW_FAULT
+  for forgeflow_fault_command in cp mv rm mkdir
+  do
+    cp "$forgeflow_fault_bin/shim" "$forgeflow_fault_bin/$forgeflow_fault_command"
+    chmod +x "$forgeflow_fault_bin/$forgeflow_fault_command"
+  done
+}
+
+run_recovery_fault() {
+  if PATH="$forgeflow_fault_bin:$PATH" \
+    FF_REAL_CP="$forgeflow_real_cp" FF_REAL_MV="$forgeflow_real_mv" FF_REAL_RM="$forgeflow_real_rm" \
+    FF_REAL_MKDIR="$forgeflow_real_mkdir" \
+    FF_FAULT_ROOT="$forgeflow_fault_root" FF_FAULT_TARGET="$forgeflow_fault_target" \
+    FF_SOURCE="$forgeflow_repo" FF_FAULT_KIND="$forgeflow_fault_kind" \
+    FF_FAULT_RELATIVE="$forgeflow_fault_relative" FF_FAULT_AFTER="$forgeflow_fault_after" \
+    FF_FAULT_ROLLBACK="$forgeflow_fault_rollback" FF_FAULT_INVALIDATE="$forgeflow_fault_invalidate" \
+    "$forgeflow_repo/scripts/bootstrap" "$@" "$forgeflow_fault_target" \
+      >"$forgeflow_fault_output" 2>&1; then
+    forgeflow_fault_status=0
+  else
+    forgeflow_fault_status=$?
+  fi
+}
+
+assert_recovery_failed_safely() {
+  [ "$forgeflow_fault_status" -ne 0 ] || fail 'injected failure returned success'
+  [ -f "$forgeflow_fault_root/triggered" ] || fail 'fault was not injected'
+  if grep -Eq 'ForgeFlow (initialized|templates upgraded)' "$forgeflow_fault_output"; then
+    fail 'failure printed installation success'
+  fi
+}
+
+replacement_failures_restore_every_original() {
+  forgeflow_recovery_mismatches=0
+  for forgeflow_failure_phase in 0 1
+  do
+    for forgeflow_failure_path in specs/stories/_template/acceptance.md specs/stories/_template/task.md specs/.forgeflow-adoption
+    do
+      prepare_recovery_fault "replace-$forgeflow_failure_phase-${forgeflow_failure_path##*/}"
+      make_prior_adoption "$forgeflow_fault_target"
+      printf 'version=0.2.1\nrevision=unknown\n' >"$forgeflow_fault_target/specs/.forgeflow-adoption"
+      cp -R "$forgeflow_fault_target" "$forgeflow_fault_root/before"
+      forgeflow_fault_relative=$forgeflow_failure_path
+      forgeflow_fault_after=$forgeflow_failure_phase
+      run_recovery_fault --upgrade
+      assert_recovery_failed_safely
+      if ! diff -r "$forgeflow_fault_root/before" "$forgeflow_fault_target" >/dev/null; then
+        printf 'Unrestored baseline: phase=%s path=%s\n' "$forgeflow_failure_phase" "$forgeflow_failure_path"
+        forgeflow_recovery_mismatches=$((forgeflow_recovery_mismatches + 1))
+      fi
+    done
+  done
+  [ "$forgeflow_recovery_mismatches" -eq 0 ] ||
+    fail "$forgeflow_recovery_mismatches injected replacement failures left changed files"
+}
+
+preparation_failures_leave_originals_unchanged() {
+  for forgeflow_failure_copy in acceptance.md task.md backup
+  do
+    prepare_recovery_fault "copy-$forgeflow_failure_copy"
+    make_prior_adoption "$forgeflow_fault_target"
+    cp -R "$forgeflow_fault_target" "$forgeflow_fault_root/before"
+    forgeflow_fault_kind=cp
+    forgeflow_fault_relative=$forgeflow_failure_copy
+    forgeflow_fault_after=1
+    [ "$forgeflow_failure_copy" != backup ] || forgeflow_fault_kind=backup
+    run_recovery_fault --upgrade
+    assert_recovery_failed_safely
+    diff -r "$forgeflow_fault_root/before" "$forgeflow_fault_target" >/dev/null ||
+      fail "preparation failure changed originals: $forgeflow_failure_copy"
+  done
+  for forgeflow_failure_directory in specs specs/stories specs/stories/_template stage
+  do
+    prepare_recovery_fault "mkdir-${forgeflow_failure_directory##*/}"
+    cp -R "$forgeflow_fault_target" "$forgeflow_fault_root/before"
+    forgeflow_fault_kind=mkdir
+    forgeflow_fault_relative=$forgeflow_failure_directory
+    forgeflow_fault_after=1
+    run_recovery_fault
+    assert_recovery_failed_safely
+    diff -r "$forgeflow_fault_root/before" "$forgeflow_fault_target" >/dev/null ||
+      fail "post-mkdir failure left untracked directories: $forgeflow_failure_directory"
+  done
+  prepare_recovery_fault collision
+  if /bin/sh -c '
+    mkdir "$1/.forgeflow-install.$$-AGENTS.md"
+    printf "unrelated staging\n" >"$1/.forgeflow-install.$$-AGENTS.md/sentinel"
+    exec "$2" "$1"
+  ' sh "$forgeflow_fault_target" "$forgeflow_repo/scripts/bootstrap" >"$forgeflow_fault_output" 2>&1; then
+    fail 'existing staging collision returned success'
+  fi
+  for forgeflow_collision_file in "$forgeflow_fault_target"/.forgeflow-install.*/sentinel
+  do
+    [ "$(cat "$forgeflow_collision_file")" = 'unrelated staging' ] || fail 'deleted pre-existing staging'
+  done
+  [ ! -e "$forgeflow_fault_target/specs" ] || fail 'collision leaked newly created directories'
+}
+
+recovery_preserves_existing_and_absent_files() {
+  for forgeflow_recovery_mode in fresh force
+  do
+    prepare_recovery_fault "$forgeflow_recovery_mode"
+    if [ "$forgeflow_recovery_mode" = force ]; then
+      mkdir -p "$forgeflow_fault_target/specs/stories/_template"
+      printf 'original guide\n' >"$forgeflow_fault_target/AGENTS.md"
+      printf 'original story\n' >"$forgeflow_fault_target/specs/stories/_template/story.md"
+    fi
+    printf 'unmanaged\n' >"$forgeflow_fault_target/notes.txt"
+    cp -R "$forgeflow_fault_target" "$forgeflow_fault_root/before"
+    forgeflow_fault_relative=specs/.forgeflow-adoption
+    forgeflow_fault_after=1
+    if [ "$forgeflow_recovery_mode" = force ]; then run_recovery_fault --force; else run_recovery_fault; fi
+    assert_recovery_failed_safely
+    diff -r "$forgeflow_fault_root/before" "$forgeflow_fault_target" >/dev/null ||
+      fail "$forgeflow_recovery_mode did not restore original presence/content"
+  done
+}
+
+rollback_failure_retains_recovery_evidence() {
+  for forgeflow_restore_path in specs/stories/_template/story.md specs/.forgeflow-adoption
+  do
+    prepare_recovery_fault "rollback-${forgeflow_restore_path##*/}"
+    make_prior_adoption "$forgeflow_fault_target"
+    printf 'version=0.2.1\nrevision=unknown\n' >"$forgeflow_fault_target/specs/.forgeflow-adoption"
+    forgeflow_fault_relative=specs/.forgeflow-adoption
+    forgeflow_fault_after=1
+    forgeflow_fault_rollback=$forgeflow_restore_path
+    run_recovery_fault --upgrade
+    assert_recovery_failed_safely
+    for forgeflow_recovery_message in 'UNRESTORED:' "$forgeflow_fault_target/$forgeflow_restore_path" 'Recovery copies retained' 'Restore' '/original'
+    do
+      grep -Fq "$forgeflow_recovery_message" "$forgeflow_fault_output" ||
+        fail "recovery diagnostic missing: $forgeflow_recovery_message"
+    done
+    [ "$(cat "$forgeflow_fault_target/specs/stories/_template/acceptance.md")" = 'old template' ] ||
+      fail 'rollback stopped before restoring siblings'
+    if [ "$forgeflow_restore_path" = specs/.forgeflow-adoption ]; then
+      [ ! -e "$forgeflow_fault_target/specs/.forgeflow-adoption" ] || fail 'failed marker restore left a new marker'
+    fi
+    forgeflow_recovery_copies=$(find "$forgeflow_fault_target" -name original -type f)
+    [ -n "$forgeflow_recovery_copies" ] || fail 'recovery destroyed original backups'
+  done
+  prepare_recovery_fault invalidation
+  make_prior_adoption "$forgeflow_fault_target"
+  printf 'version=0.2.1\nrevision=unknown\n' >"$forgeflow_fault_target/specs/.forgeflow-adoption"
+  forgeflow_fault_relative=specs/.forgeflow-adoption
+  forgeflow_fault_after=1
+  forgeflow_fault_rollback=specs/.forgeflow-adoption
+  forgeflow_fault_invalidate=1
+  run_recovery_fault --upgrade
+  assert_recovery_failed_safely
+  grep -Fq 'Do not trust the adoption marker' "$forgeflow_fault_output" ||
+    fail 'invalidation failure gave no actionable marker warning'
+}
+
+recovery_preserves_normal_and_dry_run_behavior() {
+  prepare_recovery_fault dry-run
+  run_recovery_fault --dry-run
+  [ "$forgeflow_fault_status" -eq 0 ] || fail 'dry-run failed'
+  [ ! -e "$forgeflow_fault_root/triggered" ] || fail 'dry-run called a mutating command'
+  [ -z "$(find "$forgeflow_fault_target" -mindepth 1)" ] || fail 'dry-run created entries'
+  "$forgeflow_repo/scripts/bootstrap" "$forgeflow_fault_target" >/dev/null
+  "$forgeflow_repo/scripts/bootstrap" --force "$forgeflow_fault_target" >/dev/null
+  "$forgeflow_repo/scripts/bootstrap" --upgrade "$forgeflow_fault_target" >/dev/null
+  cmp "$forgeflow_repo/templates/story/story.md" "$forgeflow_fault_target/specs/stories/_template/story.md" ||
+    fail 'normal installation failed'
+  [ -z "$(find "$forgeflow_fault_target" -name '.forgeflow-install.*')" ] || fail 'success leaked staging'
+}
+
+recovery_guarantees_are_documented() {
+  for forgeflow_recovery_term in 'single-file' 'cross-file' 'SIGKILL' 'Restore' 'inode' 'readable'
+  do
+    grep -Fq "$forgeflow_recovery_term" "$forgeflow_repo/docs/upgrading.md" ||
+      fail "recovery documentation omits $forgeflow_recovery_term"
+  done
+}
+
+run_case 'FF219-AC-001' replacement_failures_restore_every_original
+run_case 'FF219-AC-002' preparation_failures_leave_originals_unchanged
+run_case 'FF219-AC-003' recovery_preserves_existing_and_absent_files
+run_case 'FF219-AC-004' rollback_failure_retains_recovery_evidence
+run_case 'FF219-AC-005' recovery_preserves_normal_and_dry_run_behavior
+run_case 'FF219-AC-006' recovery_guarantees_are_documented
+
 printf 'bootstrap tests passed\n'
