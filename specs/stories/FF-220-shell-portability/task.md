@@ -13,6 +13,8 @@ the primary review's false-PASS interpreter path were repaired before these runs
 
 Canonical `make verify` passed (exit 0) for the final combined implementation,
 including TypeScript, Go and Actions gates. `git diff --check` also passed.
-CI jobs are configured; remote evidence is collected during FF-221 publication.
+Remote workflow 33933039270 passed all three jobs, including macOS /bin/sh and
+Ubuntu /bin/dash, for the exact merged release SHA below.
 Human Review: Carl explicitly accepted this work and authorized commit and full
-release on 2026-09-05. Awaiting repository merge policy; not DONE until merged.
+release on 2026-09-05. Carl merged PR #9 at
+4d6dc963defde7fb93e08009730f40488284b592. Published in v0.3.6. Status: DONE.

@@ -12,9 +12,16 @@ Implementation commit: 23218d90375c57f9122187263bb0c631904c3e44.
 Its clean `make release-check` passed: version=0.3.6, expected_tag=v0.3.6,
 local_tag=absent. PR: https://github.com/CarlLee1983/ForgeFlowV2/pull/9.
 
-At this checkpoint CI is running and GitHub reports REVIEW_REQUIRED / BLOCKED.
-The protected main branch requires a GitHub approving review; chat acceptance
-does not supply that API state. This bookkeeping follow-up also needs fresh
-committed readiness and exact-SHA CI before publication. Merge, annotated tag
-and GitHub publication remain pending until policy and docs/releasing.md are
-satisfied. Do not report this Story as DONE yet.
+Carl merged PR #9 on 2026-09-05 at
+4d6dc963defde7fb93e08009730f40488284b592. The agent did not bypass branch policy.
+That exact SHA passed workflow 33933039270 (Linux canonical, macOS sh, Ubuntu
+dash) and full local `make release-check` before and after annotated-tag creation.
+
+Published on 2026-09-05:
+https://github.com/CarlLee1983/ForgeFlowV2/releases/tag/v0.3.6.
+Post-publication checks confirmed a non-draft, non-prerelease Release and remote
+annotated tag 9c8f9832487a5a9674927d41df60d27100487258 peeling to the same SHA.
+FF221-AC-003 through AC-005 are satisfied. Status: DONE.
+
+This documentation-only follow-up records observed completion; it does not move
+the released tag. Remote evidence must be queried again for future decisions.
