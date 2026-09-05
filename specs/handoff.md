@@ -36,33 +36,12 @@ workflow:
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: main
-  commit: 4524756dd014836a86344f0afde252809400170d
+  branch: ff-222-acceptance-evidence-release
+  commit: 7327612397316a8d6bba9ed40a41df2e13197eb5
   dirty_worktree: true
   story_owned_paths:
-    - VERSION
-    - docs/contract-checks.md
-    - docs/doctor.md
-    - docs/getting-started.md
-    - docs/human-review.md
-    - docs/releases/0.4.0.md
-    - docs/upgrading.md
-    - protocol/story.md
-    - protocol/versioning.md
-    - scripts/story-check
-    - skills/story-development/SKILL.md
     - specs/handoff.md
-    - specs/stories/FF-222-acceptance-evidence/acceptance.md
-    - specs/stories/FF-222-acceptance-evidence/story.md
-    - specs/stories/FF-222-acceptance-evidence/task.md
-    - templates/AGENTS.md
-    - templates/story/acceptance.md
-    - tests/human-review.sh
-    - tests/review-integrity.sh
-    - tests/story-check.sh
-  known_unrelated_paths:
-    - docs/agentic-discipline.md
-    - docs/concepts.md
+  known_unrelated_paths: []
 
 verification:
   last_command: make verify
@@ -71,10 +50,17 @@ verification:
 
 ## Notes
 
-* FF-222 is ready for Human Review as the `0.4.0` Acceptance Evidence readiness migration.
-  The starting baseline was clean at `4524756dd014836a86344f0afde252809400170d`;
-  full `make verify` passed after the parser change. Human Review must assess
-  whether each declared fixture or external invariant is sufficient.
+* Carl authorized commit and release on 2026-09-06. The release candidate
+  includes FF-222 and the reviewed optional Agentic Discipline documentation.
+  Acceptance review found trailing content accepted after the fifth evidence
+  column and a test coupled to the live Story. Both are repaired; the new
+  regression failed before the parser fix, and independent re-review confirmed
+  both findings resolved. Full `make verify` passed after the fixes.
+* The baseline above is the complete implementation commit. This handoff-only
+  follow-up records that baseline and release authorization. FF-222 remains in
+  REVIEW until the repository's required PR approval and merge policy are
+  satisfied. Local release readiness, exact-SHA CI, tag, and Release inspection
+  remain required before publication; no publication is claimed here.
 
 * Carl accepted FF-217 through FF-220 and explicitly authorized commit and full
   release on 2026-09-05. Carl then merged PR #9 at
