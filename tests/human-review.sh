@@ -216,8 +216,8 @@ compatibility_keeps_the_existing_protocol_surface() {
 }
 
 versioning_keeps_human_review_history_and_current_version() {
-  grep -Fqx '0.3.5' "$forgeflow_repo/VERSION" || return 1
-  contains docs/doctor.md 'Adopted version: 0.3.5'
+  grep -Fqx '0.3.6' "$forgeflow_repo/VERSION" || return 1
+  contains docs/doctor.md 'Adopted version: 0.3.6'
   contains protocol/versioning.md 'Human Review Guidance is **Additive** for `0.3.4`'
   for forgeflow_term in \
     'no required adoption file' \

@@ -203,13 +203,18 @@ compatibility_adds_no_required_review_surface() {
 }
 
 versioning_records_the_corrective_patch() {
-  grep -Fqx '0.3.5' "$forgeflow_repo/VERSION" || return 1
-  contains docs/doctor.md 'Adopted version: 0.3.5'
   contains protocol/versioning.md \
     'Review integrity and state consistency is **Corrective** for `0.3.5`'
   contains protocol/versioning.md 'Existing valid adoptions remain valid'
   contains specs/stories/FF-216-review-integrity-and-state-consistency/story.md \
     'This change is Corrective'
+}
+
+release_metadata_matches_036() {
+  grep -Fqx '0.3.6' "$forgeflow_repo/VERSION" || return 1
+  contains docs/doctor.md 'Adopted version: 0.3.6'
+  contains docs/releases/0.3.6.md 'No migration is required'
+  contains docs/releases/0.3.6.md 'SIGKILL'
 }
 
 every_acceptance_criterion_has_one_case() {
@@ -243,6 +248,8 @@ run_case 'AC-007' agent_guidance_prepares_truthful_fresh_review
 run_case 'AC-008' upgrade_requires_manual_agent_guidance_reconciliation
 run_case 'AC-009' compatibility_adds_no_required_review_surface
 run_case 'AC-010' versioning_records_the_corrective_patch
+run_case 'FF221-AC-001' release_metadata_matches_036
+run_case 'FF221-AC-002' versioning_records_the_corrective_patch
 run_case 'AC-011' every_acceptance_criterion_has_one_case
 run_case 'AC-012' root_gate_keeps_all_existing_checks
 

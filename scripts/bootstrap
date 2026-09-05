@@ -7,33 +7,116 @@ usage() {
     "$0" >&2
 }
 
-install_managed_file() {
-  forgeflow_install_source=$1
-  forgeflow_install_destination=$2
-  forgeflow_install_parent=$(dirname "$forgeflow_install_destination")
-  forgeflow_install_stage="$forgeflow_install_parent/.forgeflow-install.$$"
+managed_stage() {
+  forgeflow_destination="$forgeflow_target/$1"
+  # Each rename stays on the destination's filesystem, including nested mounts.
+  forgeflow_stage="${forgeflow_destination%/*}/.forgeflow-install.$$-${forgeflow_destination##*/}"
+}
 
-  if ! (umask 077 && mkdir "$forgeflow_install_stage"); then
-    printf 'Could not create staging directory: %s\n' \
-      "$forgeflow_install_stage" >&2
+prepare_managed_file() {
+  forgeflow_prepare_source=$1
+  forgeflow_prepare_relative=$2
+  managed_stage "$forgeflow_prepare_relative"
+  if [ -e "$forgeflow_stage" ] || [ -L "$forgeflow_stage" ]; then
+    printf 'Refusing existing staging path: %s\n' "$forgeflow_stage" >&2
     return 1
   fi
-
-  if ! cp "$forgeflow_install_source" \
-    "$forgeflow_install_stage/managed-file"; then
-    rm -f "$forgeflow_install_stage/managed-file"
-    rmdir "$forgeflow_install_stage"
+  # The target is under caller control: record ownership before mkdir so a
+  # caught interruption or post-operation failure cannot orphan a new directory.
+  forgeflow_prepared="$forgeflow_prepare_relative
+$forgeflow_prepared"
+  if ! (umask 077 && mkdir "$forgeflow_stage"); then
+    printf 'Could not create staging directory: %s\n' "$forgeflow_stage" >&2
     return 1
   fi
+  if [ -f "$forgeflow_destination" ]; then
+    cp -p "$forgeflow_destination" "$forgeflow_stage/original" || return 1
+  fi
+  if [ -n "$forgeflow_prepare_source" ]; then
+    cp "$forgeflow_prepare_source" "$forgeflow_stage/new" || return 1
+  else
+    {
+      printf 'version=%s\n' "$forgeflow_version"
+      printf 'revision=%s\n' "$forgeflow_revision"
+    } >"$forgeflow_stage/new" || return 1
+  fi
+}
 
-  if ! mv -f "$forgeflow_install_stage/managed-file" \
-    "$forgeflow_install_destination"; then
-    rm -f "$forgeflow_install_stage/managed-file"
-    rmdir "$forgeflow_install_stage"
-    return 1
+finish_install() {
+  forgeflow_finish_status=$?
+  trap - 0
+  trap '' HUP INT TERM
+  forgeflow_recovery_failed=0
+
+  if [ "$forgeflow_finish_status" -ne 0 ] && [ "$forgeflow_committed" -eq 0 ]; then
+    while IFS= read -r forgeflow_recover_relative; do
+      [ -n "$forgeflow_recover_relative" ] || continue
+      managed_stage "$forgeflow_recover_relative"
+      forgeflow_restored=0
+      if [ -f "$forgeflow_stage/original" ]; then
+        # Keep the recovery copy even if the restoring rename reports failure
+        # after changing the destination.
+        if cp -p "$forgeflow_stage/original" "$forgeflow_stage/restore" &&
+          mv -f "$forgeflow_stage/restore" "$forgeflow_destination"; then
+          forgeflow_restored=1
+        fi
+      elif rm -f "$forgeflow_destination"; then
+        forgeflow_restored=1
+      fi
+      if [ "$forgeflow_restored" -eq 0 ]; then
+        forgeflow_recovery_failed=1
+        printf 'UNRESTORED: %s\n' "$forgeflow_destination" >&2
+        if [ -f "$forgeflow_stage/original" ]; then
+          printf 'Restore %s from %s/original using a temporary copy beside the destination, then rename it.\n' \
+            "$forgeflow_destination" "$forgeflow_stage" >&2
+        else
+          printf 'Restore original absence: remove only %s.\n' "$forgeflow_destination" >&2
+        fi
+        if [ "$forgeflow_recover_relative" = "$forgeflow_marker_relative" ]; then
+          if ! rm -f "$forgeflow_destination"; then
+            printf 'Do not trust the adoption marker: remove %s before using this adoption.\n' \
+              "$forgeflow_destination" >&2
+          fi
+        fi
+      fi
+    done <<EOF
+$forgeflow_attempted
+EOF
+    if [ "$forgeflow_recovery_failed" -eq 0 ]; then
+      printf 'Bootstrap failed; original managed file contents and existence restored.\n' >&2
+    fi
   fi
 
-  rmdir "$forgeflow_install_stage"
+  while IFS= read -r forgeflow_cleanup_relative; do
+    [ -n "$forgeflow_cleanup_relative" ] || continue
+    managed_stage "$forgeflow_cleanup_relative"
+    [ -d "$forgeflow_stage" ] || continue
+    if [ "$forgeflow_recovery_failed" -eq 1 ]; then
+      printf 'Recovery copies retained: %s\n' "$forgeflow_stage" >&2
+    elif ! { rm -f "$forgeflow_stage/new" "$forgeflow_stage/restore" "$forgeflow_stage/original" &&
+      rmdir "$forgeflow_stage"; }; then
+      printf 'Cleanup incomplete: %s; remove this staging directory after checking the managed files.\n' \
+        "$forgeflow_stage" >&2
+      forgeflow_finish_status=1
+    fi
+  done <<EOF
+$forgeflow_prepared
+EOF
+
+  if [ "$forgeflow_finish_status" -ne 0 ] && [ "$forgeflow_recovery_failed" -eq 0 ] &&
+    [ "$forgeflow_committed" -eq 0 ]; then
+    while IFS= read -r forgeflow_created_relative; do
+      [ -n "$forgeflow_created_relative" ] || continue
+      if [ -d "$forgeflow_target/$forgeflow_created_relative" ] &&
+        ! rmdir "$forgeflow_target/$forgeflow_created_relative"; then
+        printf 'Cleanup incomplete: %s; remove only if empty.\n' \
+          "$forgeflow_target/$forgeflow_created_relative" >&2
+      fi
+    done <<EOF
+$forgeflow_created_directories
+EOF
+  fi
+  [ "$forgeflow_finish_status" -eq 0 ] || exit 1
 }
 
 forgeflow_marker_relative='specs/.forgeflow-adoption'
@@ -88,38 +171,6 @@ resolve_snapshot_revision() {
   else
     forgeflow_revision="$forgeflow_head"
   fi
-}
-
-write_adoption_marker() {
-  forgeflow_marker_destination=$1
-  forgeflow_marker_parent=$(dirname "$forgeflow_marker_destination")
-  forgeflow_marker_stage="$forgeflow_marker_parent/.forgeflow-marker.$$"
-
-  resolve_snapshot_revision
-
-  if ! (umask 077 && mkdir "$forgeflow_marker_stage"); then
-    printf 'Could not create staging directory: %s\n' \
-      "$forgeflow_marker_stage" >&2
-    return 1
-  fi
-
-  if ! {
-    printf 'version=%s\n' "$forgeflow_version"
-    printf 'revision=%s\n' "$forgeflow_revision"
-  } >"$forgeflow_marker_stage/marker"; then
-    rm -f "$forgeflow_marker_stage/marker"
-    rmdir "$forgeflow_marker_stage"
-    return 1
-  fi
-
-  if ! mv -f "$forgeflow_marker_stage/marker" \
-    "$forgeflow_marker_destination"; then
-    rm -f "$forgeflow_marker_stage/marker"
-    rmdir "$forgeflow_marker_stage"
-    return 1
-  fi
-
-  rmdir "$forgeflow_marker_stage"
 }
 
 forgeflow_force=0
@@ -329,14 +380,6 @@ EOF
   exit 0
 fi
 
-mkdir -p "$forgeflow_target/specs/stories/_template"
-while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
-  install_managed_file "$forgeflow_root/$forgeflow_template_relative" \
-    "$forgeflow_target/$forgeflow_relative_path"
-done <<EOF
-$forgeflow_active_files
-EOF
-
 forgeflow_previous_version=
 if [ "$forgeflow_upgrade" -eq 1 ] &&
   [ -f "$forgeflow_target/$forgeflow_marker_relative" ]; then
@@ -353,7 +396,53 @@ if [ "$forgeflow_upgrade" -eq 1 ] &&
   forgeflow_previous_version=$forgeflow_trimmed
 fi
 
-write_adoption_marker "$forgeflow_target/$forgeflow_marker_relative"
+resolve_snapshot_revision
+forgeflow_prepared=
+forgeflow_attempted=
+forgeflow_created_directories=
+forgeflow_committed=0
+trap finish_install 0
+trap 'exit 1' HUP INT TERM
+
+for forgeflow_relative_directory in specs specs/stories specs/stories/_template
+do
+  if [ ! -d "$forgeflow_target/$forgeflow_relative_directory" ]; then
+    forgeflow_created_directories="$forgeflow_relative_directory
+$forgeflow_created_directories"
+    mkdir "$forgeflow_target/$forgeflow_relative_directory"
+  fi
+done
+
+while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
+  if ! prepare_managed_file "$forgeflow_root/$forgeflow_template_relative" "$forgeflow_relative_path"; then
+    printf 'Preparation failed: %s\n' "$forgeflow_target/$forgeflow_relative_path" >&2
+    exit 1
+  fi
+done <<EOF
+$forgeflow_active_files
+EOF
+if ! prepare_managed_file '' "$forgeflow_marker_relative"; then
+  printf 'Preparation failed: %s\n' "$forgeflow_target/$forgeflow_marker_relative" >&2
+  exit 1
+fi
+
+while IFS= read -r forgeflow_relative_path; do
+  managed_stage "$forgeflow_relative_path"
+  # Include the attempted path before rename: a failing command may have written.
+  forgeflow_attempted="$forgeflow_relative_path
+$forgeflow_attempted"
+  if ! mv -f "$forgeflow_stage/new" "$forgeflow_destination"; then
+    printf 'Replacement failed: %s\n' "$forgeflow_destination" >&2
+    exit 1
+  fi
+done <<EOF
+$forgeflow_active_destinations
+EOF
+trap '' HUP INT TERM
+forgeflow_committed=1
+
+# Finish cleanup before printing success. The same handler also runs on errors.
+finish_install
 
 if [ "$forgeflow_upgrade" -eq 1 ]; then
   printf 'AGENTS.md was left unchanged; it is owned by this repository.\n'

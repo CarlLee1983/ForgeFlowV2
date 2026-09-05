@@ -39,3 +39,25 @@ jobs:
 
       - name: Verify
         run: make verify
+
+  portability:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            shell: /bin/sh
+          - runner: ubuntu-latest
+            shell: /bin/dash
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify portable shell behavior
+        env:
+          PATH: /usr/bin:/bin
+          PORTABILITY_SHELL: ${{ matrix.shell }}
+        run: make verify-portability

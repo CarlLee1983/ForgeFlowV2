@@ -1,4 +1,4 @@
-.PHONY: verify verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions release-check
+.PHONY: verify verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions verify-portability release-check
 
 verify: verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions
 
@@ -44,3 +44,8 @@ verify-go:
 verify-actions:
 	go -C examples/go tool actionlint \
 		../../templates/ci/github-actions.yml ../../.github/workflows/verify.yml
+
+PORTABILITY_SHELL ?= /bin/sh
+
+verify-portability:
+	PORTABILITY_SHELL="$(PORTABILITY_SHELL)" sh ./tests/portability.sh

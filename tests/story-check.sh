@@ -560,6 +560,298 @@ fenced_examples_are_not_declarations() {
   assert_output_contains 'security=no baseline=no'
 }
 
+escaped_pipes_obey_backslash_parity() {
+  new_story escaped-pipe-one yes no
+  add_story_section '## Trust Boundary Fields' \
+    '* `request.sql` — raw input'
+  add_matrix '| `request.sql` | `a\|b` | redact | `artifact.summary` | `tests/story-check.sh` |'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+
+  new_story escaped-pipe-three yes no
+  add_story_section '## Trust Boundary Fields' \
+    '* `request.sql` — raw input'
+  add_matrix '| `request.sql` | `a\\\|b` | redact | `artifact.summary` | `tests/story-check.sh` |'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+
+  new_story escaped-pipe-zero yes no
+  add_story_section '## Trust Boundary Fields' \
+    '* `request.sql` — raw input'
+  add_matrix '| `request.sql` | `a|b` | redact | `artifact.summary` | `tests/story-check.sh` |'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'must declare five columns'
+
+  new_story escaped-pipe-two yes no
+  add_story_section '## Trust Boundary Fields' \
+    '* `request.sql` — raw input'
+  add_matrix '| `request.sql` | `a\\|b` | redact | `artifact.summary` | `tests/story-check.sh` |'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'must declare five columns'
+
+  new_story escaped-pipe-four yes no
+  add_story_section '## Trust Boundary Fields' \
+    '* `request.sql` — raw input'
+  add_matrix '| `request.sql` | `a\\\\|b` | redact | `artifact.summary` | `tests/story-check.sh` |'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'must declare five columns'
+}
+
+tilde_and_length_matched_fences_are_ignored() {
+  new_story fences no no
+  {
+    printf '\n\r~~~markdown\n'
+    printf '## Classification\n\n* Security sensitive: yes\n* Baseline conformance: yes\n'
+    printf '\r~~~\n\n````markdown\n```\n'
+    printf '## Classification\n\n* Security sensitive: yes\n* Baseline conformance: yes\n'
+    printf '~~~\n## Classification\n* Security sensitive: yes\n'
+    printf '```` not-a-close\n## Classification\n* Baseline conformance: yes\n````\n'
+  } >>"$forgeflow_story_dir/story.md"
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'security=no baseline=no'
+}
+
+all_contract_readers_ignore_fenced_examples() {
+  new_story fenced-readers yes yes
+  add_story_section '## Trust Boundary Fields' \
+    '* `request.sql` — raw input'
+  add_matrix "$forgeflow_valid_row"
+  add_story_section '## Superseded Behavior' \
+    '* `tests/legacy.sh` — replaced behavior'
+  {
+    printf '\n## Trust Boundary Fields\n\n~~~\n* prose trust field\n~~~\n'
+    printf '\n## Superseded Behavior\n\n~~~\n* prose superseded behavior\n~~~\n'
+  } >>"$forgeflow_story_dir/story.md"
+  {
+    printf '\n~~~\n| extra | row | that | must | stay | ignored |\n~~~\n'
+  } >>"$forgeflow_story_dir/acceptance.md"
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+}
+
+outside_duplicates_and_unclosed_fences_fail() {
+  new_story duplicate no no
+  printf '\n## Classification\n\n* Security sensitive: no\n' >>"$forgeflow_story_dir/story.md"
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'Security sensitive" exactly once'
+
+  new_story unclosed no yes
+  printf '\n```markdown\n## Superseded Behavior\n\n* `tests/legacy.sh` — ignored\n' >>"$forgeflow_story_dir/story.md"
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'must list superseded tests or behavior'
+
+  new_story unclosed-after-real no yes
+  add_story_section '## Superseded Behavior' \
+    '* `tests/legacy.sh` — real behavior'
+  printf '\n~~~markdown\n* prose example through EOF\n' >>"$forgeflow_story_dir/story.md"
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+}
+
+markdown_parsing_keeps_empty_path_verdicts() {
+  new_story empty-path-escaped yes no
+  add_story_section '## Trust Boundary Fields' \
+    '* `request.sql` — raw input'
+  add_matrix '| `request.sql` | `a\|b` | redact | `artifact.summary` | `tests/story-check.sh` |'
+  assert_same_story_verdict_without_utilities "$forgeflow_story_dir"
+  assert_status 0
+
+  new_story empty-path-extra-pipe yes no
+  add_story_section '## Trust Boundary Fields' \
+    '* `request.sql` — raw input'
+  add_matrix '| `request.sql` | `a|b` | redact | `artifact.summary` | `tests/story-check.sh` |'
+  assert_same_story_verdict_without_utilities "$forgeflow_story_dir"
+  assert_status 1
+}
+
+markdown_parsing_subset_is_documented() {
+  grep -Fq 'odd consecutive run of backslashes' "$forgeflow_repo/docs/contract-checks.md" ||
+    fail 'contract checks omit escaped-pipe parity'
+  grep -Fq 'same character and at least the' "$forgeflow_repo/docs/contract-checks.md" ||
+    fail 'contract checks omit closing-fence rule'
+  grep -Fq 'Unclosed fences ignore through EOF' "$forgeflow_repo/protocol/story.md" ||
+    fail 'Story protocol omits unclosed-fence rule'
+  grep -Fq 'FF-217 is a **Corrective** change for `0.3.6`' "$forgeflow_repo/protocol/versioning.md" ||
+    fail 'versioning omits FF-217 corrective classification'
+}
+
+readiness_is_opt_in() {
+  new_story minimal no no
+  printf '## Classification\n* Security sensitive: no\n* Baseline conformance: no\n' \
+    >"$forgeflow_story_dir/story.md"
+  printf '# Acceptance Criteria\n' >"$forgeflow_story_dir/acceptance.md"
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Result: STORY_CONTRACT_OK'
+  assert_output_excludes 'READINESS'
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'Structure: STORY_CONTRACT_OK'
+  assert_output_contains 'Result: STORY_READINESS_INCOMPLETE'
+}
+
+readiness_requires_goal_scope_and_acceptance() {
+  for forgeflow_missing in goal scope acceptance
+  do
+    new_story "missing-$forgeflow_missing" no no
+    case "$forgeflow_missing" in
+      goal)
+        sed '/## Goal/,/## Context/{ /## Context/!d; }' \
+          "$forgeflow_story_dir/story.md" >"$forgeflow_story_dir/next.md"
+        mv "$forgeflow_story_dir/next.md" "$forgeflow_story_dir/story.md"
+        forgeflow_expected='## Goal needs' ;;
+      scope)
+        sed 's/Fixture behavior\./ /; s/Everything else\./ /' \
+          "$forgeflow_story_dir/story.md" >"$forgeflow_story_dir/next.md"
+        mv "$forgeflow_story_dir/next.md" "$forgeflow_story_dir/story.md"
+        forgeflow_expected='## Scope needs' ;;
+      acceptance)
+        printf '# Acceptance Criteria\n' >"$forgeflow_story_dir/acceptance.md"
+        forgeflow_expected='acceptance.md needs' ;;
+    esac
+    run_story_check --ready "$forgeflow_story_dir"
+    assert_status 1
+    assert_output_contains "$forgeflow_expected"
+  done
+  for forgeflow_heading in '#' '##' "$(printf '#\tOther')" "$(printf '##\tOther')"
+  do
+    new_story heading-boundary no no
+    printf '## Classification\n* Security sensitive: no\n* Baseline conformance: no\n## Goal\n%s\nUnrelated goal prose.\n## Scope\n%s\nUnrelated scope prose.\n' \
+      "$forgeflow_heading" "$forgeflow_heading" >"$forgeflow_story_dir/story.md"
+    run_story_check --ready "$forgeflow_story_dir"
+    assert_status 1
+    assert_output_contains '## Goal needs'
+    assert_output_contains '## Scope needs'
+  done
+}
+
+readiness_checks_ac_content_and_uniqueness() {
+  for forgeflow_ac_text in '' ' ' TBD '<acceptance criterion>'
+  do
+    new_story empty-ac no no
+    printf '* [ ] AC-001: %s\n' "$forgeflow_ac_text" >"$forgeflow_story_dir/acceptance.md"
+    run_story_check --ready "$forgeflow_story_dir"
+    assert_status 1
+    assert_output_contains 'AC-001 needs non-placeholder same-line content'
+  done
+  new_story duplicate-ac no no
+  printf '\n- [x] AC-001: Duplicate in another section.\n' >>"$forgeflow_story_dir/acceptance.md"
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'duplicate AC ID: AC-001'
+
+  new_story unique-ac no no
+  printf '* [ ] AC-1: Returns 0.\n- [x] AC-2: Returns 1.\n* [X] AC-3: Manual inspection.\n' \
+    >"$forgeflow_story_dir/acceptance.md"
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Structure: STORY_CONTRACT_OK'
+  assert_output_contains 'Result: STORY_READINESS_OK'
+  assert_output_contains 'not human-approved READY'
+}
+
+readiness_ignores_fenced_content() {
+  for forgeflow_fence in '```' '~~~'
+  do
+    new_story fenced-ready no no
+    printf '%smarkdown\n* [ ] AC-999: Example only.\n%s\n' \
+      "$forgeflow_fence" "$forgeflow_fence" >"$forgeflow_story_dir/acceptance.md"
+    run_story_check --ready "$forgeflow_story_dir"
+    assert_status 1
+    assert_output_contains 'acceptance.md needs'
+    printf '* [ ] AC-999: Real criterion.\n' >>"$forgeflow_story_dir/acceptance.md"
+    run_story_check --ready "$forgeflow_story_dir"
+    assert_status 0
+
+    printf '## Classification\n* Security sensitive: no\n* Baseline conformance: no\n## Goal\n%s\nExample goal.\n%s\n## Scope\n### In Scope\n%s\n* Example scope.\n%s\n' \
+      "$forgeflow_fence" "$forgeflow_fence" "$forgeflow_fence" "$forgeflow_fence" \
+      >"$forgeflow_story_dir/story.md"
+    run_story_check --ready "$forgeflow_story_dir"
+    assert_status 1
+    assert_output_contains '## Goal needs'
+    assert_output_contains '## Scope needs'
+  done
+}
+
+readiness_placeholders_are_exact_not_language_scores() {
+  for forgeflow_content in '中文需求：保留原始內容。' '<T>' 'std::vector<T>' '#define VALUE 1' 'TBD is a literal token to preserve.'
+  do
+    new_story content no no
+    printf '## Classification\n* Security sensitive: no\n* Baseline conformance: no\n## Goal\n%s\n## Scope\n### In Scope\n* %s\n' \
+      "$forgeflow_content" "$forgeflow_content" >"$forgeflow_story_dir/story.md"
+    printf '* [ ] AC-001: %s\n' "$forgeflow_content" >"$forgeflow_story_dir/acceptance.md"
+    run_story_check --ready "$forgeflow_story_dir"
+    assert_status 0
+  done
+  for forgeflow_content in TBD tbd TODO todo N/A n/a '...' '<goal>' '<scope>' '<acceptance criterion>' 'Describe the user or business outcome.'
+  do
+    new_story placeholder no no
+    printf '## Goal\n%s\n## Classification\n* Security sensitive: no\n* Baseline conformance: no\n## Scope\n* Fixture scope.\n' \
+      "$forgeflow_content" >"$forgeflow_story_dir/story.md"
+    run_story_check --ready "$forgeflow_story_dir"
+    assert_status 1
+    assert_output_contains '## Goal needs'
+  done
+}
+
+readiness_is_read_only_deterministic_and_path_independent() {
+  new_story ready-path no no
+  forgeflow_ready_before=$(cksum "$forgeflow_story_dir/story.md" "$forgeflow_story_dir/acceptance.md")
+  assert_same_story_verdict_without_utilities --ready "$forgeflow_story_dir"
+  assert_status 0
+  [ "$forgeflow_ready_before" = "$(cksum "$forgeflow_story_dir/story.md" "$forgeflow_story_dir/acceptance.md")" ] ||
+    fail 'readiness changed fixture content'
+  [ "$(find "$forgeflow_story_dir" -type f | wc -l | tr -d ' ')" = 2 ] ||
+    fail 'readiness created files'
+  printf '# Acceptance\n' >"$forgeflow_story_dir/acceptance.md"
+  assert_same_story_verdict_without_utilities --ready "$forgeflow_story_dir"
+  assert_status 1
+  assert_same_story_verdict_without_utilities --ready "$forgeflow_test_dir/missing"
+  assert_status 2
+  for forgeflow_bad in --ready --unknown --help
+  do
+    assert_same_story_verdict_without_utilities --ready "$forgeflow_bad"
+    assert_status 2
+  done
+  new_story discovered no no
+  mkdir -p "$forgeflow_test_dir/discovery/specs/stories"
+  cp -R "$forgeflow_story_dir" "$forgeflow_test_dir/discovery/specs/stories/TST-001"
+  (
+    cd "$forgeflow_test_dir/discovery"
+    run_story_check --ready
+    assert_status 0
+    assert_output_contains 'Stories checked: 1'
+  )
+}
+
+readiness_documentation_and_templates_match() {
+  for forgeflow_document in docs/contract-checks.md protocol/story.md
+  do
+    for forgeflow_term in '--ready' STORY_READINESS_OK 'AC-001:' 'human' '<acceptance criterion>'
+    do
+      grep -Fq -- "$forgeflow_term" "$forgeflow_repo/$forgeflow_document" ||
+        fail "$forgeflow_document omits $forgeflow_term"
+    done
+  done
+  grep -Fq '* [ ] AC-001: <acceptance criterion>' "$forgeflow_repo/templates/story/acceptance.md" ||
+    fail 'acceptance template omits usable AC syntax'
+  grep -Fq 'Doctor' "$forgeflow_repo/docs/contract-checks.md" || fail 'Doctor semantics undocumented'
+}
+
+run_case 'FF218-AC-001' readiness_is_opt_in
+run_case 'FF218-AC-002' readiness_requires_goal_scope_and_acceptance
+run_case 'FF218-AC-003' readiness_checks_ac_content_and_uniqueness
+run_case 'FF218-AC-004' readiness_ignores_fenced_content
+run_case 'FF218-AC-005' readiness_placeholders_are_exact_not_language_scores
+run_case 'FF218-AC-006' readiness_is_read_only_deterministic_and_path_independent
+run_case 'FF218-AC-007' readiness_documentation_and_templates_match
+
 run_case 'AC-001' complete_security_story_passes
 run_case 'AC-002' unclassified_story_needs_no_security_sections
 run_case 'AC-003' prose_fixture_cells_are_rejected
@@ -572,6 +864,13 @@ run_case 'AC-009' operational_failures_exit_two
 run_case 'AC-010' root_verify_runs_story_contract_check
 run_case 'AC-011' every_story_gets_its_own_verdict
 run_case 'AC-012' fenced_examples_are_not_declarations
+
+run_case 'FF217-AC-001' escaped_pipes_obey_backslash_parity
+run_case 'FF217-AC-002' tilde_and_length_matched_fences_are_ignored
+run_case 'FF217-AC-003' all_contract_readers_ignore_fenced_examples
+run_case 'FF217-AC-004' outside_duplicates_and_unclosed_fences_fail
+run_case 'FF217-AC-005' markdown_parsing_keeps_empty_path_verdicts
+run_case 'FF217-AC-006' markdown_parsing_subset_is_documented
 
 run_case 'FF212-AC-002' the_story_verdict_does_not_depend_on_external_utilities
 run_case 'FF212-AC-008' an_incomplete_story_verdict_does_not_depend_on_external_utilities

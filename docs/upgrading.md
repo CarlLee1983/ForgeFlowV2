@@ -38,7 +38,8 @@ From a newer ForgeFlow checkout:
 
 This replaces the three `specs/stories/_template/` files and the adoption
 marker, and recreates `specs/stories/_template/` if the adoption had removed it.
-Nothing else in the target is written.
+Outside the temporary private staging/recovery directories described below,
+nothing else in the target is written.
 
 Preview it first:
 
@@ -55,7 +56,47 @@ managed file, `--upgrade` deliberately replaces fewer.
 never adopted ForgeFlow exits `1` and is told to run a fresh bootstrap instead.
 The static safety rules are the same as a fresh install: managed directory and
 file symlinks are refused, a managed path of the wrong file type is refused, and
-files are replaced atomically.
+each replacement uses a single-file atomic rename.
+
+## Failure recovery
+
+Fresh bootstrap, `--force`, and `--upgrade` prepare every replacement and back up
+every existing managed file before replacing any of them. Private
+`.forgeflow-install.<pid>-<filename>` directories beside the destinations keep
+each rename on the same filesystem. Originals must be readable and enough disk
+space must be available for staging and recovery copies; preparation failure
+leaves managed files unchanged. The adoption marker is replaced last.
+
+Detected command failures and caught HUP/INT/TERM interruptions trigger cross-file
+recovery: restore original file contents and existence, including a command that
+changed its destination before reporting failure. Other paths keep being
+restored even if one recovery operation fails. Recovery uses copies, so it does
+not promise original inode identity, hard-link reconstruction, or all filesystem
+metadata. Successful cleanup removes staging and newly created empty directories
+on a failed installation. `--dry-run` never stages or backs up anything.
+
+An incomplete recovery exits nonzero, prints every `UNRESTORED:` destination,
+and retains private recovery directories. Restore each named destination from
+its named `original` backup through a temporary copy beside that destination and
+rename the copy into place. If the original was absent, remove only that named
+destination. Recheck all managed contents before removing retained directories
+or retrying bootstrap. Never blindly remove the target repository.
+
+If marker restoration fails, bootstrap attempts to remove the marker so it
+cannot claim a successfully installed new snapshot. If removal also fails,
+`Do not trust the adoption marker` names the path to remove or restore manually
+before using the adoption. No failure prints installation success. A cleanup
+failure after all replacements succeeded can leave a complete installation with
+staging to remove; it still exits nonzero and reports the cleanup path.
+
+This is single-file atomic replacement with cross-file recovery, **not an atomic
+installation transaction**. Power loss, SIGKILL, an unavailable filesystem, or
+hostile concurrent changes can prevent recovery; backups alone are not a durable
+journal. Run only while controlling the repository. After an uncatchable failure,
+inspect all managed files and any retained originals, restore a known complete
+snapshot (or deliberately retry with `--force`/`--upgrade`), and confirm the
+marker agrees before relying on it. Upgrade staging/recovery never includes
+repository-owned `AGENTS.md`.
 
 ## What `--upgrade` never does
 

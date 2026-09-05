@@ -2,7 +2,7 @@
 
 ForgeFlow ships two static, read-only checkers for the artifacts humans write:
 `scripts/story-check` for Stories and `scripts/handoff-check` for handoffs.
-Both report structure only. Neither executes repository code, replaces
+Both report structure only by default; Story readiness is opt-in. Neither executes repository code, replaces
 `make verify`, nor authorizes a merge.
 
 Both are written with shell builtins alone and invoke no external command. A
@@ -36,9 +36,19 @@ The check enforces the [Story Contract](../protocol/story.md):
 * a section that contradicts its declaration fails in both directions.
 
 A quoted payload may contain markup, so `<script>alert(1)</script>` is an exact
-value; only a whole-cell placeholder or an empty quotation is rejected. Because a
-row is split on `|`, a cell cannot contain an unescaped pipe. Fenced examples
-inside a Story are documentation and are never parsed as declarations.
+value; only a whole-cell placeholder or an empty quotation is rejected. A pipe
+after an odd consecutive run of backslashes is payload; an even run leaves it a
+column delimiter, and the checker preserves those payload characters. Fenced
+examples inside a Story are documentation and are never parsed as declarations:
+after surrounding spaces, tabs, and CR are trimmed, three or more matching
+backticks or tildes open a fence; only the same character and at least the
+opening length, with no non-whitespace suffix, closes it. Unclosed fences ignore
+through EOF.
+
+This is a documented subset, not a general Markdown parser: the checker reads
+exact Classification bullets, Trust Boundary Fields and Superseded Behavior
+bullets, and the exact matrix header with outer table pipes. Inline backticks do
+not shield a raw pipe; use the documented backslash escape.
 
 | Result | Exit | Meaning |
 | --- | --- | --- |
@@ -56,6 +66,45 @@ that claims `Security sensitive: no` for work that handles credentials passes
 the checker and fails Human Review. Human Review compares the real trust
 boundaries, baseline changes, and conditional evidence, and confirms that the
 Story, Acceptance Criteria, Classification, implementation, and tests agree.
+
+## Optional minimum-content readiness
+
+```sh
+./scripts/story-check --ready [story-directory ...]
+```
+
+The flag appears once before directories. With none, discovery is unchanged.
+Default invocations and Doctor still check structure only; historical Stories
+need no migration. This opt-in mode adds these exact minimum-content rules:
+
+* `## Goal` and `## Scope` each contain a non-placeholder line. Nested headings
+  are ignored as content and remain within that section; the next level-one or
+  level-two heading ends it. Surrounding spaces, tabs and CR and one optional
+  `* ` or `- ` bullet prefix are stripped.
+* `acceptance.md` has at least one checkbox bullet, `* ` or `- ` followed by
+  `[ ] `, `[x] ` or `[X] `, then `AC-`, one or more ASCII digits, a colon, and
+  non-placeholder text on the same line. IDs are compared exactly and may not
+  repeat anywhere in the same file. Other line formats do not supply an AC.
+* All these readers use the fence rules above; examples do not supply content.
+
+The finite placeholder list is: empty text, bare `*` or `-`, `TBD`, `tbd`,
+`TODO`, `todo`, `N/A`, `n/a`, `...`, `<goal>`, `<scope>`,
+`<acceptance criterion>`, and `Describe the user or business outcome.`
+Matching is exact after trimming and optional bullet removal; `<T>`, Chinese
+requirements, and technical strings are not rejected by language or scoring.
+
+For example, an actual criterion outside a fence can be:
+
+```markdown
+* [ ] AC-001: An empty order returns a total of zero cents.
+```
+
+In this mode `Structure: STORY_CONTRACT_OK` or `STORY_CONTRACT_INCOMPLETE`
+reports the original checks separately. `Result: STORY_READINESS_OK` (exit 0)
+means both structure and minimum content passed; `STORY_READINESS_INCOMPLETE`
+(exit 1) means either failed. Operational errors remain `ERROR` (exit 2).
+Neither result means human-approved READY, sound requirements, correct
+implementation, or Human Review acceptance. No AC must be automated.
 
 ## Handoff contract check
 
