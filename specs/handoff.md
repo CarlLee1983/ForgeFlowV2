@@ -32,34 +32,11 @@ workflow:
 baseline:
   repository: CarlLee1983/ForgeFlowV2
   branch: ff-217-221-contract-reliability-release
-  commit: 9ac8eb3b08ab41733afb96c2d9e6258d0421b370
+  commit: 23218d90375c57f9122187263bb0c631904c3e44
   dirty_worktree: true
   story_owned_paths:
-    - VERSION
-    - docs/doctor.md
-    - docs/releases/0.3.6.md
-    - tests/human-review.sh
-    - tests/review-integrity.sh
-    - specs/stories/FF-221-release-036/
     - specs/handoff.md
-    - specs/stories/FF-217-story-markdown-parsing/
-    - specs/stories/FF-218-story-readiness/
-    - templates/story/acceptance.md
-    - specs/stories/FF-219-bootstrap-recovery/
-    - specs/stories/FF-220-shell-portability/
-    - Makefile
-    - .github/workflows/verify.yml
-    - tests/portability.sh
-    - README.md
-    - scripts/bootstrap
-    - tests/bootstrap.sh
-    - docs/upgrading.md
-    - docs/getting-started.md
-    - scripts/story-check
-    - tests/story-check.sh
-    - docs/contract-checks.md
-    - protocol/story.md
-    - protocol/versioning.md
+    - specs/stories/FF-221-release-036/task.md
   known_unrelated_paths: []
 
 verification:
@@ -74,14 +51,19 @@ verification:
   local macOS /bin/sh and /bin/dash portability runs. They await GitHub merge
   policy, not Human Review acceptance, and are not marked DONE before merging.
 * FF-221 prepares compatible 0.3.6 publication under docs/releasing.md. Full
-  `make verify` passed with release metadata and exact-version regressions.
-  Commit/PR, exact-SHA remote CI and publication checks follow that local PASS.
+  `make verify` and committed `make release-check` passed for baseline 23218d9.
+  PR #9 is open: https://github.com/CarlLee1983/ForgeFlowV2/pull/9.
+  At this checkpoint GitHub reports REVIEW_REQUIRED / BLOCKED and CI is running.
+  This handoff update is a follow-up candidate; repeat release-check and inspect
+  its exact-SHA CI before publication. No merge, tag or GitHub Release was made.
   Required GitHub PR approval must not be replaced by chat acceptance or bypassed.
 
 * Authorized sequence: FF-217 Markdown parsing, FF-218 optional readiness,
   FF-219 bootstrap recovery, FF-220 shell portability, FF-221 release preparation.
-* The starting worktree was clean; local and GitHub main both resolved to the
-  recorded baseline, VERSION 0.3.5. This accepted release advances it to 0.3.6.
+* The starting worktree was clean; local and GitHub main both resolved to
+  9ac8eb3b08ab41733afb96c2d9e6258d0421b370, VERSION 0.3.5. The baseline above
+  now records the implementation commit; these paths record its handoff follow-up.
+  This accepted release advances VERSION to 0.3.6.
 
 * FF-212 was merged in PR #5 as
   `94e7de17d753d3fd718314d604ccfcd808c95a47`.
