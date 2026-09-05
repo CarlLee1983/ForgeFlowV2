@@ -10,5 +10,6 @@ STORY_READINESS_OK; Chinese and technical strings are accepted.
 fixed with bare/tab-separated heading regressions and the stable full gate rerun.
 
 Human Review: Carl explicitly accepted this work and authorized commit and full
-release on 2026-09-05. Awaiting repository merge policy; not DONE until merged.
-Release preparation is tracked separately in FF-221 for version 0.3.6.
+release on 2026-09-05. Carl merged PR #9 at
+4d6dc963defde7fb93e08009730f40488284b592. Status: DONE.
+Published in v0.3.6 at that SHA; exact-SHA CI and local release-check passed.
