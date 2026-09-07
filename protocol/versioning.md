@@ -238,6 +238,29 @@ Dependency-direction validation, forbidden imports, layer boundaries, and
 contract-drift analysis are named as future extensions and are not implemented,
 so no adopter can depend on them yet.
 
+FF-225 Codex project activation is **Additive** for `0.5.1`: an explicit opt-in
+installer, `scripts/codex-activate`, adds a pinned repository-local skill under
+`.agents/skills/forgeflow/` and a bounded managed section in an adopter's
+`AGENTS.md`. Existing adoptions need no change. Plain `./scripts/bootstrap`,
+`--upgrade`, the adoption marker format, Doctor results, `scripts/story-check`,
+`scripts/handoff-check`, `scripts/verification-check`, and `make verify`
+semantics are all unchanged. In particular `--upgrade` still never reads or
+writes an adopter's `AGENTS.md`, and an adoption without the integration stays
+valid.
+
+Only the new installer manages that section and snapshot. It previews every
+change before writing, refuses locally edited owned content, ambiguous
+delimiters, unsafe path types, and unknown integration members, and has no force
+flag or network fetch. The installed snapshot pins the instructions in the
+repository; it does not upgrade Story templates or the adoption marker, so the
+integration version and the adopted template version can legitimately differ.
+See [Codex activation](../docs/codex-activation.md) for installation, update,
+and rollback.
+
+Skills remain optional guidance. The integration supplies no tool interception
+and no mechanical gate: `make verify`, CI policy, and Human Review stay the
+enforcement boundaries.
+
 ## Repository release readiness
 
 ForgeFlow maintainers can run root `make release-check` on a clean committed

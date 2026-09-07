@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: none
+  current_story: FF-225
   next_story: pending
   completed_stories:
     - FF-201
@@ -35,17 +35,17 @@ workflow:
     - FF-222
     - FF-223
     - FF-224
-  status: done
+  status: implementing
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: main
-  commit: d2194315bf17cbf31f8198271624477ddceca0d5
+  branch: ff-225-codex-project-activation
+  commit: a336973b4227384c7c5b2079ddf3ca6f4798cf43
   dirty_worktree: true
   story_owned_paths:
     - specs/handoff.md
-    - specs/stories/FF-224-execution-governance/story.md
-    - specs/stories/FF-224-execution-governance/verification.md
+    - specs/stories/FF-225-codex-project-activation/verification.md
+    - tests/codex-activation.sh
   known_unrelated_paths: []
 
 verification:
@@ -54,6 +54,85 @@ verification:
 ```
 
 ## Notes
+
+* The baseline above is the complete FF-225 implementation commit. This
+  handoff-only follow-up records it and is the single remaining dirty path.
+* FF-225 is IMPLEMENTED and awaiting Human Review.
+  `./scripts/verification-check --result` reports `VERIFICATION_PASS`.
+* The C1-C11 walkthrough was recorded on 2026-09-07 against this snapshot and
+  Carl accepted it, so AC-004 through AC-007 and the `e2e` layer now pass and
+  every acceptance criterion has a passing observation. The sessions were driven
+  by an implementing agent using
+  `specs/stories/FF-225-codex-project-activation/walkthrough-fixtures.sh`; the
+  `human` half of that evidence is Carl's acceptance of the recorded
+  transcripts, not the act of running them. Ten of twelve cases met their
+  expected observation on the first attempt, C6 and C7 met theirs on a re-run
+  after a Codex-side session abort, and C9 was only partially met. All three
+  gaps are retained as residual risks rather than smoothed over.
+* Carl decided on 2026-09-07 to split the `unit` layer out of the fixture
+  suite, and the split is structural rather than a relabel: a new
+  `invocation_and_marker_validation` case decides the argument vector and the
+  adoption marker's format before the installer looks at a repository, while the
+  five remaining cases install into and refuse against whole temporary adopter
+  repositories. Each layer now cites evidence the other does not, so the
+  recorded result is `VERIFICATION_PASS` with all seven required checks passing
+  and 10 of 10 criteria traced. That is declared evidence only; Human Review
+  still owns product, design, and architecture acceptance, and the Story is not
+  DONE.
+* An independent code review ran over the implementation before the commit and
+  found no critical issue. Eight warnings were raised; seven are repaired here.
+  The installer no longer claims a restore after a read-only preview refusal;
+  the fixture manifest now compares mode and ownership, deliberately not link
+  count, because documented recovery restores contents and existence rather than
+  the original inode; `tests/codex-activation.sh` now accepts the `FF225-` AC ids
+  its Acceptance Evidence names, asserts an external hard-link alias across a
+  failed recovery, covers a legacy adoption with no marker, and compares Doctor's
+  verdict either side of an install instead of inferring it. The eighth is
+  recorded rather than fixed: the Security Fixture Matrix attributes the
+  custom-prefix row to AC-001, but a fresh install prepends the block at byte
+  zero, so the prefix half is exercised under AC-002. The behavior is covered and
+  the attribution is not exact; correcting approved Story text is Carl's call.
+* Root `make verify` exits 0 on this tree, as do `make verify-portability`
+  under `/bin/sh` and under `/bin/dash`. FF-225's `--result` check is
+  intentionally absent from the Makefile: adding a partial Story to the
+  canonical gate would turn an honest partial into a red build. Run it by hand.
+* FF-225 ports the implementation from the unmerged
+  `docs/ff-222-release-completion` branch rather than merging it, exactly as the
+  Story requires. The port re-IDs every test case to `FF225-`, copies
+  `guidance/` into the installer fixtures for the merged FF-223 Guidance layer,
+  and moves the fixture versions to the `0.5.x` line. That branch remains
+  read-only source material, and the separate review-evidence documentation
+  Story it carries is still unscheduled.
+* FF-225 advances `VERSION` to `0.5.1` as an **Additive** change recorded in
+  `protocol/versioning.md`, with release notes in `docs/releases/0.5.1.md`. No
+  release has been prepared or published: `push` and `deploy` remain `no` in the
+  Story's `## Authority`, and `verification.md` records only `plan` and `modify`
+  under `## Authority Used`. `make release-check` on this branch will report that
+  the expected tag does not resolve to HEAD, which is the normal pre-release
+  state, not a defect.
+* `specs/decisions/ADR-002-repository-local-pinned-activation-snapshot.md`
+  satisfies AC-010 and is referenced from the Story's `## Architecture` as
+  `* Decision: \`ADR-002\``. It is written with `Status: accepted` because an
+  `execution` Story may only reference an accepted record; whether the decision
+  is actually accepted is Carl's judgment at review, and that is recorded as a
+  residual risk.
+
+* FF-225 Codex Project Activation is READY. Carl approved the restated text on
+  2026-09-07 and authorized committing the draft, so the Story's `## Authority`
+  records `commit: yes`; `push` and `deploy` remain `no`.
+* FF-225 restates work Carl approved on 2026-09-06 and implemented on the
+  unmerged `docs/ff-222-release-completion` branch as `FF-223`. That branch is
+  read-only source material, not a merge base: it targets `0.4.1`, its Story IDs
+  collide with the merged FF-223 and FF-224, and it conflicts with `main` in
+  eight files. Its second commit carries a separate review-evidence
+  documentation Story that remains unscheduled.
+* FF-225 declares `Risk level: high`, so its profile requires seven layers. This
+  repository has no dedicated contract or e2e command; the Story's Verification
+  Notes map the installer fixtures to `contract` and the recorded C1-C11 Codex
+  walkthrough to `e2e`. A layer without real evidence is recorded as
+  `unsupported` with a residual risk, never as a pass.
+* AC-004 through AC-007 are `human` evidence requiring fresh Codex sessions.
+  They cannot be produced by an implementing agent and gate completion.
 
 * FF-224 implements execution governance and evidence-backed completion as the
   Additive protocol version `0.5.0`. Task mode, authority, architecture

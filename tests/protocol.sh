@@ -124,12 +124,13 @@ for forgeflow_required_file in \
   templates/handoff.md \
   templates/ci/github-actions.yml \
   docs/code-quality.md \
+  docs/codex-activation.md \
   docs/concepts.md \
   docs/contract-checks.md \
   docs/execution-governance.md \
   docs/doctor.md \
   docs/getting-started.md \
-  docs/releases/0.5.0.md \
+  docs/releases/0.5.1.md \
   docs/releasing.md \
   examples/typescript/Makefile \
   examples/typescript/scripts/check-traceability.sh \
