@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: none
+  current_story: FF-225
   next_story: pending
   completed_stories:
     - FF-201
@@ -35,17 +35,17 @@ workflow:
     - FF-222
     - FF-223
     - FF-224
-  status: done
+  status: ready_for_implementation
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
   branch: main
-  commit: d2194315bf17cbf31f8198271624477ddceca0d5
+  commit: 0d21af765f9b5c81d6d9e67884aa11f61825c05f
   dirty_worktree: true
   story_owned_paths:
     - specs/handoff.md
-    - specs/stories/FF-224-execution-governance/story.md
-    - specs/stories/FF-224-execution-governance/verification.md
+    - specs/stories/FF-225-codex-project-activation/acceptance.md
+    - specs/stories/FF-225-codex-project-activation/story.md
   known_unrelated_paths: []
 
 verification:
@@ -54,6 +54,23 @@ verification:
 ```
 
 ## Notes
+
+* FF-225 Codex Project Activation is READY. Carl approved the restated text on
+  2026-09-07 and authorized committing the draft, so the Story's `## Authority`
+  records `commit: yes`; `push` and `deploy` remain `no`.
+* FF-225 restates work Carl approved on 2026-09-06 and implemented on the
+  unmerged `docs/ff-222-release-completion` branch as `FF-223`. That branch is
+  read-only source material, not a merge base: it targets `0.4.1`, its Story IDs
+  collide with the merged FF-223 and FF-224, and it conflicts with `main` in
+  eight files. Its second commit carries a separate review-evidence
+  documentation Story that remains unscheduled.
+* FF-225 declares `Risk level: high`, so its profile requires seven layers. This
+  repository has no dedicated contract or e2e command; the Story's Verification
+  Notes map the installer fixtures to `contract` and the recorded C1-C11 Codex
+  walkthrough to `e2e`. A layer without real evidence is recorded as
+  `unsupported` with a residual risk, never as a pass.
+* AC-004 through AC-007 are `human` evidence requiring fresh Codex sessions.
+  They cannot be produced by an implementing agent and gate completion.
 
 * FF-224 implements execution governance and evidence-backed completion as the
   Additive protocol version `0.5.0`. Task mode, authority, architecture
