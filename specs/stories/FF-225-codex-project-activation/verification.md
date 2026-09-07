@@ -44,6 +44,7 @@ partial. That is the only remaining gap.
 * plan
 * modify
 * commit
+* push
 
 ## Residual Risks
 
