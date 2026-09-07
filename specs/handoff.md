@@ -40,10 +40,12 @@ workflow:
 baseline:
   repository: CarlLee1983/ForgeFlowV2
   branch: ff-225-codex-project-activation
-  commit: 3ee6f46d01149795383b2f4ed85f9890dc33b755
+  commit: a336973b4227384c7c5b2079ddf3ca6f4798cf43
   dirty_worktree: true
   story_owned_paths:
     - specs/handoff.md
+    - specs/stories/FF-225-codex-project-activation/verification.md
+    - specs/stories/FF-225-codex-project-activation/walkthrough-results.md
   known_unrelated_paths: []
 
 verification:
@@ -55,14 +57,27 @@ verification:
 
 * The baseline above is the complete FF-225 implementation commit. This
   handoff-only follow-up records it and is the single remaining dirty path.
-* FF-225 is IMPLEMENTED and awaiting Human Review. It is deliberately **not**
-  complete: `./scripts/verification-check --result` reports
-  `VERIFICATION_PARTIAL`. AC-004 through AC-007 are `human` evidence requiring
-  fresh Codex sessions that no agent can produce, and the `e2e` layer is
-  recorded as `unsupported` with a residual risk rather than rounded up to a
-  pass. Carl records `walkthrough-results.md` from
-  `specs/stories/FF-225-codex-project-activation/walkthrough-fixtures.sh`
-  before the Story can reach PASS.
+* FF-225 is IMPLEMENTED and awaiting Human Review. It is still deliberately
+  **not** complete: `./scripts/verification-check --result` reports
+  `VERIFICATION_PARTIAL`.
+* The C1-C11 walkthrough was recorded on 2026-09-07 against this snapshot and
+  Carl accepted it, so AC-004 through AC-007 and the `e2e` layer now pass and
+  every acceptance criterion has a passing observation. The sessions were driven
+  by an implementing agent using
+  `specs/stories/FF-225-codex-project-activation/walkthrough-fixtures.sh`; the
+  `human` half of that evidence is Carl's acceptance of the recorded
+  transcripts, not the act of running them. Ten of twelve cases met their
+  expected observation on the first attempt, C6 and C7 met theirs on a re-run
+  after a Codex-side session abort, and C9 was only partially met. All three
+  gaps are retained as residual risks rather than smoothed over.
+* The one remaining reason the result is PARTIAL is the `unit` layer, recorded
+  as `unsupported`. The Story's Verification Notes designate
+  `tests/codex-activation.sh` as the `contract` layer, and counting the same
+  file again as `unit` would give that layer no independent evidence. Splitting
+  the suite — invocation and marker-format validation as `unit`, whole-repository
+  installation as `contract` — would be a defensible reading that reaches PASS,
+  but re-reading a layer mapping in order to turn a result green is the pressure
+  the execution contract exists to resist, so it is left to Carl.
 * An independent code review ran over the implementation before the commit and
   found no critical issue. Eight warnings were raised; seven are repaired here.
   The installer no longer claims a restore after a read-only preview refusal;
