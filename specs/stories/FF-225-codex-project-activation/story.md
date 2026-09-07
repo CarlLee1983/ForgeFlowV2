@@ -39,7 +39,7 @@ declarations are new. The prior branch is source material, not a merge base.
 * migration: no
 * commit: yes
 * push: yes
-* deploy: no
+* deploy: yes
 
 ## Architecture
 
