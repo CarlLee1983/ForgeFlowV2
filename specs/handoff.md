@@ -39,11 +39,13 @@ workflow:
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: ff-224-execution-governance
-  commit: 9279aa6a98f257e33a7236e4ea50c06e23b1dd90
+  branch: main
+  commit: d2194315bf17cbf31f8198271624477ddceca0d5
   dirty_worktree: true
   story_owned_paths:
     - specs/handoff.md
+    - specs/stories/FF-224-execution-governance/story.md
+    - specs/stories/FF-224-execution-governance/verification.md
   known_unrelated_paths: []
 
 verification:
@@ -75,7 +77,23 @@ verification:
   `verification.md` records both under `## Authority Used`, so granted and used
   authority agree rather than an operation being performed outside the
   declaration. `deploy` remains `no`.
-* Disclosure on FF-224's DONE record: Carl's acceptance is the Human Review half
+* FF-224 was merged and published on 2026-09-07. PR #15 merged as
+  `d2194315bf17cbf31f8198271624477ddceca0d5`, which is now `main`. Carl then
+  authorized the release, so the Story's `## Authority` was raised from
+  `deploy: no` to `deploy: yes` and `verification.md` records `deploy` under
+  `## Authority Used`.
+* Publication evidence observed on 2026-09-07: exact-SHA workflow 34097692347
+  completed successfully with `headSha` equal to the released commit; the remote
+  annotated tag `e944b352e9913fd1393a428759d6e67715e07f44` peels to that commit;
+  and the GitHub Release `v0.5.0` is neither draft nor prerelease:
+  https://github.com/CarlLee1983/ForgeFlowV2/releases/tag/v0.5.0. Remote state
+  is time-sensitive; query it at decision time rather than trusting this record.
+* Ordering note: the authority record was raised after publication rather than
+  before it, unlike the `commit` and `push` grants. The tag had to point at the
+  exact CI-verified commit, and recording first would have moved `HEAD` and
+  invalidated that evidence. This follow-up does not change the released tag.
+* The earlier disclosure on FF-224's DONE record is now resolved: the
+  merge-policy half is satisfied. It read: Carl's acceptance is the Human Review half
   of REVIEW -> DONE. The merge-policy half is outstanding at the time of
   writing — the pull request is open and unmerged, and `VERSION` is already
   `0.5.0` with `docs/releases/0.5.0.md` written while no `v0.5.0` tag or GitHub

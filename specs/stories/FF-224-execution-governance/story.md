@@ -42,7 +42,7 @@ mandatory.
 * migration: no
 * commit: yes
 * push: yes
-* deploy: no
+* deploy: yes
 
 ## Architecture
 
