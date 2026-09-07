@@ -40,28 +40,10 @@ workflow:
 baseline:
   repository: CarlLee1983/ForgeFlowV2
   branch: ff-225-codex-project-activation
-  commit: d9fbec0523b3a3d8629819b9acd288dd3be782a8
+  commit: 3ee6f46d01149795383b2f4ed85f9890dc33b755
   dirty_worktree: true
   story_owned_paths:
-    - Makefile
-    - README.md
-    - VERSION
-    - docs/codex-activation.md
-    - docs/doctor.md
-    - docs/releases/0.5.1.md
-    - protocol/versioning.md
-    - scripts/codex-activate
-    - skills/forgeflow/SKILL.md
-    - skills/forgeflow/agents-block.md
-    - specs/decisions/ADR-002-repository-local-pinned-activation-snapshot.md
     - specs/handoff.md
-    - specs/stories/FF-225-codex-project-activation/story.md
-    - specs/stories/FF-225-codex-project-activation/verification.md
-    - specs/stories/FF-225-codex-project-activation/walkthrough-fixtures.sh
-    - tests/codex-activation.sh
-    - tests/human-review.sh
-    - tests/portability.sh
-    - tests/protocol.sh
   known_unrelated_paths: []
 
 verification:
@@ -71,6 +53,8 @@ verification:
 
 ## Notes
 
+* The baseline above is the complete FF-225 implementation commit. This
+  handoff-only follow-up records it and is the single remaining dirty path.
 * FF-225 is IMPLEMENTED and awaiting Human Review. It is deliberately **not**
   complete: `./scripts/verification-check --result` reports
   `VERIFICATION_PARTIAL`. AC-004 through AC-007 are `human` evidence requiring
