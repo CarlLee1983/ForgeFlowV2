@@ -1,0 +1,36 @@
+# Verification Result: <ID>
+
+Optional. Record what verification actually did, so a completed Story carries
+evidence rather than a claim. `scripts/verification-check --result` reads this
+file; it never runs a command recorded here.
+
+## Checks
+
+One entry per verification layer that ran. The status is `pass`, `fail`,
+`skipped`, `blocked`, or `unsupported`, followed by the exact command or reason.
+A layer the repository does not have is `unsupported`, never `pass`.
+
+* lint: pass — `make verify`
+* static: pass — `make verify`
+* unit: pass — `make verify`
+
+## Evidence
+
+One entry per acceptance criterion, tracing it to the observation that proves
+it. The status is `pass`, `fail`, `blocked`, or `skipped`.
+
+* `AC-001`: pass — `tests/example.sh AC-001`
+
+## Authority Used
+
+Every operation the implementation actually performed. An operation the Story
+does not grant is reported as an authority conflict.
+
+* modify
+
+## Residual Risks
+
+Every skipped, blocked, unsupported, or failed verification, kept rather than
+dropped. Required whenever the result is not complete.
+
+* `no end-to-end environment in this repository`

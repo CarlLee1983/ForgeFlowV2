@@ -10,8 +10,9 @@ this guide is both the local instruction set and a worked example of what
 For implementation work:
 
 1. Read the assigned Story in `specs/stories/<id>/`, including its
-   `## Classification` and, when present, its Trust Boundary Fields, Security
-   Fixture Matrix, and Superseded Behavior.
+   `## Classification` and, when present, its Task mode, Authority,
+   Architecture, Risk, Trust Boundary Fields, Security Fixture Matrix, and
+   Superseded Behavior.
 2. Read its acceptance criteria.
 3. Read `guidance/ENTRY.md` when it exists, then load only the guidance relevant
    to the Story.
@@ -21,11 +22,30 @@ For implementation work:
 7. Add or update tests, mapping each case to the acceptance criterion it covers.
 8. Run `make verify`.
 9. Repair failures until verification passes.
+10. Record the result in `specs/stories/<id>/verification.md` when the Story
+    keeps one, tracing every acceptance criterion to the observation that proves
+    it and retaining every skipped, blocked, or unsupported check.
 
 Story intent remains canonical. Specific, approved repository context beats
 generic guidance; unresolved conflicts go to Human Review. Guidance is advisory
 and never adds hidden acceptance criteria, substitutes for executable checks, or
 proves design quality from a passing gate.
+
+## Execution contract
+
+[`protocol/execution.md`](protocol/execution.md) is binding here, not advisory.
+Resolve the Story's execution contract before implementing:
+
+```sh
+./scripts/verification-check specs/stories/<id>
+```
+
+Perform only the operations the Story grants. An approved execution Story
+authorizes implementation; it never authorizes committing, pushing, deploying,
+adding a dependency, or running a migration. An `evidence` Story authorizes no
+repository change at all. A required check that was skipped, blocked, or
+unsupported, or an acceptance criterion with no passing observation, leaves the
+work partial: report it, do not round it up to Done.
 
 ## Local engineering constraints
 
@@ -72,6 +92,8 @@ No Story-specific command redefines PASS.
 * bypass repository verification
 * expand scope unnecessarily
 * state that a check passed without having run it in the current tree
+* perform an operation the Story does not grant
+* report partial verification as complete, or drop a residual risk
 
 ## Completion Report
 

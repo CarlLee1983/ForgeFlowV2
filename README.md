@@ -43,6 +43,8 @@ The protocol is split into six small contracts:
 
 - [Story](protocol/story.md)
 - [Verification](protocol/verification.md)
+- [Execution](protocol/execution.md)
+- [Architecture](protocol/architecture.md)
 - [Lifecycle](protocol/lifecycle.md)
 - [Handoff](protocol/handoff.md)
 - [Repository adoption](protocol/repository-contract.md)
@@ -56,6 +58,23 @@ advisory unless the adopting repository deliberately converts it into an
 executable rule behind `make verify`; it never replaces the Story, verification,
 or Human Review. The baseline is [selectively loaded](guidance/ENTRY.md), not a
 knowledge-base platform or agent runtime.
+
+## Execution governance
+
+A Story may also declare the kind of work it is, the operations it authorizes,
+the architecture it must not break, and its risk. These declarations are
+optional and defaulted, so an existing Story keeps its meaning. The declared
+risk selects a verification profile, and an optional per-Story result record
+traces every acceptance criterion to the observation that proves it, so a
+completed Story carries evidence rather than a claim.
+
+```sh
+./scripts/verification-check specs/stories/<story-id>
+./scripts/verification-check --result specs/stories/<story-id>
+```
+
+See [Execution Governance](docs/execution-governance.md) for the mental model
+and a worked example.
 
 ## Code quality
 

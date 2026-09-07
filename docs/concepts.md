@@ -70,6 +70,28 @@ The loop preserves the approved Story and acceptance criteria.
 | Agent | implementation, tests, mechanical refactoring, verification, repair, delivery report |
 | Repository tools | deterministic PASS or FAIL |
 
+## Capability != Authority
+
+An agent being able to perform an operation is not authorization to perform it.
+A Story grants `plan`, `modify`, `add_dependency`, `migration`, `commit`,
+`push`, and `deploy` separately, and one grant never implies the next:
+
+```text
+review != fix
+plan != implement
+implement != commit
+commit != push
+push != deploy
+```
+
+## Green command != Verified Story
+
+`make verify` passing proves that the checks behind it passed. It does not prove
+that a required verification layer existed, or that any acceptance criterion was
+actually observed. A Story is verified when the required profile passed and
+every criterion has a passing observation; anything less is partial. See
+[Execution Governance](execution-governance.md).
+
 ## Agent agnosticism
 
 ForgeFlow stores the process in ordinary repository artifacts rather than a

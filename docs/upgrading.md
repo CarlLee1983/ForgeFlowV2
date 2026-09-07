@@ -135,6 +135,11 @@ repository:
   verification freshness guidance; and
 * when upgrading to 0.4.0 or later, compare Acceptance Evidence guidance so
   agents plan a fixture or precondition and observable result for every AC.
+* when upgrading to 0.5.0 or later, nothing is required: the task mode,
+  authority, architecture, and risk declarations are optional and defaulted.
+  Copy `templates/story/verification.md` and `templates/decision.md` by hand
+  when the repository wants recorded verification results or decision records;
+  neither is a managed file;
 * when upgrading to 0.4.1 or later, optionally copy the four baseline files from
   `guidance/` and reconcile them with repository/team decisions; do not replace
   existing decisions or practices wholesale.

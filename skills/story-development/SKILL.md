@@ -27,17 +27,30 @@ the completion authority.
    to the Story. Guidance is advisory: the approved Story remains canonical,
    specific approved context beats generic guidance, and a real conflict goes to
    Human Review rather than an invented resolution.
-4. Read the repository agent guide and inspect the relevant architecture, code,
+4. Resolve the Story's execution contract with
+   `./scripts/verification-check specs/stories/<story-id>`. Perform only the
+   operations its authority grants: an approved execution Story authorizes
+   implementation, never committing, pushing, deploying, adding a dependency, or
+   running a migration, and an `evidence` Story authorizes no repository change
+   at all. Treat the declared architecture decisions and contracts as
+   constraints, and let the declared risk raise inspection and verification
+   depth without widening scope.
+5. Read the repository agent guide and inspect the relevant architecture, code,
    tests, dependencies, and documented commands. Project tooling is the source
    of truth for technology-specific mechanics.
-5. Form a dependency-ordered implementation plan for the smallest coherent
+6. Form a dependency-ordered implementation plan for the smallest coherent
    end-to-end change. Keep requirement decisions with the human; ask only when a
    missing decision materially changes behavior or risk.
-6. Implement within the Story boundary. Add or update tests at the lowest useful
+7. Implement within the Story boundary. Add or update tests at the lowest useful
    boundary for changed behavior, including stable regression coverage for
    repaired defects.
-7. Run useful focused checks while developing, then run `make verify`
+8. Run useful focused checks while developing, then run `make verify`
    from the repository root.
+9. When the Story keeps a `verification.md`, record what each check did, trace
+   every acceptance criterion to the observation that proves it, and retain
+   every skipped, blocked, or unsupported check as a residual risk. Confirm the
+   record with
+   `./scripts/verification-check --result specs/stories/<story-id>`.
 
 ## Review Preparation
 

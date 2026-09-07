@@ -206,6 +206,38 @@ adopted version drifted from this checkout, even though the exit status is
 unchanged at `0`. Match the exit status, or accept both values, when the
 distinction does not matter.
 
+FF-224 execution governance is **Additive** for `0.5.0`: a Story may declare a
+task mode, an authority set, architecture metadata, and a risk level; a
+repository may keep decision records under `specs/decisions/` and a verification
+result under `specs/stories/<id>/verification.md`; and
+`scripts/verification-check` resolves and judges them. Every declaration is
+optional and defaulted, so a Story written against an earlier snapshot keeps its
+verdict, `scripts/story-check` and `scripts/handoff-check` keep their command
+forms, result names, and exit statuses, and `make verify` PASS, FAIL, and Repair
+Loop semantics are unchanged for an existing adopter.
+
+No migration is required. An adopter that wants the new capability:
+
+1. Runs `./scripts/bootstrap --upgrade /path/to/repository` to install the
+   updated Story template. Repository-owned `AGENTS.md` is intentionally never
+   replaced and is reconciled by hand.
+2. Adds only the declarations a Story actually needs. Progressive disclosure is
+   the contract: a low-risk Story declares nothing.
+3. Copies [the result template](../templates/story/verification.md) and
+   [the decision template](../templates/decision.md) when it wants recorded
+   evidence or decision records. Neither is installed by bootstrap, because both
+   are repository-owned content rather than a managed protocol file.
+
+`scripts/verification-check` is part of the versioned surface: changes to its
+command forms, result names, or exit semantics are changes to the contract. Its
+absence does not invalidate an adoption, and `make verify` in an adopting
+repository is not required to call it.
+
+The `architecture` verification layer is deliberately a resolution check only.
+Dependency-direction validation, forbidden imports, layer boundaries, and
+contract-drift analysis are named as future extensions and are not implemented,
+so no adopter can depend on them yet.
+
 ## Repository release readiness
 
 ForgeFlow maintainers can run root `make release-check` on a clean committed

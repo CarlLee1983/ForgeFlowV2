@@ -1,0 +1,782 @@
+#!/bin/sh
+
+set -eu
+
+fail() {
+  printf 'execution-governance test failed [%s]: %s\n' "$forgeflow_case_id" "$1" >&2
+  exit 1
+}
+
+assert_status() {
+  if [ "$forgeflow_command_status" -ne "$1" ]; then
+    fail "expected exit $1, got $forgeflow_command_status: $(cat "$forgeflow_command_output")"
+  fi
+}
+
+assert_output_contains() {
+  grep -Fq -- "$1" "$forgeflow_command_output" ||
+    fail "output is missing: $1"
+}
+
+assert_output_excludes() {
+  if grep -Fq -- "$1" "$forgeflow_command_output"; then
+    fail "output must not contain: $1"
+  fi
+}
+
+run_command() {
+  forgeflow_command_output="$forgeflow_test_dir/$forgeflow_case_id.output"
+  forgeflow_runner=$1
+  shift
+
+  if "$forgeflow_runner" "$@" >"$forgeflow_command_output" 2>&1; then
+    forgeflow_command_status=0
+  else
+    forgeflow_command_status=$?
+  fi
+}
+
+run_verification_check() {
+  run_command "$forgeflow_verification_check" "$@"
+}
+
+run_story_check() {
+  run_command "$forgeflow_story_check" "$@"
+}
+
+run_case() {
+  forgeflow_case_id=$1
+  forgeflow_case_function=$2
+
+  "$forgeflow_case_function"
+  printf 'PASS %s %s\n' "$forgeflow_case_id" "$forgeflow_case_function"
+}
+
+# A Story fixture with no governance declarations at all: the shape every
+# ForgeFlow Story had before this contract existed.
+new_story() {
+  forgeflow_story_dir="$forgeflow_stories_root/$forgeflow_case_id-$1"
+
+  rm -rf "$forgeflow_story_dir"
+  mkdir -p "$forgeflow_story_dir"
+
+  cat >"$forgeflow_story_dir/story.md" <<'FORGEFLOW_FIXTURE'
+# Story: TST-001 Fixture Story
+
+## Goal
+
+Provide a deterministic Story fixture.
+
+## Scope
+
+### In Scope
+
+* Fixture behavior.
+
+### Out of Scope
+
+* Everything else.
+
+## Constraints
+
+* None.
+
+## Classification
+
+* Security sensitive: no
+* Baseline conformance: no
+FORGEFLOW_FIXTURE
+
+  cat >"$forgeflow_story_dir/acceptance.md" <<'FORGEFLOW_FIXTURE'
+# Acceptance Criteria
+
+## Happy Path
+
+* [ ] AC-001: Fixture happy path.
+* [ ] AC-002: Fixture business rule.
+
+## Acceptance Evidence
+
+| AC | Method | Evidence | Fixture / precondition | Expected observation |
+| --- | --- | --- | --- | --- |
+| `AC-001` | test | `tests/execution-governance.sh` | `fixture` | `passes` |
+| `AC-002` | test | `tests/execution-governance.sh` | `fixture` | `passes` |
+FORGEFLOW_FIXTURE
+}
+
+add_section() {
+  printf '\n%s\n\n' "$1" >>"$forgeflow_story_dir/story.md"
+  shift
+
+  for forgeflow_entry in "$@"
+  do
+    printf '%s\n' "$forgeflow_entry" >>"$forgeflow_story_dir/story.md"
+  done
+}
+
+add_classification() {
+  printf '%s\n' "$1" >>"$forgeflow_story_dir/story.md"
+}
+
+write_decision() {
+  cat >"$forgeflow_decisions_root/$1.md" <<FORGEFLOW_DECISION
+# $1: Fixture decision
+
+* Status: $2
+
+## Decision
+
+Fixture decision body.
+FORGEFLOW_DECISION
+}
+
+write_result() {
+  cat >"$forgeflow_story_dir/verification.md"
+}
+
+# --- AC-001 -----------------------------------------------------------------
+
+defaults_preserve_a_story_without_declarations() {
+  new_story legacy
+
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Result: STORY_CONTRACT_OK'
+
+  run_verification_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Task mode: execution'
+  assert_output_contains 'Authority: plan=yes modify=yes add_dependency=no migration=no commit=no push=no deploy=no'
+  assert_output_contains 'Risk level: low'
+  assert_output_contains 'Architecture impact: low'
+  assert_output_contains 'Required checks: lint static unit'
+  assert_output_contains 'Result: VERIFICATION_PLAN_OK'
+
+  # Every Story this repository already owns predates the contract.
+  run_command "$forgeflow_verification_check"
+  assert_status 0
+  assert_output_contains 'Result: VERIFICATION_PLAN_OK'
+}
+
+# --- AC-002 -----------------------------------------------------------------
+
+a_story_can_declare_its_execution_contract() {
+  new_story declared
+  add_classification '* Task mode: mixed'
+  add_section '## Authority' \
+    '* plan: yes' '* modify: yes' '* add_dependency: yes' '* migration: no' \
+    '* commit: yes' '* push: no' '* deploy: no'
+  write_decision ADR-901 accepted
+  add_section '## Architecture' \
+    '* Impact: high' '* Decision: `ADR-901`' '* Boundary: `Gateway`' \
+    '* Contract: `Gateway public interface remains compatible`' \
+    '* Owner: `Gateway = gateway-domain`'
+  add_section '## Risk' '* Level: high' '* Reason: `payment`'
+
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Result: STORY_CONTRACT_OK'
+
+  run_verification_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Task mode: mixed'
+  assert_output_contains 'Authority: plan=yes modify=yes add_dependency=yes migration=no commit=yes push=no deploy=no'
+  assert_output_contains 'Risk level: high'
+  assert_output_contains 'Architecture impact: high'
+}
+
+# --- AC-003 -----------------------------------------------------------------
+
+evidence_mode_never_authorizes_mutation() {
+  new_story evidence-default
+  add_classification '* Task mode: evidence'
+
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+
+  run_verification_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Authority: plan=yes modify=no'
+
+  new_story evidence-granting-modify
+  add_classification '* Task mode: evidence'
+  add_section '## Authority' '* plan: yes' '* modify: yes'
+
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'evidence task mode must not authorize modify'
+  assert_output_contains 'Result: STORY_CONTRACT_INCOMPLETE'
+
+  new_story evidence-granting-commit
+  add_classification '* Task mode: evidence'
+  add_section '## Authority' '* modify: no' '* commit: yes'
+
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'evidence task mode must not authorize commit'
+}
+
+# --- AC-004 -----------------------------------------------------------------
+
+authority_escalation_is_explicit() {
+  new_story push-without-commit
+  add_section '## Authority' '* modify: yes' '* commit: no' '* push: yes'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'authority grants push without commit'
+
+  new_story deploy-without-push
+  add_section '## Authority' \
+    '* modify: yes' '* commit: yes' '* push: no' '* deploy: yes'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'authority grants deploy without push'
+
+  new_story commit-without-modify
+  add_section '## Authority' '* modify: no' '* commit: yes'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'authority grants commit without modify'
+
+  new_story unknown-and-repeated
+  add_section '## Authority' '* merge: yes' '* modify: yes' '* modify: no'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'authority declares an unknown operation: merge'
+  assert_output_contains 'authority declares modify more than once'
+
+  new_story invalid-value
+  add_section '## Authority' '* modify: maybe'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'authority modify must be declared as yes or no'
+
+  # Implementation permission never carries commit, push, or deploy with it.
+  new_story implementation-only
+  add_section '## Authority' '* modify: yes'
+  run_verification_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'commit=no push=no deploy=no'
+}
+
+# --- AC-005 -----------------------------------------------------------------
+
+architecture_metadata_must_resolve() {
+  new_story impact-without-anchor
+  add_section '## Architecture' '* Impact: medium'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'architecture impact medium must name at least one decision or contract'
+
+  new_story missing-decision
+  add_section '## Architecture' '* Impact: medium' '* Decision: `ADR-902`'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'referenced decision record does not exist: ADR-902'
+
+  write_decision ADR-903 proposed
+  new_story proposed-decision
+  add_section '## Architecture' '* Impact: medium' '* Decision: `ADR-903`'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'referenced decision is still proposed: ADR-903'
+
+  # An architecture Story is exactly the work that decides an open question.
+  new_story proposed-decision-in-architecture-mode
+  add_classification '* Task mode: architecture'
+  add_section '## Architecture' '* Impact: medium' '* Decision: `ADR-903`'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+
+  write_decision ADR-904 superseded
+  new_story superseded-decision
+  add_section '## Architecture' '* Impact: medium' '* Decision: `ADR-904`'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'referenced decision is not usable (superseded): ADR-904'
+
+  write_decision ADR-905 accepted
+  new_story duplicate-reference
+  add_section '## Architecture' \
+    '* Impact: medium' '* Decision: `ADR-905`' '* Decision: `ADR-905`'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'architecture references the same decision twice: ADR-905'
+
+  new_story unowned-boundary
+  add_section '## Architecture' \
+    '* Impact: medium' '* Decision: `ADR-905`' '* Boundary: `Gateway`' \
+    '* Owner: `Ledger = ledger-domain`'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'architecture owner names an undeclared boundary: Ledger'
+
+  new_story prose-architecture
+  add_section '## Architecture' '* Impact: medium' '* Contract: stays compatible'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'architecture Contract must state one exact backticked value'
+
+  new_story unknown-architecture-label
+  add_section '## Architecture' '* Impact: low' '* Layer: `domain`'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'architecture declares an unknown label: Layer'
+}
+
+# --- AC-006 -----------------------------------------------------------------
+
+risk_declarations_stay_honest() {
+  new_story risk-without-reason
+  add_section '## Risk' '* Level: high'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'risk level high must name at least one reason'
+
+  new_story understated-signal
+  add_section '## Risk' '* Level: medium' '* Reason: `payment`'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'risk reason payment is a high-risk signal but the level is medium'
+
+  new_story understated-default-signal
+  add_section '## Risk' '* Reason: `data-loss`'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'is a high-risk signal but the level is low'
+
+  new_story honest-signal
+  add_section '## Risk' '* Level: high' '* Reason: `schema-migration`'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+
+  new_story invalid-level
+  add_section '## Risk' '* Level: critical'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'Risk level must be low, medium, or high'
+}
+
+# --- AC-007 -----------------------------------------------------------------
+
+the_profile_follows_risk_and_architecture_impact() {
+  new_story profile-low
+  run_verification_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Required checks: lint static unit'
+  assert_output_excludes 'integration'
+
+  new_story profile-medium
+  add_section '## Risk' '* Level: medium' '* Reason: `external-api`'
+  run_verification_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Required checks: lint static unit integration'
+  assert_output_excludes 'e2e'
+
+  new_story profile-high
+  add_section '## Risk' '* Level: high' '* Reason: `payment`'
+  run_verification_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Required checks: lint static unit integration contract e2e'
+  assert_output_excludes 'architecture'
+
+  write_decision ADR-906 accepted
+  new_story profile-architecture
+  add_section '## Architecture' '* Impact: medium' '* Decision: `ADR-906`'
+  run_verification_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Required checks: lint static unit architecture'
+}
+
+# --- AC-008 -----------------------------------------------------------------
+
+an_unproven_result_is_partial_not_pass() {
+  new_story complete-result
+  write_result <<'FORGEFLOW_RESULT'
+# Verification Result
+
+## Checks
+
+* lint: pass — `make verify`
+* static: pass — `make verify`
+* unit: pass — `make verify`
+
+## Evidence
+
+* `AC-001`: pass — `fixture observation`
+* `AC-002`: pass — `fixture observation`
+FORGEFLOW_RESULT
+  run_verification_check --result "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Status: PASS'
+  assert_output_contains 'Result: VERIFICATION_PASS'
+
+  new_story missing-required-check
+  write_result <<'FORGEFLOW_RESULT'
+# Verification Result
+
+## Checks
+
+* lint: pass — `make verify`
+* static: pass — `make verify`
+
+## Evidence
+
+* `AC-001`: pass — `fixture observation`
+* `AC-002`: pass — `fixture observation`
+
+## Residual Risks
+
+* `no unit runner in this fixture`
+FORGEFLOW_RESULT
+  run_verification_check --result "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'required check is not recorded: unit'
+  assert_output_contains 'Status: PARTIAL'
+  assert_output_contains 'Result: VERIFICATION_PARTIAL'
+
+  new_story unsupported-required-check
+  write_result <<'FORGEFLOW_RESULT'
+# Verification Result
+
+## Checks
+
+* lint: pass — `make verify`
+* static: pass — `make verify`
+* unit: unsupported — `this fixture has no unit runner`
+
+## Evidence
+
+* `AC-001`: pass — `fixture observation`
+* `AC-002`: pass — `fixture observation`
+
+## Residual Risks
+
+* `unit layer is unsupported here`
+FORGEFLOW_RESULT
+  run_verification_check --result "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'required check did not pass: unit'
+  assert_output_contains 'Result: VERIFICATION_PARTIAL'
+
+  new_story untraced-criterion
+  write_result <<'FORGEFLOW_RESULT'
+# Verification Result
+
+## Checks
+
+* lint: pass — `make verify`
+* static: pass — `make verify`
+* unit: pass — `make verify`
+
+## Evidence
+
+* `AC-001`: pass — `fixture observation`
+
+## Residual Risks
+
+* `AC-002 has no automated observation yet`
+FORGEFLOW_RESULT
+  run_verification_check --result "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'acceptance criterion has no passing evidence: AC-002'
+  assert_output_contains 'Result: VERIFICATION_PARTIAL'
+
+  new_story failing-check
+  write_result <<'FORGEFLOW_RESULT'
+# Verification Result
+
+## Checks
+
+* lint: pass — `make verify`
+* static: pass — `make verify`
+* unit: fail — `make verify`
+
+## Evidence
+
+* `AC-001`: pass — `fixture observation`
+* `AC-002`: pass — `fixture observation`
+FORGEFLOW_RESULT
+  run_verification_check --result "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'Status: FAIL'
+  assert_output_contains 'Result: VERIFICATION_FAIL'
+}
+
+# --- AC-009 -----------------------------------------------------------------
+
+used_authority_must_have_been_granted() {
+  new_story ungranted-commit
+  write_result <<'FORGEFLOW_RESULT'
+# Verification Result
+
+## Checks
+
+* lint: pass — `make verify`
+* static: pass — `make verify`
+* unit: pass — `make verify`
+
+## Evidence
+
+* `AC-001`: pass — `fixture observation`
+* `AC-002`: pass — `fixture observation`
+
+## Authority Used
+
+* modify
+* commit
+FORGEFLOW_RESULT
+  run_verification_check --result "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'authority conflict: commit was used but the Story does not grant it'
+  assert_output_contains 'Result: VERIFICATION_FAIL'
+
+  new_story ungranted-dependency
+  add_section '## Authority' '* modify: yes' '* add_dependency: no'
+  write_result <<'FORGEFLOW_RESULT'
+# Verification Result
+
+## Checks
+
+* lint: pass — `make verify`
+* static: pass — `make verify`
+* unit: pass — `make verify`
+
+## Evidence
+
+* `AC-001`: pass — `fixture observation`
+* `AC-002`: pass — `fixture observation`
+
+## Authority Used
+
+* add_dependency
+FORGEFLOW_RESULT
+  run_verification_check --result "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'authority conflict: add_dependency was used but the Story does not grant it'
+}
+
+# --- AC-010 -----------------------------------------------------------------
+
+a_malformed_or_silent_result_is_reported() {
+  new_story no-residual-risk
+  write_result <<'FORGEFLOW_RESULT'
+# Verification Result
+
+## Checks
+
+* lint: pass — `make verify`
+
+## Evidence
+
+* `AC-001`: pass — `fixture observation`
+* `AC-002`: pass — `fixture observation`
+FORGEFLOW_RESULT
+  run_verification_check --result "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'incomplete verification must record at least one residual risk'
+  assert_output_contains 'Result: VERIFICATION_RESULT_INCOMPLETE'
+
+  new_story missing-record
+  run_verification_check --result "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'verification.md is missing, unreadable, or empty'
+  assert_output_contains 'Result: VERIFICATION_RESULT_INCOMPLETE'
+
+  new_story unknown-layer
+  write_result <<'FORGEFLOW_RESULT'
+# Verification Result
+
+## Checks
+
+* smoke: pass — `make verify`
+
+## Evidence
+
+* `AC-001`: pass — `fixture observation`
+FORGEFLOW_RESULT
+  run_verification_check --result "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'unknown verification check: smoke'
+
+  new_story unknown-criterion
+  write_result <<'FORGEFLOW_RESULT'
+# Verification Result
+
+## Checks
+
+* lint: pass — `make verify`
+
+## Evidence
+
+* `AC-404`: pass — `fixture observation`
+FORGEFLOW_RESULT
+  run_verification_check --result "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'evidence names unknown AC ID: AC-404'
+
+  new_story prose-detail
+  write_result <<'FORGEFLOW_RESULT'
+# Verification Result
+
+## Checks
+
+* lint: pass — it looked fine
+
+## Evidence
+
+* `AC-001`: pass — `fixture observation`
+FORGEFLOW_RESULT
+  run_verification_check --result "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'check lint must name one exact backticked command or reason'
+
+  new_story invalid-status
+  write_result <<'FORGEFLOW_RESULT'
+# Verification Result
+
+## Checks
+
+* lint: green — `make verify`
+
+## Evidence
+
+* `AC-001`: pass — `fixture observation`
+FORGEFLOW_RESULT
+  run_verification_check --result "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'check lint status must be pass, fail, skipped, blocked, or unsupported'
+
+  run_verification_check --result "$forgeflow_test_dir/absent-story"
+  assert_status 2
+  assert_output_contains 'Result: ERROR'
+
+  run_verification_check --nonsense
+  assert_status 2
+  assert_output_contains 'Result: ERROR'
+}
+
+# --- AC-011 -----------------------------------------------------------------
+
+the_gate_and_the_builtin_guarantee_hold() {
+  grep -Eq '^verify:.*verify-execution' "$forgeflow_repo/Makefile" ||
+    fail 'the canonical gate does not compose verify-execution'
+  grep -Fq './tests/execution-governance.sh' "$forgeflow_repo/Makefile" ||
+    fail 'the Makefile does not run the execution governance tests'
+  grep -Fq './scripts/verification-check' "$forgeflow_repo/Makefile" ||
+    fail 'the Makefile does not run the verification check'
+
+  forgeflow_scan_output="$forgeflow_test_dir/$forgeflow_case_id.scan"
+
+  grep -nE '(^|[ 	(|&;`]|\$\()(grep|sed|awk|sort|uniq|tr|cut|head|tail|wc|expr|cat|find|basename|dirname|readlink|stat|date|mktemp|xargs|git)([ 	]|$)' \
+    "$forgeflow_verification_check" "$forgeflow_story_check" |
+    grep -v ':[0-9][0-9]*:[[:space:]]*#' >"$forgeflow_scan_output" || :
+
+  if [ -s "$forgeflow_scan_output" ]; then
+    fail "a checker still calls an external utility: $(cat "$forgeflow_scan_output")"
+  fi
+
+  new_story empty-path
+  forgeflow_empty_path="$forgeflow_test_dir/empty-path"
+  mkdir -p "$forgeflow_empty_path"
+  forgeflow_command_output="$forgeflow_test_dir/$forgeflow_case_id.no-path"
+
+  if PATH="$forgeflow_empty_path" "$forgeflow_verification_check" \
+    "$forgeflow_story_dir" >"$forgeflow_command_output" 2>&1; then
+    forgeflow_command_status=0
+  else
+    forgeflow_command_status=$?
+  fi
+
+  assert_status 0
+  assert_output_contains 'Result: VERIFICATION_PLAN_OK'
+}
+
+# --- AC-012 -----------------------------------------------------------------
+
+the_new_model_is_documented() {
+  for forgeflow_required_document in \
+    protocol/execution.md \
+    protocol/architecture.md \
+    docs/execution-governance.md \
+    templates/story/verification.md \
+    templates/decision.md \
+    specs/decisions/ADR-001-execution-governance-in-the-story-contract.md
+  do
+    [ -f "$forgeflow_repo/$forgeflow_required_document" ] ||
+      fail "missing document: $forgeflow_required_document"
+  done
+
+  for forgeflow_invariant in \
+    'Evidence before modification' \
+    'Smallest complete change' \
+    'Preserve unrelated work' \
+    'No authority escalation' \
+    'Verification must exercise changed behavior' \
+    'Never weaken verification to obtain PASS' \
+    'Never claim unexecuted verification' \
+    'Report residual risk'
+  do
+    grep -Fq "$forgeflow_invariant" "$forgeflow_repo/protocol/execution.md" ||
+      fail "execution contract omits invariant: $forgeflow_invariant"
+  done
+
+  for forgeflow_term in architecture execution evidence mixed
+  do
+    grep -Fq "\`$forgeflow_term\`" "$forgeflow_repo/protocol/execution.md" ||
+      fail "execution contract omits task mode: $forgeflow_term"
+  done
+
+  grep -Fq 'add_dependency' "$forgeflow_repo/protocol/execution.md" ||
+    fail 'execution contract omits the authority model'
+  grep -Fq 'VERIFICATION_PARTIAL' "$forgeflow_repo/protocol/verification.md" ||
+    fail 'verification contract omits the partial result'
+  grep -Fq 'verification profile' "$forgeflow_repo/protocol/verification.md" ||
+    fail 'verification contract omits the profile model'
+  grep -Fq 'specs/decisions/' "$forgeflow_repo/protocol/architecture.md" ||
+    fail 'architecture contract omits the decision location'
+  grep -Fq 'dependency direction' "$forgeflow_repo/protocol/architecture.md" ||
+    fail 'architecture contract omits its future extensions'
+  grep -Fq 'Task mode' "$forgeflow_repo/templates/story/story.md" ||
+    fail 'the Story template omits the task mode'
+  grep -Fq 'verification-check' "$forgeflow_repo/docs/contract-checks.md" ||
+    fail 'contract checks omit the verification check'
+  grep -Fq '**Additive** for `0.5.0`' "$forgeflow_repo/protocol/versioning.md" ||
+    fail 'versioning omits the FF-224 classification'
+  grep -Fq 'protocol/execution.md' "$forgeflow_repo/README.md" ||
+    fail 'the README does not link the execution contract'
+}
+
+forgeflow_test_dir=$(mktemp -d "${TMPDIR:-/tmp}/forgeflow-execution.XXXXXX")
+
+cleanup() {
+  rm -rf "$forgeflow_test_dir"
+}
+
+trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
+
+forgeflow_repo=$(
+  cd -P "$(dirname "$0")/.." >/dev/null 2>&1
+  pwd
+)
+forgeflow_story_check="$forgeflow_repo/scripts/story-check"
+forgeflow_verification_check="$forgeflow_repo/scripts/verification-check"
+forgeflow_stories_root="$forgeflow_test_dir/specs/stories"
+forgeflow_decisions_root="$forgeflow_test_dir/specs/decisions"
+mkdir -p "$forgeflow_stories_root" "$forgeflow_decisions_root"
+
+run_case 'FF224-AC-001' defaults_preserve_a_story_without_declarations
+run_case 'FF224-AC-002' a_story_can_declare_its_execution_contract
+run_case 'FF224-AC-003' evidence_mode_never_authorizes_mutation
+run_case 'FF224-AC-004' authority_escalation_is_explicit
+run_case 'FF224-AC-005' architecture_metadata_must_resolve
+run_case 'FF224-AC-006' risk_declarations_stay_honest
+run_case 'FF224-AC-007' the_profile_follows_risk_and_architecture_impact
+run_case 'FF224-AC-008' an_unproven_result_is_partial_not_pass
+run_case 'FF224-AC-009' used_authority_must_have_been_granted
+run_case 'FF224-AC-010' a_malformed_or_silent_result_is_reported
+run_case 'FF224-AC-011' the_gate_and_the_builtin_guarantee_hold
+run_case 'FF224-AC-012' the_new_model_is_documented
+
+printf 'execution governance tests passed\n'

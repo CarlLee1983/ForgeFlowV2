@@ -762,6 +762,502 @@ forgeflow_check_readiness() {
   forgeflow_check_acceptance_evidence
 }
 
+# --- Execution governance declarations --------------------------------------
+#
+# Task mode, Authority, Architecture, and Risk are optional. A Story written
+# before they existed declares none of them and keeps its previous verdict; the
+# documented defaults are resolved by scripts/verification-check, not here. This
+# checker judges only what a Story actually declares.
+
+forgeflow_scan_section() {
+  forgeflow_scan_file=$1
+  forgeflow_scan_heading=$2
+  forgeflow_scan_callback=$3
+  forgeflow_section_count=0
+  forgeflow_scan_in=0
+  forgeflow_fence_length=0
+
+  while IFS= read -r forgeflow_scan_line || [ -n "$forgeflow_scan_line" ]; do
+    forgeflow_trim "$forgeflow_scan_line"
+    forgeflow_scan_line=$forgeflow_trimmed
+
+    forgeflow_update_fence "$forgeflow_scan_line"
+    [ "$forgeflow_fence_changed" -eq 0 ] || continue
+    [ "$forgeflow_fence_length" -eq 0 ] || continue
+
+    case "$forgeflow_scan_line" in
+      '#'*)
+        if [ "$forgeflow_scan_line" = "$forgeflow_scan_heading" ]; then
+          forgeflow_section_count=$((forgeflow_section_count + 1))
+          forgeflow_scan_in=1
+        else
+          forgeflow_scan_in=0
+        fi
+        continue
+        ;;
+    esac
+
+    [ "$forgeflow_scan_in" -eq 1 ] || continue
+
+    case "$forgeflow_scan_line" in
+      '- '*) forgeflow_scan_line="* ${forgeflow_scan_line#'- '}" ;;
+    esac
+
+    case "$forgeflow_scan_line" in
+      '* '*) ;;
+      *) continue ;;
+    esac
+
+    forgeflow_scan_bullet=${forgeflow_scan_line#'* '}
+    forgeflow_trim "$forgeflow_scan_bullet"
+    forgeflow_scan_bullet=$forgeflow_trimmed
+    [ -n "$forgeflow_scan_bullet" ] || continue
+
+    "$forgeflow_scan_callback" "$forgeflow_scan_bullet"
+  done <"$forgeflow_scan_file"
+}
+
+forgeflow_gov_split() {
+  forgeflow_gov_label=
+  forgeflow_gov_value=
+
+  case "$1" in
+    *': '*)
+      forgeflow_gov_label=${1%%': '*}
+      forgeflow_gov_value=${1#*': '}
+      ;;
+    *':')
+      forgeflow_gov_label=${1%':'}
+      ;;
+    *) return 1 ;;
+  esac
+
+  forgeflow_trim "$forgeflow_gov_label"
+  forgeflow_gov_label=$forgeflow_trimmed
+  forgeflow_trim "$forgeflow_gov_value"
+  forgeflow_gov_value=$forgeflow_trimmed
+  [ -n "$forgeflow_gov_label" ]
+}
+
+forgeflow_gov_unquote() {
+  forgeflow_gov_unquoted=$1
+  forgeflow_gov_unquoted=${forgeflow_gov_unquoted#\`}
+  forgeflow_gov_unquoted=${forgeflow_gov_unquoted%\`}
+}
+
+forgeflow_task_mode_bullet() {
+  forgeflow_gov_split "$1" || return 0
+  [ "$forgeflow_gov_label" = 'Task mode' ] || return 0
+  forgeflow_task_mode_count=$((forgeflow_task_mode_count + 1))
+  forgeflow_task_mode=$forgeflow_gov_value
+}
+
+forgeflow_authority_bullet() {
+  if ! forgeflow_gov_split "$1"; then
+    forgeflow_story_fail "authority entry is not a declaration: $1"
+    return 0
+  fi
+
+  case " $forgeflow_authority_keys " in
+    *" $forgeflow_gov_label "*) ;;
+    *)
+      forgeflow_story_fail "authority declares an unknown operation: $forgeflow_gov_label"
+      return 0
+      ;;
+  esac
+
+  case " $forgeflow_authority_seen " in
+    *" $forgeflow_gov_label "*)
+      forgeflow_story_fail "authority declares $forgeflow_gov_label more than once"
+      return 0
+      ;;
+  esac
+  forgeflow_authority_seen="$forgeflow_authority_seen $forgeflow_gov_label"
+
+  case "$forgeflow_gov_value" in
+    yes|no) ;;
+    *)
+      forgeflow_story_fail "authority $forgeflow_gov_label must be declared as yes or no"
+      return 0
+      ;;
+  esac
+
+  eval "forgeflow_authority_$forgeflow_gov_label=\$forgeflow_gov_value"
+}
+
+forgeflow_architecture_bullet() {
+  if ! forgeflow_gov_split "$1"; then
+    forgeflow_story_fail "architecture entry is not a declaration: $1"
+    return 0
+  fi
+
+  case "$forgeflow_gov_label" in
+    Impact)
+      forgeflow_impact_count=$((forgeflow_impact_count + 1))
+      forgeflow_impact=$forgeflow_gov_value
+      return 0
+      ;;
+    Decision|Boundary|Contract|Owner) ;;
+    *)
+      forgeflow_story_fail "architecture declares an unknown label: $forgeflow_gov_label"
+      return 0
+      ;;
+  esac
+
+  if ! forgeflow_is_exact_literal "$forgeflow_gov_value"; then
+    forgeflow_story_fail "architecture $forgeflow_gov_label must state one exact backticked value"
+    return 0
+  fi
+
+  forgeflow_gov_unquote "$forgeflow_gov_value"
+
+  case "$forgeflow_gov_label" in
+    Decision)
+      forgeflow_decision_count=$((forgeflow_decision_count + 1))
+      case " $forgeflow_decisions " in
+        *" $forgeflow_gov_unquoted "*)
+          forgeflow_story_fail "architecture references the same decision twice: $forgeflow_gov_unquoted"
+          return 0
+          ;;
+      esac
+      forgeflow_decisions="$forgeflow_decisions$forgeflow_gov_unquoted "
+      ;;
+    Boundary)
+      forgeflow_boundary_count=$((forgeflow_boundary_count + 1))
+      forgeflow_boundaries="$forgeflow_boundaries$forgeflow_gov_unquoted$forgeflow_unit_separator"
+      ;;
+    Contract)
+      forgeflow_contract_count=$((forgeflow_contract_count + 1))
+      ;;
+    Owner)
+      forgeflow_owner_count=$((forgeflow_owner_count + 1))
+      forgeflow_owners="$forgeflow_owners$forgeflow_gov_unquoted$forgeflow_unit_separator"
+      ;;
+  esac
+}
+
+forgeflow_risk_bullet() {
+  if ! forgeflow_gov_split "$1"; then
+    forgeflow_story_fail "risk entry is not a declaration: $1"
+    return 0
+  fi
+
+  case "$forgeflow_gov_label" in
+    Level)
+      forgeflow_risk_level_count=$((forgeflow_risk_level_count + 1))
+      forgeflow_risk_level=$forgeflow_gov_value
+      ;;
+    Reason)
+      forgeflow_reason_count=$((forgeflow_reason_count + 1))
+      if forgeflow_is_exact_literal "$forgeflow_gov_value"; then
+        forgeflow_gov_unquote "$forgeflow_gov_value"
+        forgeflow_reasons="$forgeflow_reasons$forgeflow_gov_unquoted "
+      else
+        forgeflow_story_fail 'risk reason must name one exact backticked signal'
+      fi
+      ;;
+    *)
+      forgeflow_story_fail "risk declares an unknown label: $forgeflow_gov_label"
+      ;;
+  esac
+}
+
+# Reads a decision record's single "* Status: <value>" declaration. A decision
+# record is a small top-level document, so the status is not scoped to a
+# section the way a Story declaration is.
+forgeflow_read_decision_status() {
+  forgeflow_status_file=$1
+  forgeflow_decision_status=
+  forgeflow_decision_status_count=0
+  forgeflow_fence_length=0
+
+  while IFS= read -r forgeflow_status_line ||
+    [ -n "$forgeflow_status_line" ]; do
+    forgeflow_trim "$forgeflow_status_line"
+    forgeflow_status_line=$forgeflow_trimmed
+
+    forgeflow_update_fence "$forgeflow_status_line"
+    [ "$forgeflow_fence_changed" -eq 0 ] || continue
+    [ "$forgeflow_fence_length" -eq 0 ] || continue
+
+    case "$forgeflow_status_line" in
+      '- '*) forgeflow_status_line="* ${forgeflow_status_line#'- '}" ;;
+    esac
+
+    case "$forgeflow_status_line" in
+      '* Status: '*)
+        forgeflow_decision_status_count=$((forgeflow_decision_status_count + 1))
+        forgeflow_decision_status=${forgeflow_status_line#'* Status: '}
+        forgeflow_trim "$forgeflow_decision_status"
+        forgeflow_decision_status=$forgeflow_trimmed
+        ;;
+    esac
+  done <"$forgeflow_status_file"
+}
+
+# Resolves one referenced decision record next to the Story collection, so a
+# Story cannot depend on an architecture decision that does not exist or is no
+# longer usable. This is the cheapest useful architecture check, not a semantic
+# architecture engine.
+forgeflow_check_decision() {
+  forgeflow_decision_id=$1
+
+  case "$forgeflow_decision_id" in
+    ADR-*)
+      case "${forgeflow_decision_id#ADR-}" in
+        ''|*[!0-9]*)
+          forgeflow_story_fail "architecture decision must be ADR-<digits>: $forgeflow_decision_id"
+          return
+          ;;
+      esac
+      ;;
+    *)
+      forgeflow_story_fail "architecture decision must be ADR-<digits>: $forgeflow_decision_id"
+      return
+      ;;
+  esac
+
+  forgeflow_decision_file=
+  forgeflow_decision_matches=0
+
+  for forgeflow_decision_candidate in \
+    "$forgeflow_decisions_root/$forgeflow_decision_id.md" \
+    "$forgeflow_decisions_root/$forgeflow_decision_id"-*.md
+  do
+    [ -f "$forgeflow_decision_candidate" ] || continue
+    if [ -L "$forgeflow_decision_candidate" ]; then
+      continue
+    fi
+    forgeflow_decision_matches=$((forgeflow_decision_matches + 1))
+    forgeflow_decision_file=$forgeflow_decision_candidate
+  done
+
+  if [ "$forgeflow_decision_matches" -eq 0 ]; then
+    forgeflow_story_fail "referenced decision record does not exist: $forgeflow_decision_id"
+    return
+  fi
+
+  if [ "$forgeflow_decision_matches" -gt 1 ]; then
+    forgeflow_story_fail "referenced decision resolves to more than one record: $forgeflow_decision_id"
+    return
+  fi
+
+  if [ ! -r "$forgeflow_decision_file" ] || [ ! -s "$forgeflow_decision_file" ]; then
+    forgeflow_story_fail "referenced decision record is unreadable: $forgeflow_decision_id"
+    return
+  fi
+
+  forgeflow_read_decision_status "$forgeflow_decision_file"
+
+  if [ "$forgeflow_decision_status_count" -ne 1 ]; then
+    forgeflow_story_fail "referenced decision must declare Status exactly once: $forgeflow_decision_id"
+    return
+  fi
+
+  case "$forgeflow_decision_status" in
+    accepted) return ;;
+    proposed)
+      case "$forgeflow_task_mode" in
+        architecture|mixed) return ;;
+      esac
+      forgeflow_story_fail "referenced decision is still proposed: $forgeflow_decision_id"
+      return
+      ;;
+    superseded|rejected)
+      forgeflow_story_fail "referenced decision is not usable ($forgeflow_decision_status): $forgeflow_decision_id"
+      return
+      ;;
+    *)
+      forgeflow_story_fail "referenced decision declares an unknown status: $forgeflow_decision_id"
+      return
+      ;;
+  esac
+}
+
+forgeflow_check_governance() {
+  forgeflow_task_mode=execution
+  forgeflow_task_mode_count=0
+  forgeflow_authority_seen=
+  forgeflow_impact=low
+  forgeflow_impact_count=0
+  forgeflow_decisions=' '
+  forgeflow_decision_count=0
+  forgeflow_boundaries=$forgeflow_unit_separator
+  forgeflow_boundary_count=0
+  forgeflow_contract_count=0
+  forgeflow_owners=
+  forgeflow_owner_count=0
+  forgeflow_risk_level=low
+  forgeflow_risk_level_count=0
+  forgeflow_reasons=
+  forgeflow_reason_count=0
+
+  forgeflow_scan_section "$forgeflow_story_file" '## Classification' \
+    forgeflow_task_mode_bullet
+
+  if [ "$forgeflow_task_mode_count" -gt 1 ]; then
+    forgeflow_story_fail 'Classification must declare "Task mode" at most once'
+    forgeflow_task_mode=execution
+  elif [ "$forgeflow_task_mode_count" -eq 1 ]; then
+    case "$forgeflow_task_mode" in
+      architecture|execution|evidence|mixed) ;;
+      *)
+        forgeflow_story_fail 'Task mode must be architecture, execution, evidence, or mixed'
+        forgeflow_task_mode=execution
+        ;;
+    esac
+  fi
+
+  forgeflow_authority_plan=yes
+  forgeflow_authority_add_dependency=no
+  forgeflow_authority_migration=no
+  forgeflow_authority_commit=no
+  forgeflow_authority_push=no
+  forgeflow_authority_deploy=no
+  case "$forgeflow_task_mode" in
+    execution|mixed) forgeflow_authority_modify=yes ;;
+    *) forgeflow_authority_modify=no ;;
+  esac
+
+  forgeflow_scan_section "$forgeflow_story_file" '## Authority' \
+    forgeflow_authority_bullet
+
+  if [ "$forgeflow_section_count" -gt 1 ]; then
+    forgeflow_story_fail 'Story must declare ## Authority at most once'
+  fi
+
+  # An agent being able to perform an operation is not authorization to perform
+  # it, and one grant never implies the next one along the chain.
+  if [ "$forgeflow_authority_deploy" = yes ] &&
+    [ "$forgeflow_authority_push" != yes ]; then
+    forgeflow_story_fail 'authority grants deploy without push'
+  fi
+
+  if [ "$forgeflow_authority_push" = yes ] &&
+    [ "$forgeflow_authority_commit" != yes ]; then
+    forgeflow_story_fail 'authority grants push without commit'
+  fi
+
+  if [ "$forgeflow_authority_commit" = yes ] &&
+    [ "$forgeflow_authority_modify" != yes ]; then
+    forgeflow_story_fail 'authority grants commit without modify'
+  fi
+
+  if [ "$forgeflow_task_mode" = evidence ]; then
+    for forgeflow_mutating_operation in \
+      modify add_dependency migration commit push deploy
+    do
+      eval "forgeflow_mutating_value=\$forgeflow_authority_$forgeflow_mutating_operation"
+      if [ "$forgeflow_mutating_value" = yes ]; then
+        forgeflow_story_fail "evidence task mode must not authorize $forgeflow_mutating_operation"
+      fi
+    done
+  fi
+
+  forgeflow_scan_section "$forgeflow_story_file" '## Architecture' \
+    forgeflow_architecture_bullet
+  forgeflow_architecture_sections=$forgeflow_section_count
+
+  if [ "$forgeflow_architecture_sections" -gt 1 ]; then
+    forgeflow_story_fail 'Story must declare ## Architecture at most once'
+  fi
+
+  if [ "$forgeflow_impact_count" -gt 1 ]; then
+    forgeflow_story_fail 'Architecture must declare "Impact" at most once'
+    forgeflow_impact=low
+  elif [ "$forgeflow_impact_count" -eq 1 ]; then
+    case "$forgeflow_impact" in
+      low|medium|high) ;;
+      *)
+        forgeflow_story_fail 'Architecture impact must be low, medium, or high'
+        forgeflow_impact=low
+        ;;
+    esac
+  fi
+
+  case "$forgeflow_impact" in
+    medium|high)
+      if [ "$forgeflow_decision_count" -eq 0 ] &&
+        [ "$forgeflow_contract_count" -eq 0 ]; then
+        forgeflow_story_fail "architecture impact $forgeflow_impact must name at least one decision or contract"
+      fi
+      ;;
+  esac
+
+  for forgeflow_referenced_decision in $forgeflow_decisions
+  do
+    forgeflow_check_decision "$forgeflow_referenced_decision"
+  done
+
+  forgeflow_owner_rest=$forgeflow_owners
+  while [ -n "$forgeflow_owner_rest" ]; do
+    forgeflow_owner_entry=${forgeflow_owner_rest%%"$forgeflow_unit_separator"*}
+    forgeflow_owner_rest=${forgeflow_owner_rest#*"$forgeflow_unit_separator"}
+
+    case "$forgeflow_owner_entry" in
+      *' = '*) ;;
+      *)
+        forgeflow_story_fail "architecture owner must be stated as <boundary> = <owner>: $forgeflow_owner_entry"
+        continue
+        ;;
+    esac
+
+    forgeflow_owned_boundary=${forgeflow_owner_entry%%' = '*}
+    forgeflow_owning_domain=${forgeflow_owner_entry#*' = '}
+
+    if [ -z "$forgeflow_owning_domain" ]; then
+      forgeflow_story_fail "architecture owner names no owning domain: $forgeflow_owner_entry"
+      continue
+    fi
+
+    case "$forgeflow_boundaries$forgeflow_unit_separator" in
+      *"$forgeflow_unit_separator$forgeflow_owned_boundary$forgeflow_unit_separator"*) ;;
+      *)
+        forgeflow_story_fail "architecture owner names an undeclared boundary: $forgeflow_owned_boundary"
+        ;;
+    esac
+  done
+
+  forgeflow_scan_section "$forgeflow_story_file" '## Risk' forgeflow_risk_bullet
+
+  if [ "$forgeflow_section_count" -gt 1 ]; then
+    forgeflow_story_fail 'Story must declare ## Risk at most once'
+  fi
+
+  if [ "$forgeflow_risk_level_count" -gt 1 ]; then
+    forgeflow_story_fail 'Risk must declare "Level" at most once'
+    forgeflow_risk_level=low
+  elif [ "$forgeflow_risk_level_count" -eq 1 ]; then
+    case "$forgeflow_risk_level" in
+      low|medium|high) ;;
+      *)
+        forgeflow_story_fail 'Risk level must be low, medium, or high'
+        forgeflow_risk_level=low
+        ;;
+    esac
+  fi
+
+  case "$forgeflow_risk_level" in
+    medium|high)
+      [ "$forgeflow_reason_count" -gt 0 ] ||
+        forgeflow_story_fail "risk level $forgeflow_risk_level must name at least one reason"
+      ;;
+  esac
+
+  # Risk raises inspection and verification depth; it never widens scope. A
+  # recognized high-risk signal may therefore not be filed as lower risk.
+  if [ "$forgeflow_risk_level" != high ]; then
+    for forgeflow_declared_reason in $forgeflow_reasons
+    do
+      case " $forgeflow_high_risk_signals " in
+        *" $forgeflow_declared_reason "*)
+          forgeflow_story_fail "risk reason $forgeflow_declared_reason is a high-risk signal but the level is $forgeflow_risk_level"
+          ;;
+      esac
+    done
+  fi
+}
+
 forgeflow_check_story() {
   forgeflow_story_directory=$1
   forgeflow_story_label=$forgeflow_story_directory
@@ -792,6 +1288,9 @@ forgeflow_check_story() {
   if [ "$forgeflow_ready" -eq 1 ]; then
     forgeflow_check_readiness
   fi
+
+  forgeflow_decisions_root="$forgeflow_story_directory/../../decisions"
+  forgeflow_check_governance
 
   forgeflow_read_declaration \
     "$forgeflow_story_file" '## Classification' 'Security sensitive'
@@ -886,6 +1385,9 @@ forgeflow_check_story() {
 
 forgeflow_cr=$(printf '\r')
 forgeflow_tab=$(printf '\t')
+forgeflow_unit_separator=$(printf '\036')
+forgeflow_authority_keys='plan modify add_dependency migration commit push deploy'
+forgeflow_high_risk_signals='authentication authorization security payment payments schema-migration data-loss public-contract concurrency production-config dependency-supply-chain destructive-operation'
 forgeflow_matrix_header_row='| Source field | Payload | Expected result | Persisted locations | Verification |'
 forgeflow_evidence_header_row='| AC | Method | Evidence | Fixture / precondition | Expected observation |'
 forgeflow_ready=0

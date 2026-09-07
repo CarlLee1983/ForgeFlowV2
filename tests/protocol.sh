@@ -108,6 +108,8 @@ for forgeflow_required_file in \
   guidance/PRACTICES.md \
   protocol/story.md \
   protocol/verification.md \
+  protocol/execution.md \
+  protocol/architecture.md \
   protocol/lifecycle.md \
   protocol/handoff.md \
   protocol/repository-contract.md \
@@ -117,14 +119,17 @@ for forgeflow_required_file in \
   templates/story/story.md \
   templates/story/acceptance.md \
   templates/story/task.md \
+  templates/story/verification.md \
+  templates/decision.md \
   templates/handoff.md \
   templates/ci/github-actions.yml \
   docs/code-quality.md \
   docs/concepts.md \
   docs/contract-checks.md \
+  docs/execution-governance.md \
   docs/doctor.md \
   docs/getting-started.md \
-  docs/releases/0.4.1.md \
+  docs/releases/0.5.0.md \
   docs/releasing.md \
   examples/typescript/Makefile \
   examples/typescript/scripts/check-traceability.sh \

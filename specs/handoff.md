@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: FF-223
+  current_story: FF-224
   next_story: pending
   completed_stories:
     - FF-201
@@ -37,10 +37,43 @@ workflow:
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: ff-223-engineering-guidance-release
-  commit: b7d6a0174bc84e2e765a46212dd449e1da53b2a1
-  dirty_worktree: false
-  story_owned_paths: []
+  branch: main
+  commit: 4b48d30e276fd6b65a951ea357fdec335471c54b
+  dirty_worktree: true
+  story_owned_paths:
+    - AGENTS.md
+    - Makefile
+    - README.md
+    - VERSION
+    - docs/contract-checks.md
+    - docs/doctor.md
+    - docs/execution-governance.md
+    - docs/releases/0.5.0.md
+    - docs/upgrading.md
+    - docs/concepts.md
+    - protocol/architecture.md
+    - protocol/execution.md
+    - protocol/lifecycle.md
+    - protocol/story.md
+    - protocol/verification.md
+    - protocol/versioning.md
+    - scripts/story-check
+    - scripts/verification-check
+    - skills/story-development/SKILL.md
+    - specs/decisions/ADR-001-execution-governance-in-the-story-contract.md
+    - specs/handoff.md
+    - specs/stories/FF-224-execution-governance/acceptance.md
+    - specs/stories/FF-224-execution-governance/story.md
+    - specs/stories/FF-224-execution-governance/task.md
+    - specs/stories/FF-224-execution-governance/verification.md
+    - templates/AGENTS.md
+    - templates/decision.md
+    - templates/story/story.md
+    - templates/story/verification.md
+    - tests/execution-governance.sh
+    - tests/human-review.sh
+    - tests/portability.sh
+    - tests/protocol.sh
   known_unrelated_paths: []
 
 verification:
@@ -50,6 +83,25 @@ verification:
 
 ## Notes
 
+* FF-224 implements execution governance and evidence-backed completion as the
+  Additive protocol version `0.5.0`. Task mode, authority, architecture
+  metadata, and risk are optional Story declarations; `specs/decisions/` holds
+  ForgeFlow-native decision records; `scripts/verification-check` resolves the
+  execution contract and judges a recorded `verification.md`. Every existing
+  Story resolves to the documented defaults and keeps its previous verdict.
+* The baseline commit is the last committed state; every listed path is this
+  Story's own uncommitted work. FF-224 deliberately changes one baseline
+  behavior — the canonical `verify` dependency list pinned by
+  `tests/portability.sh` FF220-AC-001 — and its `## Superseded Behavior`
+  records that.
+* Full `make verify` passed on this tree, as did
+  `make verify-portability` under `/bin/sh` and `/bin/dash`. Human Review has
+  not seen FF-224 yet.
+* Carl authorized commit on 2026-09-07. The Story's `## Authority` was updated
+  from `commit: no` to `commit: yes` and `verification.md` records `commit`
+  under `## Authority Used`, so the granted and used authority agree rather than
+  the operation being performed outside the declaration. `push` and `deploy`
+  remain `no`, and no release is authorized.
 * Carl accepted FF-223 on 2026-09-07 and authorized commit and full release.
   PR #14 merged at `68d4a0b9a7127ed2ae80b82e28ec2ba0ec81da34` on 2026-09-07,
   but GitHub currently reports `REVIEW_REQUIRED`, so FF-223 remains in REVIEW.
