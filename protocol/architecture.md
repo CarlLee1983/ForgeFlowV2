@@ -94,11 +94,27 @@ declared artifact, and a reported result composed into the same
 parallel rule engine.
 
 The `architecture` layer in a [verification profile](verification.md#verification-profiles)
-is the extension point for the checks that do require analysis: dependency
-direction validation, forbidden imports, layer boundaries, public contract
-drift, and architecture drift. ForgeFlow does not implement them, and a
-repository that has such a checker places it behind `make verify` like any other
-check.
+is the extension point for the five checks that require analysing source code:
+
+* dependency direction validation
+* forbidden imports
+* layer boundaries
+* public interface drift
+* architecture drift
+
+ForgeFlow does not implement them, and it does not intend to.
+This is a scope boundary, not a schedule: they belong to the adopting
+repository, which places its own checker behind `make verify` like any other
+check and records the `architecture` layer as `unsupported` with a residual
+risk when it has none.
+[ADR-003](../specs/decisions/ADR-003-forgeflow-does-not-analyze-architecture.md)
+records that decision, what it costs, and the condition that would overturn it.
+
+`public interface drift` above means an exported interface changing between
+versions. It is unrelated to Doctor's `CONTRACT_DRIFT` result, which reports
+adoption marker, Story, handoff, and Guidance drift and is described in
+[Repository Doctor](../docs/doctor.md). The two share no vocabulary beyond the
+word.
 
 Whether a declared boundary is the right boundary remains Human Review's
 judgment.

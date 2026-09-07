@@ -130,7 +130,7 @@ for forgeflow_required_file in \
   docs/execution-governance.md \
   docs/doctor.md \
   docs/getting-started.md \
-  docs/releases/0.5.1.md \
+  docs/releases/0.5.2.md \
   docs/releasing.md \
   examples/typescript/Makefile \
   examples/typescript/scripts/check-traceability.sh \
@@ -155,6 +155,57 @@ do
     fail "required artifact is missing or empty: $forgeflow_required_file"
   fi
 done
+
+# FF226-AC-001, FF226-AC-003 and FF226-AC-006. The five analysis checks are a
+# stated non-goal, and the failure this guards is a restatement that renames an
+# entry, drops one, or reverts to calling them planned work.
+forgeflow_analysis_checks='dependency direction validation
+forbidden imports
+layer boundaries
+public interface drift
+architecture drift'
+
+for forgeflow_vocabulary_file in \
+  protocol/architecture.md \
+  protocol/versioning.md \
+  docs/code-quality.md
+do
+  printf '%s\n' "$forgeflow_analysis_checks" | while IFS= read -r forgeflow_term
+  do
+    [ -n "$forgeflow_term" ] || continue
+    grep -Fq "$forgeflow_term" "$forgeflow_repo/$forgeflow_vocabulary_file" ||
+      fail "$forgeflow_vocabulary_file omits the analysis check: $forgeflow_term"
+  done
+
+  if grep -Fq 'future extensions' "$forgeflow_repo/$forgeflow_vocabulary_file"; then
+    fail "$forgeflow_vocabulary_file still calls the analysis checks future work"
+  fi
+done
+
+grep -Fq 'scope boundary, not a schedule' "$forgeflow_repo/protocol/architecture.md" ||
+  fail 'architecture contract does not state the non-goal as a boundary'
+grep -Fq 'ADR-003' "$forgeflow_repo/protocol/architecture.md" ||
+  fail 'architecture contract does not reference the decision record'
+grep -Fq "unrelated to Doctor's \`CONTRACT_DRIFT\`" \
+  "$forgeflow_repo/protocol/architecture.md" ||
+  fail 'architecture contract does not distinguish the two drift meanings'
+
+# Doctor keeps the shipped meaning of CONTRACT_DRIFT; only the architectural
+# sense moved.
+grep -Fq 'CONTRACT_DRIFT' "$forgeflow_repo/docs/doctor.md" ||
+  fail 'Doctor documentation lost its CONTRACT_DRIFT result'
+if grep -Fq 'public interface drift' "$forgeflow_repo/docs/doctor.md"; then
+  fail 'Doctor documentation adopted the architectural drift term'
+fi
+
+# The published 0.5.0 notes are a historical record and stay byte-identical.
+forgeflow_published_notes=$(cksum <"$forgeflow_repo/docs/releases/0.5.0.md")
+if [ "$forgeflow_published_notes" != '1961408805 2836' ]; then
+  fail 'docs/releases/0.5.0.md was edited; published release notes are a record'
+fi
+
+grep -Fq '**Corrective** for `0.5.2`' "$forgeflow_repo/protocol/versioning.md" ||
+  fail 'versioning omits the FF-226 classification'
 
 if ! valid_version_file "$forgeflow_repo/VERSION"; then
   fail 'VERSION must contain one MAJOR.MINOR.PATCH value'

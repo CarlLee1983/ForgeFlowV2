@@ -234,9 +234,20 @@ absence does not invalidate an adoption, and `make verify` in an adopting
 repository is not required to call it.
 
 The `architecture` verification layer is deliberately a resolution check only.
-Dependency-direction validation, forbidden imports, layer boundaries, and
-contract-drift analysis are named as future extensions and are not implemented,
-so no adopter can depend on them yet.
+The five checks that require analysing source code are deliberately out of scope
+for ForgeFlow rather than planned for it, so no adopter can depend on ForgeFlow
+supplying them:
+
+* dependency direction validation
+* forbidden imports
+* layer boundaries
+* public interface drift
+* architecture drift
+
+See
+[Architecture](architecture.md) for the boundary and
+[ADR-003](../specs/decisions/ADR-003-forgeflow-does-not-analyze-architecture.md)
+for the decision.
 
 FF-225 Codex project activation is **Additive** for `0.5.1`: an explicit opt-in
 installer, `scripts/codex-activate`, adds a pinned repository-local skill under
@@ -260,6 +271,14 @@ and rollback.
 Skills remain optional guidance. The integration supplies no tool interception
 and no mechanical gate: `make verify`, CI policy, and Human Review stay the
 enforcement boundaries.
+
+FF-226 is **Corrective** for `0.5.2`: the five analysis checks are now named
+identically wherever they are listed, `architecture drift` is no longer dropped
+from a restatement, the position is stated as a scope boundary rather than as
+future work, and the architectural sense of contract drift is renamed `public
+interface drift` to end a collision with Doctor's unrelated `CONTRACT_DRIFT`
+result. `ADR-003` records the decision. No command form, result name, exit
+status, or verdict changes, and no adopter migration is required.
 
 ## Repository release readiness
 

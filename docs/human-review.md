@@ -96,7 +96,10 @@ Where the repository defines architecture rules, ask:
 * Does the implementation preserve existing module boundaries?
 
 When an architecture restriction can be checked deterministically, a later
-change should encode it as an architecture test behind `make verify`.
+change should encode it as an architecture check behind `make verify`. That
+checker is the repository's to build: ForgeFlow records and resolves
+architecture declarations and does not analyse source, as
+[Architecture](../protocol/architecture.md) states.
 
 Use SOLID as contextual prompts, not as a demand that every language or change
 adopt the same class structure:

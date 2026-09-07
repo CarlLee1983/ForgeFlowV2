@@ -31,7 +31,7 @@ rule change to Human Review as an explicit repository-policy decision.
 | --- | --- |
 | Formatting | A formatter can completely constrain mechanically representable style. |
 | Static quality | Linters, type checkers, unused-code checks, and repository-chosen complexity rules. |
-| Architecture | Dependency boundaries, forbidden imports, and architecture tests. |
+| Architecture | ForgeFlow supplies none of these; the repository does: dependency direction validation, forbidden imports, layer boundaries, public interface drift, and architecture drift. See [Architecture](../protocol/architecture.md). |
 | Design judgment | Human Review of naming quality, reasonable abstractions, single responsibility, and other context-dependent trade-offs. |
 
 An LLM code review may advise Human Review, but it is not a deterministic

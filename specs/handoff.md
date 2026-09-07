@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: none
+  current_story: FF-226
   next_story: pending
   completed_stories:
     - FF-201
@@ -36,17 +36,30 @@ workflow:
     - FF-223
     - FF-224
     - FF-225
-  status: done
+  status: implementing
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: ff-225-release-record
-  commit: fe133421c15965935ff215827c24d3078b531f85
+  branch: ff-226-architecture-analysis-non-goal
+  commit: 4db49e226ed6b39d1b230a944af6112c6d101208
   dirty_worktree: true
   story_owned_paths:
+    - VERSION
+    - docs/code-quality.md
+    - docs/doctor.md
+    - docs/human-review.md
+    - docs/releases/0.5.2.md
+    - protocol/architecture.md
+    - protocol/versioning.md
+    - scripts/verification-check
+    - specs/decisions/ADR-003-forgeflow-does-not-analyze-architecture.md
     - specs/handoff.md
-    - specs/stories/FF-225-codex-project-activation/story.md
-    - specs/stories/FF-225-codex-project-activation/verification.md
+    - specs/stories/FF-226-architecture-analysis-non-goal/acceptance.md
+    - specs/stories/FF-226-architecture-analysis-non-goal/story.md
+    - specs/stories/FF-226-architecture-analysis-non-goal/verification.md
+    - tests/execution-governance.sh
+    - tests/human-review.sh
+    - tests/protocol.sh
   known_unrelated_paths: []
 
 verification:
@@ -58,6 +71,24 @@ verification:
 
 * The baseline above is the complete FF-225 implementation commit. This
   handoff-only follow-up records it and is the single remaining dirty path.
+* FF-226 is IMPLEMENTED and awaiting Human Review, on branch
+  `ff-226-architecture-analysis-non-goal`. `./scripts/verification-check --result` reports
+  `VERIFICATION_PASS`, 7 of 7 criteria traced. Authority used is `plan`, `modify`,
+  `commit`, and `push`; `deploy` remains `no`.
+* FF-226 states that the five source-analysis checks are a scope boundary rather
+  than deferred work, gives them one vocabulary and one complete list, renames
+  the architectural sense of contract drift to `public interface drift` to end a
+  collision with Doctor's unrelated `CONTRACT_DRIFT`, replaces an assertion that
+  did not pin the paragraph it protected, and removes unread architecture
+  accumulation from `scripts/verification-check`. Corrective for `0.5.2`.
+* The Story exists because a request to "implement those four checks" could not
+  be answered from any record. `ADR-003` now carries that decision and is
+  deliberately still `proposed`: the Story records the decision and does not
+  accept it. Accepting it is a separate human act, and the `mixed` task mode is
+  the only reason a proposed record may be referenced at all.
+* `docs/releases/0.5.0.md` is deliberately unedited and pinned by `cksum` in
+  `tests/protocol.sh`. Published release notes record what was said at the time;
+  the correction is stated in `docs/releases/0.5.2.md` so both remain readable.
 * FF-225 is DONE and published as `0.5.1`. Carl reviewed PR #17, merged it, and
   then directed the release, which is the Human Review decision the lifecycle
   requires; the merge-policy half is satisfied by the merge itself. Selection of
