@@ -85,8 +85,13 @@ verification:
   `b7d6a0174bc84e2e765a46212dd449e1da53b2a1`. This handoff-only follow-up records that baseline;
   the release candidate is clean after committing this record. `make verify` passed after the implementation and
   behavioral corrections; the final declaration-only evidence and handoff
-  updates are attributed here and checked narrowly. FF-223 is in REVIEW, while
-  FF-222 remains in REVIEW and is not added to completed Stories.
+  updates are attributed here and checked narrowly. FF-223 is in REVIEW.
+* Correction: an earlier note here claimed FF-222 remained in REVIEW and was not
+  recorded as completed, which contradicted this handoff's own lifecycle block.
+  FF-222 is DONE. PR #11 merged as
+  `998c63fd6b530b9b15ced35a4a118b41916c79fa` on 2026-09-05, the remote
+  annotated tag `v0.4.0` peels to that exact commit, and it is an ancestor of
+  this branch. Verified on 2026-09-07; remote state stays time-sensitive.
 
 ## Historical FF-222 and release notes
 
