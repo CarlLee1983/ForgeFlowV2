@@ -37,38 +37,9 @@ workflow:
 baseline:
   repository: CarlLee1983/ForgeFlowV2
   branch: ff-223-engineering-guidance-release
-  commit: 998c63fd6b530b9b15ced35a4a118b41916c79fa
-  dirty_worktree: true
-  story_owned_paths:
-    - AGENTS.md
-    - README.md
-    - VERSION
-    - docs/concepts.md
-    - docs/doctor.md
-    - docs/getting-started.md
-    - docs/releases/0.4.1.md
-    - docs/upgrading.md
-    - guidance/DECISIONS.md
-    - guidance/ENTRY.md
-    - guidance/PRACTICES.md
-    - guidance/PRINCIPLES.md
-    - protocol/repository-contract.md
-    - protocol/story.md
-    - protocol/versioning.md
-    - scripts/bootstrap
-    - scripts/doctor
-    - skills/story-development/SKILL.md
-    - specs/handoff.md
-    - specs/stories/FF-223-engineering-guidance-layer/acceptance.md
-    - specs/stories/FF-223-engineering-guidance-layer/story.md
-    - specs/stories/FF-223-engineering-guidance-layer/task.md
-    - templates/AGENTS.md
-    - templates/story/story.md
-    - tests/bootstrap.sh
-    - tests/doctor.sh
-    - tests/human-review.sh
-    - tests/protocol.sh
-    - tests/story-check.sh
+  commit: b7d6a0174bc84e2e765a46212dd449e1da53b2a1
+  dirty_worktree: false
+  story_owned_paths: []
   known_unrelated_paths: []
 
 verification:
@@ -89,9 +60,9 @@ verification:
   Fresh bootstrap and explicit `--force` seed its four files; `--upgrade` never
   reads or writes repository/team-owned Guidance. Doctor reports absent Guidance
   as optional, a present partial baseline as drift, and unsafe paths as errors.
-  The current baseline is pre-FF-223 HEAD
-  `998c63fd6b530b9b15ced35a4a118b41916c79fa`; the owned dirty paths above are
-  this uncommitted feature. `make verify` passed after the implementation and
+  The baseline is the complete accepted implementation commit
+  `b7d6a0174bc84e2e765a46212dd449e1da53b2a1`. This handoff-only follow-up records that baseline;
+  the release candidate is clean after committing this record. `make verify` passed after the implementation and
   behavioral corrections; the final declaration-only evidence and handoff
   updates are attributed here and checked narrowly. FF-223 is in REVIEW, while
   FF-222 remains in REVIEW and is not added to completed Stories.
