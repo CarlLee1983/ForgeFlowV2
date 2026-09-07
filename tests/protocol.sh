@@ -3,8 +3,15 @@
 set -eu
 
 fail() {
-  printf 'protocol test failed: %s\n' "$1" >&2
+  printf 'protocol test failed [%s]: %s\n' "${forgeflow_case_id:-top-level}" "$1" >&2
   exit 1
+}
+
+run_case() {
+  forgeflow_case_id=$1
+  forgeflow_case_function=$2
+  "$forgeflow_case_function"
+  printf 'PASS %s %s\n' "$forgeflow_case_id" "$forgeflow_case_function"
 }
 
 forgeflow_repo=$(
@@ -95,6 +102,10 @@ for forgeflow_required_file in \
   .node-version \
   .github/workflows/verify.yml \
   README.md \
+  guidance/ENTRY.md \
+  guidance/PRINCIPLES.md \
+  guidance/DECISIONS.md \
+  guidance/PRACTICES.md \
   protocol/story.md \
   protocol/verification.md \
   protocol/lifecycle.md \
@@ -113,6 +124,7 @@ for forgeflow_required_file in \
   docs/contract-checks.md \
   docs/doctor.md \
   docs/getting-started.md \
+  docs/releases/0.4.1.md \
   docs/releasing.md \
   examples/typescript/Makefile \
   examples/typescript/scripts/check-traceability.sh \
@@ -580,5 +592,53 @@ grep -Fqx 'MIT License' "$forgeflow_repo/LICENSE" ||
 
 grep -Fq '[MIT License](LICENSE)' "$forgeflow_repo/README.md" ||
   fail 'README does not link to the MIT License'
+
+guidance_baseline_artifacts_are_selective_and_advisory() {
+  for forgeflow_guidance_file in ENTRY.md PRINCIPLES.md DECISIONS.md PRACTICES.md
+  do
+    [ -s "$forgeflow_repo/guidance/$forgeflow_guidance_file" ] ||
+      fail "guidance baseline is missing: $forgeflow_guidance_file"
+  done
+  for forgeflow_guidance_term in \
+    'Load only' \
+    'Human Review' \
+    'Small coherent changes' \
+    'Root cause' \
+    'D-001 Example Decision' \
+    'Repair loop'
+  do
+    grep -Fq "$forgeflow_guidance_term" "$forgeflow_repo/guidance/ENTRY.md" \
+      "$forgeflow_repo/guidance/PRINCIPLES.md" \
+      "$forgeflow_repo/guidance/DECISIONS.md" \
+      "$forgeflow_repo/guidance/PRACTICES.md" ||
+      fail "guidance baseline omits: $forgeflow_guidance_term"
+  done
+}
+
+guidance_contract_and_agent_flow_are_documented() {
+  for forgeflow_guidance_document in \
+    protocol/story.md \
+    templates/story/story.md \
+    AGENTS.md \
+    templates/AGENTS.md \
+    skills/story-development/SKILL.md
+  do
+    grep -Fq 'Guidance' "$forgeflow_repo/$forgeflow_guidance_document" ||
+      fail "$forgeflow_guidance_document omits Guidance"
+  done
+}
+
+guidance_authority_and_version_boundaries_are_documented() {
+  grep -Fq 'Intent != Guidance != Verification != Approval' \
+    "$forgeflow_repo/docs/concepts.md" || fail 'concepts omits Guidance boundary'
+  grep -Fq '**Additive** for `0.4.1`' "$forgeflow_repo/protocol/versioning.md" ||
+    fail 'versioning omits FF-223 additive classification'
+  grep -Fq 'agent runtime' "$forgeflow_repo/docs/concepts.md" ||
+    fail 'concepts omits agent-runtime boundary'
+}
+
+run_case 'FF223-AC-001' guidance_baseline_artifacts_are_selective_and_advisory
+run_case 'FF223-AC-005' guidance_contract_and_agent_flow_are_documented
+run_case 'FF223-AC-008' guidance_authority_and_version_boundaries_are_documented
 
 printf 'protocol tests passed\n'

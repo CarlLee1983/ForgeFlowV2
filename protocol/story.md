@@ -36,6 +36,8 @@ The Story records:
 - **Dependencies** — systems or prior work the Story relies on
 - **Classification** — whether the Story is security sensitive and whether it
   changes baseline behavior, each declared as `yes` or `no`
+- **Guidance** — optional human-readable references to relevant engineering
+  principles, decisions, or practices; never a product-requirement source
 - **Constraints** — non-negotiable technical, operational, or policy limits
 
 Two sections are conditional on the Classification:
@@ -51,6 +53,16 @@ Two sections are conditional on the Classification:
 
 Use [the Story template](../templates/story/story.md) as the canonical field
 layout.
+
+### Optional guidance
+
+A Story may include `## Guidance` with `Relevant:` and `Not applicable:` lists.
+References are deliberately human-readable and are not parsed or validated:
+relevance and engineering quality require judgment. Missing Guidance never makes
+a Story invalid, and a reference never adds an implicit acceptance criterion.
+Read only the relevant repository guidance after the approved Story and
+acceptance criteria. More specific, explicitly approved context takes precedence
+over generic guidance; surface a genuine unresolved conflict to Human Review.
 
 ## Acceptance
 

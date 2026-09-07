@@ -51,6 +51,20 @@ mandatory.
 
 *
 
+## Guidance
+
+<!-- Optional. Reference relevant engineering principles, decisions, or
+practices. Do not place product requirements here. Omit this section when no
+guidance is relevant. -->
+
+Relevant:
+
+* principle: <id>
+
+Not applicable:
+
+*
+
 ## Trust Boundary Fields
 
 Required when `Security sensitive: yes`; otherwise delete this section. Name

@@ -100,9 +100,12 @@ repository-owned `AGENTS.md`.
 
 ## What `--upgrade` never does
 
-`--upgrade` never creates, replaces, removes, or reads `AGENTS.md`. Once
-installed, the agent guide is owned by the adopting repository, and repositories
-customize it heavily.
+`--upgrade` never creates, replaces, removes, or reads `AGENTS.md` or
+`guidance/`. Once installed, the agent guide and Guidance are owned by the
+adopting repository, and repositories customize them heavily.
+
+Bootstrap never writes `AGENTS.md` in upgrade mode, and never reads or writes
+`guidance/` in that mode.
 
 The command reports that it left `AGENTS.md` alone. When the marker it found
 records a different protocol version from the templates it just installed, it
@@ -121,8 +124,9 @@ you perform and `scripts/story-check` verifies.
 
 An adoption marker upgraded to the current version does not mean
 repository-owned `AGENTS.md` is current. Bootstrap never merges or overwrites
-`AGENTS.md` in upgrade mode, so adopters manually compare the current
-`templates/AGENTS.md` and reconcile guidance that fits their repository:
+`AGENTS.md` or `guidance/` in upgrade mode, so adopters manually compare the
+current `templates/AGENTS.md` and opt in to baseline Guidance that fits their
+repository:
 
 * when upgrading to 0.3.3 or later, compare the Code Quality guidance;
 * when upgrading to 0.3.4 or later, compare Review Preparation and human-only
@@ -131,10 +135,15 @@ repository-owned `AGENTS.md` is current. Bootstrap never merges or overwrites
   verification freshness guidance; and
 * when upgrading to 0.4.0 or later, compare Acceptance Evidence guidance so
   agents plan a fixture or precondition and observable result for every AC.
+* when upgrading to 0.4.1 or later, optionally copy the four baseline files from
+  `guidance/` and reconcile them with repository/team decisions; do not replace
+  existing decisions or practices wholesale.
 
 This is a manual reconciliation step. A marker update proves only which managed
 Story-template snapshot bootstrap installed; it does not prove that the
-repository-owned guide carries the same guidance version.
+repository-owned guide or Guidance carries the same version. Doctor treats an
+absent `guidance/` directory as legacy-compatible; a present partial or blank
+baseline is reported as contract drift, and unsafe guidance paths are errors.
 
 ## Per-version migration steps
 

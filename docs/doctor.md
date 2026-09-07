@@ -44,6 +44,15 @@ owns its `Makefile` and its verification implementation. Bootstrap success
 means only that its managed files were installed; it is not Doctor success or
 verification success.
 
+Guidance is optional. Static mode does not follow `guidance/` symlinks. An
+absent directory reports `Guidance: OPTIONAL_LEGACY`, even when an adoption
+marker records a newer version. A present directory reports
+`GUIDANCE_BASELINE_OK` only when its four baseline files are readable,
+non-blank regular files; missing or blank files report `GUIDANCE_INCOMPLETE` as
+non-blocking contract drift. A symlinked, unreadable, or unsearchable Guidance
+path reports `ERROR` and exit `2`. Static mode never evaluates reference
+relevance or guidance quality, and `--run-verify` output remains unchanged.
+
 Doctor resolves a requested repository-root symlink to its physical directory.
 It does not follow a symlink at a required path inside that root: `AGENTS.md`,
 `specs/`, `specs/stories/`, or `Makefile` produces `ERROR`, because that
@@ -66,12 +75,13 @@ target syntax remain `UNCONFIRMED`; an unconfirmed result never proves that
 
 Once the required structure is confirmed, static mode composes the two
 [contract checks](contract-checks.md) against the same repository and reports
-three more lines:
+four more lines:
 
 ```text
-Adopted version: 0.4.0
+Adopted version: 0.4.1
 Story contract: STORY_CONTRACT_OK
 Handoff: HANDOFF_CONTRACT_OK
+Guidance: GUIDANCE_BASELINE_OK
 ```
 
 `Adopted version:` is the `version` field of the FF-210 adoption marker
@@ -81,8 +91,13 @@ Handoff: HANDOFF_CONTRACT_OK
 `Handoff:` runs `scripts/handoff-check` on `specs/handoff.md`, and is
 `NOT_PRESENT` when that file does not exist.
 
-Three signals are drift: an adopted version different from this checkout's
-`VERSION`, `STORY_CONTRACT_INCOMPLETE`, and `HANDOFF_CONTRACT_INCOMPLETE`. Any
+`Guidance:` is `OPTIONAL_LEGACY` when absent, `GUIDANCE_BASELINE_OK` for the
+four-file baseline, or `GUIDANCE_INCOMPLETE` when a present baseline is partial
+or blank. It does not parse optional Story references.
+
+Four signals are drift: an adopted version different from this checkout's
+`VERSION`, `STORY_CONTRACT_INCOMPLETE`, `HANDOFF_CONTRACT_INCOMPLETE`, and
+`GUIDANCE_INCOMPLETE`. Any
 of them prints a `WARN` line and makes the result `CONTRACT_DRIFT` instead of
 `STRUCTURE_OK`. **Drift does not change the exit status**, which stays `0`:
 static mode reports what it found and never becomes a gate. A missing marker,
@@ -99,11 +114,11 @@ says so rather than blaming the target repository. Run Doctor from a checkout
 rather than through a symlink placed on `PATH`.
 
 When the required structure itself is incomplete, the checks do not run and all
-three lines report `NOT_CHECKED`. The three lines occupy the same position, just
+four lines report `NOT_CHECKED`. The four lines occupy the same position, just
 above the `Result:` block, in every outcome.
 
 Contract results are a static-mode capability. `--run-verify` output is
-otherwise unchanged: a structure failure reports the same three `NOT_CHECKED`
+otherwise unchanged: a structure failure reports the same four `NOT_CHECKED`
 lines in either mode, and a run that reaches verification reports none.
 
 ## Explicit local verification
@@ -146,9 +161,9 @@ In all Doctor outcomes, CI and merge policy remain `NOT_CHECKED`.
 
 | Evidence | What it means | What it does not mean |
 | --- | --- | --- |
-| Bootstrap success | The managed guide and Story-template files were installed. | The adopter-owned gate exists or adoption is complete. |
+| Bootstrap success | The managed guide, Guidance baseline, and Story-template files were installed. | The adopter-owned gate exists or adoption is complete. |
 | `STRUCTURE_OK` | Doctor could confirm the three required structural paths, and found no contract drift. | `make verify`, CI, or human review passed. |
-| `CONTRACT_DRIFT` | The structure is complete, but the Stories, handoff, or adopted version no longer match this checkout's protocol version. | The repository is broken, or that the drift blocks anything; the exit status is still `0`. |
+| `CONTRACT_DRIFT` | The structure is complete, but Stories, handoff, version, or a present Guidance baseline drift. | The repository is broken, or that the drift blocks anything; the exit status is still `0`. |
 | `VERIFIED_LOCAL` | The repository-configured automated gate returned zero in that local execution. | CI passed, the tests are sufficient, or the change may merge. |
 | Human review | A person evaluates requirements, design, and test sufficiency. | Repository merge policy has automatically been satisfied. |
 | Merge decision | The repository's own policy permits the reviewed change to merge. | Doctor made or automated that decision. |

@@ -25,16 +25,26 @@ specs/
 - `make verify` runs every automated check required before human review.
 
 The [bootstrap script](../scripts/bootstrap) installs the agent guide, Story
-templates, and a `specs/.forgeflow-adoption` marker recording the copied
+templates, optional Guidance baseline, and a `specs/.forgeflow-adoption` marker recording the copied
 protocol snapshot. Each repository still owns its Makefile and
 technology-specific setup.
+
+## Optional engineering guidance
+
+Fresh bootstrap installs `guidance/ENTRY.md`, `PRINCIPLES.md`, `DECISIONS.md`,
+and `PRACTICES.md`. The directory becomes repository/team-owned knowledge: an
+upgrade never reads or writes it, while explicit `--force` replaces its four
+baseline files. An absent directory is legacy-compatible. If a directory is
+present, Doctor reports whether its four baseline files are complete without
+judging relevance or quality.
 
 ## Optional Repository Doctor
 
 [Repository Doctor](../docs/doctor.md) is an optional ForgeFlow command for
-inspecting an adoption. In its default static mode, it performs read-only checks
-of only a readable non-blank `AGENTS.md`, readable `specs/stories/`, and
-readable non-blank `Makefile`; it does not run `make`, target code, network
+inspecting an adoption. In its default static mode, it requires only a readable
+non-blank `AGENTS.md`, readable `specs/stories/`, and readable non-blank
+`Makefile`; when present, it also scans the optional Guidance baseline. It does
+not run `make`, target code, network
 operations, dependency installation, or Git mutations. It does not require a
 first Story, `_template/`, `task.md`, Skills, or CI configuration.
 
@@ -60,11 +70,12 @@ For implementation work:
 
 1. approved `story.md` and `acceptance.md` define product
    intent;
-2. repository guidance and architecture define local engineering constraints;
+2. specific repository guidance and architecture inform implementation judgment;
 3. repository tooling determines automated PASS or FAIL;
 4. human review decides whether verified work satisfies intent and may merge.
 
-When these sources conflict, stop at the smallest unresolved intent decision
+Guidance is advisory unless a repository makes a rule executable. When these
+sources conflict, stop at the smallest unresolved intent decision
 instead of silently changing requirements or bypassing verification.
 
 ## Portability boundary

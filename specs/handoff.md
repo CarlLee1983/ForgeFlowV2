@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: FF-222
+  current_story: FF-223
   next_story: pending
   completed_stories:
     - FF-201
@@ -36,11 +36,39 @@ workflow:
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: ff-222-acceptance-evidence-release
-  commit: 7327612397316a8d6bba9ed40a41df2e13197eb5
+  branch: ff-223-engineering-guidance-release
+  commit: 998c63fd6b530b9b15ced35a4a118b41916c79fa
   dirty_worktree: true
   story_owned_paths:
+    - AGENTS.md
+    - README.md
+    - VERSION
+    - docs/concepts.md
+    - docs/doctor.md
+    - docs/getting-started.md
+    - docs/releases/0.4.1.md
+    - docs/upgrading.md
+    - guidance/DECISIONS.md
+    - guidance/ENTRY.md
+    - guidance/PRACTICES.md
+    - guidance/PRINCIPLES.md
+    - protocol/repository-contract.md
+    - protocol/story.md
+    - protocol/versioning.md
+    - scripts/bootstrap
+    - scripts/doctor
+    - skills/story-development/SKILL.md
     - specs/handoff.md
+    - specs/stories/FF-223-engineering-guidance-layer/acceptance.md
+    - specs/stories/FF-223-engineering-guidance-layer/story.md
+    - specs/stories/FF-223-engineering-guidance-layer/task.md
+    - templates/AGENTS.md
+    - templates/story/story.md
+    - tests/bootstrap.sh
+    - tests/doctor.sh
+    - tests/human-review.sh
+    - tests/protocol.sh
+    - tests/story-check.sh
   known_unrelated_paths: []
 
 verification:
@@ -50,14 +78,35 @@ verification:
 
 ## Notes
 
+* Carl accepted FF-223 on 2026-09-07 and authorized commit and full release.
+  The implementation and its human-review evidence are accepted; FF-223 remains
+  in REVIEW until the required GitHub PR approval and merge policy are satisfied.
+  Publication of `v0.4.1` still requires the release runbook's clean-candidate,
+  exact-SHA CI, annotated-tag, and GitHub Release checks. No publication is
+  claimed here. Existing PR #12 tracks the previous release's completion records
+  separately and is not part of this change.
+* FF-223 implements the additive Engineering Guidance Layer Phase 1 as `0.4.1`.
+  Fresh bootstrap and explicit `--force` seed its four files; `--upgrade` never
+  reads or writes repository/team-owned Guidance. Doctor reports absent Guidance
+  as optional, a present partial baseline as drift, and unsafe paths as errors.
+  The current baseline is pre-FF-223 HEAD
+  `998c63fd6b530b9b15ced35a4a118b41916c79fa`; the owned dirty paths above are
+  this uncommitted feature. `make verify` passed after the implementation and
+  behavioral corrections; the final declaration-only evidence and handoff
+  updates are attributed here and checked narrowly. FF-223 is in REVIEW, while
+  FF-222 remains in REVIEW and is not added to completed Stories.
+
+## Historical FF-222 and release notes
+
 * Carl authorized commit and release on 2026-09-06. The release candidate
   includes FF-222 and the reviewed optional Agentic Discipline documentation.
   Acceptance review found trailing content accepted after the fifth evidence
   column and a test coupled to the live Story. Both are repaired; the new
   regression failed before the parser fix, and independent re-review confirmed
   both findings resolved. Full `make verify` passed after the fixes.
-* The baseline above is the complete implementation commit. This handoff-only
-  follow-up records that baseline and release authorization. FF-222 remains in
+* The historical FF-222 baseline was
+  `7327612397316a8d6bba9ed40a41df2e13197eb5`. Its handoff-only follow-up records
+  that baseline and release authorization. FF-222 remains in
   REVIEW until the repository's required PR approval and merge policy are
   satisfied. Local release readiness, exact-SHA CI, tag, and Release inspection
   remain required before publication; no publication is claimed here.

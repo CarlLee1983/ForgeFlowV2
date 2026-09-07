@@ -15,6 +15,11 @@ This creates:
 
 ```text
 AGENTS.md
+guidance/
+├── ENTRY.md
+├── PRINCIPLES.md
+├── DECISIONS.md
+└── PRACTICES.md
 specs/
 ├── .forgeflow-adoption
 └── stories/
@@ -38,8 +43,8 @@ Preview the same static safety and conflict checks without changing the target:
 ./scripts/bootstrap --force --dry-run /path/to/repository
 ```
 
-`--upgrade` moves an existing adoption to newer Story templates without writing
-`AGENTS.md`; it is documented in
+`--upgrade` moves an existing adoption to newer Story templates without reading
+or writing repository-owned `AGENTS.md` or `guidance/`; it is documented in
 [Upgrading an adopting repository](upgrading.md) and is mutually exclusive with
 `--force`.
 
@@ -56,8 +61,8 @@ directory and file symlinks and uses single-file atomic replacement plus
 atomic installation transaction or a sandbox for an actively hostile,
 concurrently mutated filesystem.
 
-Bootstrap success means only that the managed guide and Story-template files
-were installed. Bootstrap intentionally does not create a repository-owned
+Bootstrap success means only that the managed guide, optional Guidance baseline,
+and Story-template files were installed. Bootstrap intentionally does not create a repository-owned
 `Makefile`, call Doctor, run `make verify`, review the result, or authorize a
 merge.
 
@@ -148,8 +153,10 @@ Give any coding agent a bounded request:
 Implement Story ORD-123. Follow AGENTS.md and run make verify.
 ```
 
-The agent reads the Story, inspects the repository, implements the smallest
-coherent change, adds tests, and runs the canonical gate.
+The agent reads the Story and acceptance criteria, then reads `guidance/ENTRY.md`
+when available and loads only relevant Guidance before inspecting the repository,
+implementing the smallest coherent change, adding tests, and running the
+canonical gate. Guidance is advisory; the approved Story remains canonical.
 
 ## 6. Verify and repair
 

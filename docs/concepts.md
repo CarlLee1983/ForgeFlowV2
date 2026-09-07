@@ -1,6 +1,6 @@
 # ForgeFlow Concepts
 
-ForgeFlow separates intent, implementation, verification, and approval so an AI
+ForgeFlow separates intent, guidance, implementation, verification, and approval so an AI
 agent can be replaced without replacing the development process.
 
 ## Protocol first
@@ -25,6 +25,23 @@ rules, expected errors, constraints, and acceptance criteria. Small Stories
 reduce ambiguity and make failure diagnosis local.
 
 See [the Story Contract](../protocol/story.md).
+
+## Intent != Guidance != Verification != Approval
+
+These boundaries are intentionally separate:
+
+| Layer | Purpose | Authority limit |
+| --- | --- | --- |
+| Story | Defines the approved product outcome. | It is the product-intent authority. |
+| Guidance | Captures reusable engineering judgment. | It is selective and advisory, never hidden ACs. |
+| Verification | Produces deterministic mechanical evidence through `make verify`. | PASS does not prove design quality. |
+| Human Review | Evaluates product, design, and architecture fit. | It is the final judgment. |
+
+Agents read an approved Story first, then load only relevant guidance. Specific,
+explicitly approved repository context takes precedence over generic principles.
+An unresolved conflict belongs in Human Review, not in an automatic override.
+ForgeFlow does not use a runtime, memory service, RAG, or semantic judge to make
+that judgment.
 
 ## Deterministic completion
 
