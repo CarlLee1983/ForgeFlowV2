@@ -33,6 +33,7 @@ workflow:
     - FF-220
     - FF-221
     - FF-222
+    - FF-223
   status: review
 
 baseline:
@@ -71,12 +72,17 @@ verification:
   under `## Authority Used`, so the granted and used authority agree rather than
   the operation being performed outside the declaration. `push` and `deploy`
   remain `no`, and no release is authorized.
-* Carl accepted FF-223 on 2026-09-07 and authorized commit and full release.
-  PR #14 merged at `68d4a0b9a7127ed2ae80b82e28ec2ba0ec81da34` on 2026-09-07,
-  but GitHub currently reports `REVIEW_REQUIRED`, so FF-223 remains in REVIEW.
-  `v0.4.1` was published on 2026-09-07; its GitHub Release is neither draft nor
-  prerelease. These are historical observations, not a substitute for resolving
-  the required PR approval.
+* FF-223 is DONE. Carl accepted it on 2026-09-07 and confirmed that acceptance
+  again on 2026-09-07 after the merge-policy question was raised, which is the
+  Human Review decision the lifecycle requires. PR #14 merged at
+  `68d4a0b9a7127ed2ae80b82e28ec2ba0ec81da34`, that commit is an ancestor of this
+  branch, and remote tag `v0.4.1` peels to it.
+* One remote fact is unresolved and is deliberately not being reported as
+  resolved: PR #14 still returns `reviewDecision: REVIEW_REQUIRED`. The PR is
+  already merged, so this is a stale branch-protection record rather than a
+  blocked merge, and no agent can clear it — GitHub refuses a self-approval from
+  the PR author. Carl's acceptance is recorded here instead. Verified
+  2026-09-07; remote state stays time-sensitive.
 * FF-223 implements the additive Engineering Guidance Layer Phase 1 as `0.4.1`.
   Fresh bootstrap and explicit `--force` seed its four files; `--upgrade` never
   reads or writes repository/team-owned Guidance. Doctor reports absent Guidance
@@ -85,7 +91,7 @@ verification:
   `b7d6a0174bc84e2e765a46212dd449e1da53b2a1`. This handoff-only follow-up records that baseline;
   the release candidate is clean after committing this record. `make verify` passed after the implementation and
   behavioral corrections; the final declaration-only evidence and handoff
-  updates are attributed here and checked narrowly. FF-223 is in REVIEW.
+  updates are attributed here and checked narrowly.
 * Correction: an earlier note here claimed FF-222 remained in REVIEW and was not
   recorded as completed, which contradicted this handoff's own lifecycle block.
   FF-222 is DONE. PR #11 merged as
