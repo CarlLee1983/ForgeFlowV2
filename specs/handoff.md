@@ -32,6 +32,7 @@ workflow:
     - FF-219
     - FF-220
     - FF-221
+    - FF-222
   status: review
 
 baseline:
@@ -54,8 +55,7 @@ verification:
   in REVIEW until the required GitHub PR approval and merge policy are satisfied.
   Publication of `v0.4.1` still requires the release runbook's clean-candidate,
   exact-SHA CI, annotated-tag, and GitHub Release checks. No publication is
-  claimed here. Existing PR #12 tracks the previous release's completion records
-  separately and is not part of this change.
+  claimed here.
 * FF-223 implements the additive Engineering Guidance Layer Phase 1 as `0.4.1`.
   Fresh bootstrap and explicit `--force` seed its four files; `--upgrade` never
   reads or writes repository/team-owned Guidance. Doctor reports absent Guidance
@@ -75,12 +75,18 @@ verification:
   column and a test coupled to the live Story. Both are repaired; the new
   regression failed before the parser fix, and independent re-review confirmed
   both findings resolved. Full `make verify` passed after the fixes.
-* The historical FF-222 baseline was
-  `7327612397316a8d6bba9ed40a41df2e13197eb5`. Its handoff-only follow-up records
-  that baseline and release authorization. FF-222 remains in
-  REVIEW until the repository's required PR approval and merge policy are
-  satisfied. Local release readiness, exact-SHA CI, tag, and Release inspection
-  remain required before publication; no publication is claimed here.
+* Carl merged PR #11 at the baseline above on 2026-09-06 (Asia/Taipei).
+  FF-222 is DONE; selection of the next Story is pending. The merged SHA passed
+  full local `make release-check` before and after annotated-tag creation.
+  Exact-SHA workflow 33980677522 passed Linux canonical verification, macOS
+  `/bin/sh`, and Ubuntu `/bin/dash` portability.
+* v0.4.0 was published on 2026-09-06 (Asia/Taipei):
+  https://github.com/CarlLee1983/ForgeFlowV2/releases/tag/v0.4.0.
+  Post-publication inspection confirmed remote annotated tag
+  `9065cab4a06697ea63a353da966d3807cbf21bb2` peels to the baseline SHA, and the
+  Release is neither draft nor prerelease. These are historical observations.
+* This two-file documentation follow-up records completion after publication.
+  Its baseline is the released commit; it does not change the released tag.
 
 * Carl accepted FF-217 through FF-220 and explicitly authorized commit and full
   release on 2026-09-05. Carl then merged PR #9 at

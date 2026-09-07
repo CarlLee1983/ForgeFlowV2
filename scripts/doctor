@@ -468,9 +468,9 @@ check_guidance() {
     return 0
   fi
   if [ ! -d "$forgeflow_guidance_path" ]; then
-    printf 'WARN  Guidance baseline is incomplete: guidance/ is not a directory\n'
-    forgeflow_guidance='GUIDANCE_INCOMPLETE'
-    forgeflow_contract_drift=1
+    printf 'ERROR Guidance path is not a directory: guidance/\n'
+    forgeflow_guidance='ERROR'
+    forgeflow_contract_error=1
     return 0
   fi
   if [ ! -r "$forgeflow_guidance_path" ] || [ ! -x "$forgeflow_guidance_path" ]; then
@@ -489,13 +489,17 @@ check_guidance() {
         "$forgeflow_guidance_file"
       forgeflow_guidance='ERROR'
       forgeflow_contract_error=1
-    elif [ ! -e "$forgeflow_guidance_file_path" ] ||
-      [ ! -f "$forgeflow_guidance_file_path" ]; then
+    elif [ ! -e "$forgeflow_guidance_file_path" ]; then
       printf 'WARN  Guidance baseline is incomplete: guidance/%s\n' \
         "$forgeflow_guidance_file"
       [ "$forgeflow_guidance" = 'ERROR' ] ||
         forgeflow_guidance='GUIDANCE_INCOMPLETE'
       forgeflow_contract_drift=1
+    elif [ ! -f "$forgeflow_guidance_file_path" ]; then
+      printf 'ERROR Guidance file is not a regular file: guidance/%s\n' \
+        "$forgeflow_guidance_file"
+      forgeflow_guidance='ERROR'
+      forgeflow_contract_error=1
     elif [ ! -r "$forgeflow_guidance_file_path" ]; then
       printf 'ERROR Guidance file cannot be safely read: guidance/%s\n' \
         "$forgeflow_guidance_file"

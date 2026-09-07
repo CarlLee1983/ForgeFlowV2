@@ -1210,9 +1210,20 @@ guidance_is_optional_but_present_baselines_are_safe_and_deterministic() {
   create_adopted_fixture "$forgeflow_fixture"
   printf 'not a directory\n' >"$forgeflow_fixture/guidance"
   run_doctor "$forgeflow_fixture"
-  assert_status 0
-  assert_output_contains 'Guidance: GUIDANCE_INCOMPLETE'
-  assert_output_contains 'Result: CONTRACT_DRIFT'
+  assert_status 2
+  assert_output_contains 'Guidance: ERROR'
+  assert_output_contains 'Guidance path is not a directory: guidance/'
+  assert_output_contains 'Result: ERROR'
+
+  forgeflow_fixture="$forgeflow_test_dir/guidance-leaf-wrong-type"
+  create_adopted_fixture "$forgeflow_fixture"
+  cp -R "$forgeflow_repo/guidance" "$forgeflow_fixture/guidance"
+  rm "$forgeflow_fixture/guidance/ENTRY.md"
+  mkdir "$forgeflow_fixture/guidance/ENTRY.md"
+  run_doctor "$forgeflow_fixture"
+  assert_status 2
+  assert_output_contains 'Guidance: ERROR'
+  assert_output_contains 'Guidance file is not a regular file: guidance/ENTRY.md'
 
   forgeflow_fixture="$forgeflow_test_dir/guidance-link"
   create_adopted_fixture "$forgeflow_fixture"

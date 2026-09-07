@@ -1274,6 +1274,35 @@ fresh_guidance_dry_run_is_non_destructive() {
     fail 'fresh bootstrap did not seed Guidance'
 }
 
+guidance_dry_run_refuses_unsafe_paths() {
+  forgeflow_case_target="$forgeflow_test_dir/guidance dry-run leaf symlink"
+  forgeflow_case_outside="$forgeflow_test_dir/outside dry-run guidance"
+  mkdir -p "$forgeflow_case_target/guidance"
+  printf 'outside leaf\n' >"$forgeflow_case_outside"
+  ln -s "$forgeflow_case_outside" "$forgeflow_case_target/guidance/ENTRY.md"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --dry-run "$forgeflow_case_target"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --force --dry-run "$forgeflow_case_target"
+  [ "$(cat "$forgeflow_case_outside")" = 'outside leaf' ] ||
+    fail 'dry-run wrote through a Guidance leaf symlink'
+
+  forgeflow_case_target="$forgeflow_test_dir/guidance dry-run directory symlink"
+  mkdir -p "$forgeflow_case_target"
+  ln -s "$forgeflow_test_dir" "$forgeflow_case_target/guidance"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --dry-run "$forgeflow_case_target"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --force --dry-run "$forgeflow_case_target"
+
+  forgeflow_case_target="$forgeflow_test_dir/guidance dry-run wrong type"
+  mkdir -p "$forgeflow_case_target"
+  : >"$forgeflow_case_target/guidance"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --dry-run "$forgeflow_case_target"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --force --dry-run "$forgeflow_case_target"
+
+  forgeflow_case_target="$forgeflow_test_dir/guidance dry-run leaf wrong type"
+  mkdir -p "$forgeflow_case_target/guidance/ENTRY.md"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --dry-run "$forgeflow_case_target"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --force --dry-run "$forgeflow_case_target"
+}
+
 run_case 'FF219-AC-001' replacement_failures_restore_every_original
 run_case 'FF219-AC-002' preparation_failures_leave_originals_unchanged
 run_case 'FF219-AC-003' recovery_preserves_existing_and_absent_files
@@ -1281,6 +1310,7 @@ run_case 'FF219-AC-004' rollback_failure_retains_recovery_evidence
 run_case 'FF219-AC-005' recovery_preserves_normal_and_dry_run_behavior
 run_case 'FF219-AC-006' recovery_guarantees_are_documented
 run_case 'FF223-AC-012-fresh' fresh_guidance_dry_run_is_non_destructive
+run_case 'FF223-AC-012-dry-run-safety' guidance_dry_run_refuses_unsafe_paths
 run_case 'FF223-AC-012-ownership' guidance_is_seeded_explicitly_and_preserved_on_upgrade
 
 printf 'bootstrap tests passed\n'
