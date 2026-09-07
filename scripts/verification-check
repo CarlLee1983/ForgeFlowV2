@@ -285,37 +285,25 @@ forgeflow_architecture_bullet() {
       forgeflow_impact_count=$((forgeflow_impact_count + 1))
       forgeflow_impact=$forgeflow_bullet_value
       ;;
+    # This checker validates the shape of each declaration and nothing more.
+    # Resolving a decision to a record, and an owner to a declared boundary, is
+    # scripts/story-check's job; ADR-003 records that ForgeFlow analyses no
+    # further than this.
     Decision)
-      forgeflow_decision_count=$((forgeflow_decision_count + 1))
-      if forgeflow_is_exact_literal "$forgeflow_bullet_value"; then
-        forgeflow_unquote "$forgeflow_bullet_value"
-        forgeflow_decisions="$forgeflow_decisions$forgeflow_unquoted "
-      else
+      forgeflow_is_exact_literal "$forgeflow_bullet_value" ||
         forgeflow_plan_fail 'architecture decision must name one exact backticked decision ID'
-      fi
       ;;
     Boundary)
-      forgeflow_boundary_count=$((forgeflow_boundary_count + 1))
-      if forgeflow_is_exact_literal "$forgeflow_bullet_value"; then
-        forgeflow_unquote "$forgeflow_bullet_value"
-        forgeflow_boundaries="$forgeflow_boundaries$forgeflow_unquoted|"
-      else
+      forgeflow_is_exact_literal "$forgeflow_bullet_value" ||
         forgeflow_plan_fail 'architecture boundary must name one exact backticked boundary'
-      fi
       ;;
     Contract)
-      forgeflow_contract_count=$((forgeflow_contract_count + 1))
       forgeflow_is_exact_literal "$forgeflow_bullet_value" ||
         forgeflow_plan_fail 'architecture contract must state one exact backticked contract'
       ;;
     Owner)
-      forgeflow_owner_count=$((forgeflow_owner_count + 1))
-      if forgeflow_is_exact_literal "$forgeflow_bullet_value"; then
-        forgeflow_unquote "$forgeflow_bullet_value"
-        forgeflow_owners="$forgeflow_owners$forgeflow_unquoted|"
-      else
+      forgeflow_is_exact_literal "$forgeflow_bullet_value" ||
         forgeflow_plan_fail 'architecture owner must state one exact backticked `<boundary> = <owner>`'
-      fi
       ;;
     *)
       forgeflow_plan_fail "architecture declares an unknown label: $forgeflow_bullet_label"
@@ -356,13 +344,7 @@ forgeflow_resolve_story() {
   forgeflow_impact_count=0
   forgeflow_risk_level=low
   forgeflow_risk_level_count=0
-  forgeflow_decisions=
-  forgeflow_decision_count=0
-  forgeflow_boundaries=
-  forgeflow_boundary_count=0
-  forgeflow_contract_count=0
-  forgeflow_owners=
-  forgeflow_owner_count=0
+
   forgeflow_reasons=
   forgeflow_reason_count=0
   forgeflow_authority_seen=

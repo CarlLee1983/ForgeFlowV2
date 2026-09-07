@@ -656,6 +656,28 @@ FORGEFLOW_RESULT
   assert_output_contains 'Result: ERROR'
 }
 
+# The predicate FF224-AC-011 and FF226-AC-004 share. The former assertion matched
+# the bare substring "dependency direction", which also occurs at the unrelated
+# sentence listing the concerns architecture metadata carries, so deleting the
+# extension-point paragraph left the suite green. Requiring the whole list plus
+# the sentence that states the position identifies the paragraph itself.
+architecture_extension_point() {
+  forgeflow_extension_file=$1
+  for forgeflow_extension_term in \
+    'dependency direction validation' \
+    'forbidden imports' \
+    'layer boundaries' \
+    'public interface drift' \
+    'architecture drift' \
+    'ForgeFlow does not implement them, and it does not intend to' \
+    'This is a scope' \
+    'ADR-003'
+  do
+    grep -Fq "$forgeflow_extension_term" "$forgeflow_extension_file" || return 1
+  done
+  return 0
+}
+
 # --- AC-011 -----------------------------------------------------------------
 
 the_gate_and_the_builtin_guarantee_hold() {
@@ -735,8 +757,8 @@ the_new_model_is_documented() {
     fail 'verification contract omits the profile model'
   grep -Fq 'specs/decisions/' "$forgeflow_repo/protocol/architecture.md" ||
     fail 'architecture contract omits the decision location'
-  grep -Fq 'dependency direction' "$forgeflow_repo/protocol/architecture.md" ||
-    fail 'architecture contract omits its future extensions'
+  architecture_extension_point "$forgeflow_repo/protocol/architecture.md" ||
+    fail 'architecture contract omits its stated non-goal'
   grep -Fq 'Task mode' "$forgeflow_repo/templates/story/story.md" ||
     fail 'the Story template omits the task mode'
   grep -Fq 'verification-check' "$forgeflow_repo/docs/contract-checks.md" ||
@@ -776,7 +798,43 @@ run_case 'FF224-AC-007' the_profile_follows_risk_and_architecture_impact
 run_case 'FF224-AC-008' an_unproven_result_is_partial_not_pass
 run_case 'FF224-AC-009' used_authority_must_have_been_granted
 run_case 'FF224-AC-010' a_malformed_or_silent_result_is_reported
+the_extension_point_assertion_pins_the_paragraph() {
+  forgeflow_pin_dir="$forgeflow_test_dir/$forgeflow_case_id"
+  mkdir -p "$forgeflow_pin_dir"
+
+  architecture_extension_point "$forgeflow_repo/protocol/architecture.md" ||
+    fail 'the predicate does not accept the complete paragraph'
+
+  # The paragraph removed entirely.
+  awk '
+    /^The `architecture` layer in a/ {skip=1}
+    /^Whether a declared boundary/ {skip=0}
+    skip==0 {print}
+  ' "$forgeflow_repo/protocol/architecture.md" >"$forgeflow_pin_dir/removed.md"
+  if architecture_extension_point "$forgeflow_pin_dir/removed.md"; then
+    fail 'the assertion still passes with the extension point removed'
+  fi
+
+  # Only the unrelated sentence retained: this is exactly what the previous
+  # substring assertion accepted.
+  printf '%s\n' \
+    'The concerns this metadata is meant to carry are ownership, boundary,' \
+    'dependency direction, public contract, state authority, recovery, migration,' \
+    'and retirement.' >"$forgeflow_pin_dir/lookalike.md"
+  if architecture_extension_point "$forgeflow_pin_dir/lookalike.md"; then
+    fail 'the assertion passes on the unrelated dependency-direction sentence'
+  fi
+
+  # A list that silently drops one entry, the defect the restatements carried.
+  grep -Fv 'architecture drift' "$forgeflow_repo/protocol/architecture.md" \
+    >"$forgeflow_pin_dir/incomplete.md"
+  if architecture_extension_point "$forgeflow_pin_dir/incomplete.md"; then
+    fail 'the assertion passes with an entry dropped from the list'
+  fi
+}
+
 run_case 'FF224-AC-011' the_gate_and_the_builtin_guarantee_hold
+run_case 'FF226-AC-004' the_extension_point_assertion_pins_the_paragraph
 run_case 'FF224-AC-012' the_new_model_is_documented
 
 printf 'execution governance tests passed\n'
