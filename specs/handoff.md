@@ -37,43 +37,11 @@ workflow:
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: main
-  commit: 4b48d30e276fd6b65a951ea357fdec335471c54b
+  branch: ff-224-execution-governance
+  commit: 9279aa6a98f257e33a7236e4ea50c06e23b1dd90
   dirty_worktree: true
   story_owned_paths:
-    - AGENTS.md
-    - Makefile
-    - README.md
-    - VERSION
-    - docs/contract-checks.md
-    - docs/doctor.md
-    - docs/execution-governance.md
-    - docs/releases/0.5.0.md
-    - docs/upgrading.md
-    - docs/concepts.md
-    - protocol/architecture.md
-    - protocol/execution.md
-    - protocol/lifecycle.md
-    - protocol/story.md
-    - protocol/verification.md
-    - protocol/versioning.md
-    - scripts/story-check
-    - scripts/verification-check
-    - skills/story-development/SKILL.md
-    - specs/decisions/ADR-001-execution-governance-in-the-story-contract.md
     - specs/handoff.md
-    - specs/stories/FF-224-execution-governance/acceptance.md
-    - specs/stories/FF-224-execution-governance/story.md
-    - specs/stories/FF-224-execution-governance/task.md
-    - specs/stories/FF-224-execution-governance/verification.md
-    - templates/AGENTS.md
-    - templates/decision.md
-    - templates/story/story.md
-    - templates/story/verification.md
-    - tests/execution-governance.sh
-    - tests/human-review.sh
-    - tests/portability.sh
-    - tests/protocol.sh
   known_unrelated_paths: []
 
 verification:
@@ -89,9 +57,10 @@ verification:
   ForgeFlow-native decision records; `scripts/verification-check` resolves the
   execution contract and judges a recorded `verification.md`. Every existing
   Story resolves to the documented defaults and keeps its previous verdict.
-* The baseline commit is the last committed state; every listed path is this
-  Story's own uncommitted work. FF-224 deliberately changes one baseline
-  behavior — the canonical `verify` dependency list pinned by
+* The baseline is the complete FF-224 implementation commit above, on branch
+  `ff-224-execution-governance`. This handoff-only follow-up records that
+  baseline and is the single remaining dirty path. FF-224 deliberately changes
+  one baseline behavior — the canonical `verify` dependency list pinned by
   `tests/portability.sh` FF220-AC-001 — and its `## Superseded Behavior`
   records that.
 * Full `make verify` passed on this tree, as did
