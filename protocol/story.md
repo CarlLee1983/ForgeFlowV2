@@ -40,6 +40,22 @@ The Story records:
   principles, decisions, or practices; never a product-requirement source
 - **Constraints** — non-negotiable technical, operational, or policy limits
 
+Four optional declarations extend the Story with its execution contract. A Story
+that omits them resolves to the documented defaults and keeps the verdict it
+already had:
+
+- **Task mode** — an optional `## Classification` bullet declaring the work as
+  `architecture`, `execution`, `evidence`, or `mixed`
+- **Authority** — an optional `## Authority` section declaring `plan`,
+  `modify`, `add_dependency`, `migration`, `commit`, `push`, and `deploy`
+- **Architecture** — an optional `## Architecture` section declaring the impact
+  and the decisions, boundaries, contracts, and ownership the change is
+  answerable to
+- **Risk** — an optional `## Risk` section declaring the level and its reasons
+
+See the [Execution Contract](execution.md) and the
+[Architecture Contract](architecture.md).
+
 Two sections are conditional on the Classification:
 
 - **Trust Boundary Fields** — required when `Security sensitive: yes`. Name every
@@ -164,6 +180,12 @@ A Story is small enough when one coherent implementation can satisfy all of its
 acceptance criteria and be verified without partially delivering a second
 outcome. Split Stories whose rules, dependencies, or rollout can be completed
 and reviewed independently.
+
+A Story is complete when the implementation is complete, the required
+verification passed, every required acceptance criterion has passing evidence,
+and no unresolved authority conflict remains. A skipped required check, a
+blocked verification, or a missing observation makes the Story partial rather
+than Done. See [Completion](verification.md#completion).
 
 A Story can enter READY when:
 

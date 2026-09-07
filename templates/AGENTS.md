@@ -7,7 +7,8 @@ This repository follows the ForgeFlow development protocol.
 For implementation work:
 
 1. Read the assigned Story, including its Classification and, when present, its
-   security fixture matrix and superseded behavior.
+   Task mode, Authority, Architecture, Risk, security fixture matrix, and
+   superseded behavior.
 2. Read its acceptance criteria and Acceptance Evidence map. Confirm every AC
    names a method, fixture or precondition, and expected observation before
    implementation; a `human` row remains a required review case.
@@ -18,11 +19,22 @@ For implementation work:
 6. Add or update tests.
 7. Run `make verify`.
 8. Repair failures until verification passes.
+9. When the Story keeps a `verification.md`, record what each check did and
+   trace every acceptance criterion to the observation that proves it. Retain
+   every skipped, blocked, or unsupported check as a residual risk.
 
 Story intent remains canonical. Specific, approved repository context beats
 generic guidance; unresolved conflicts go to Human Review. Guidance is advisory
 and never adds hidden acceptance criteria, substitutes for executable checks, or
 proves design quality from a passing gate.
+
+## Authority
+
+Perform only the operations the Story grants. An approved execution Story
+authorizes implementation. It never authorizes committing, pushing, deploying,
+adding a dependency, or running a migration, and a Story whose task mode is
+`evidence` authorizes no repository change at all. Being able to perform an
+operation is not authorization to perform it.
 
 ## Review Preparation
 
@@ -64,7 +76,10 @@ A task is not complete until:
 make verify
 ```
 
-passes successfully.
+passes successfully, the required verification profile passed, and every
+required acceptance criterion has a passing observation. A skipped, blocked, or
+unsupported required check, or an untraced criterion, leaves the work partial.
+Partial work is reported as partial.
 
 ## Never
 
@@ -73,6 +88,9 @@ passes successfully.
 * remove failing tests simply to obtain PASS
 * bypass repository verification
 * expand scope unnecessarily
+* perform an operation the Story does not grant
+* state that a check passed without having run it in the current tree
+* report partial verification as complete, or drop a residual risk
 
 ## Completion Report
 

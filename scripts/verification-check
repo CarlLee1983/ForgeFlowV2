@@ -1,0 +1,954 @@
+#!/bin/sh
+
+set -eu
+
+usage() {
+  printf 'Usage: %s [story-directory ...]\n' "$0" >&2
+  printf '       %s --result [story-directory ...]\n' "$0" >&2
+  printf '       %s --help\n' "$0" >&2
+}
+
+usage_error() {
+  printf 'ERROR Invalid arguments\n' >&2
+  usage
+  printf '\nResult: ERROR\n'
+  printf 'Stories checked: 0\n'
+}
+
+help() {
+  printf 'ForgeFlow Verification Check\n\n'
+  printf 'Usage: %s [story-directory ...]\n' "$0"
+  printf '       %s --result [story-directory ...]\n' "$0"
+  printf '       %s --help\n\n' "$0"
+  printf 'Without arguments, every directory under specs/stories/ except\n'
+  printf '_template/ is checked relative to the current directory.\n\n'
+  printf 'The default mode resolves the task mode, authority, risk level,\n'
+  printf 'architecture impact, and the required verification profile a Story\n'
+  printf 'declares, applying the documented defaults for an older Story.\n'
+  printf '%s\n' '--result also reads verification.md and reports PASS, PARTIAL, or FAIL.'
+  printf 'The check is static and read-only. It never executes a verification\n'
+  printf 'command, never re-runs a recorded check, and never replaces make\n'
+  printf 'verify or human review.\n'
+}
+
+forgeflow_trim() {
+  forgeflow_trimmed=$1
+
+  while :; do
+    case "$forgeflow_trimmed" in
+      *"$forgeflow_cr") forgeflow_trimmed=${forgeflow_trimmed%"$forgeflow_cr"} ;;
+      *"$forgeflow_tab") forgeflow_trimmed=${forgeflow_trimmed%"$forgeflow_tab"} ;;
+      *' ') forgeflow_trimmed=${forgeflow_trimmed% } ;;
+      *) break ;;
+    esac
+  done
+
+  while :; do
+    case "$forgeflow_trimmed" in
+      "$forgeflow_cr"*) forgeflow_trimmed=${forgeflow_trimmed#"$forgeflow_cr"} ;;
+      "$forgeflow_tab"*) forgeflow_trimmed=${forgeflow_trimmed#"$forgeflow_tab"} ;;
+      ' '*) forgeflow_trimmed=${forgeflow_trimmed# } ;;
+      *) break ;;
+    esac
+  done
+}
+
+# The documented Markdown fence subset, kept identical to scripts/story-check so
+# a fenced example is documentation in every ForgeFlow contract reader.
+forgeflow_update_fence() {
+  forgeflow_fence_line=$1
+  forgeflow_fence_changed=0
+
+  if [ "$forgeflow_fence_length" -eq 0 ]; then
+    case "$forgeflow_fence_line" in
+      '`'*) forgeflow_fence_character='`' ;;
+      '~'*) forgeflow_fence_character='~' ;;
+      *) return ;;
+    esac
+
+    forgeflow_fence_rest=$forgeflow_fence_line
+    forgeflow_fence_run=0
+    while :; do
+      case "$forgeflow_fence_rest" in
+        "$forgeflow_fence_character"*)
+          forgeflow_fence_rest=${forgeflow_fence_rest#"$forgeflow_fence_character"}
+          forgeflow_fence_run=$((forgeflow_fence_run + 1))
+          ;;
+        *) break ;;
+      esac
+    done
+
+    if [ "$forgeflow_fence_run" -ge 3 ]; then
+      forgeflow_fence_length=$forgeflow_fence_run
+      forgeflow_fence_changed=1
+    fi
+    return
+  fi
+
+  case "$forgeflow_fence_line" in
+    "$forgeflow_fence_character"*) ;;
+    *) return ;;
+  esac
+
+  forgeflow_fence_rest=$forgeflow_fence_line
+  forgeflow_fence_run=0
+  while :; do
+    case "$forgeflow_fence_rest" in
+      "$forgeflow_fence_character"*)
+        forgeflow_fence_rest=${forgeflow_fence_rest#"$forgeflow_fence_character"}
+        forgeflow_fence_run=$((forgeflow_fence_run + 1))
+        ;;
+      *) break ;;
+    esac
+  done
+
+  if [ "$forgeflow_fence_run" -ge "$forgeflow_fence_length" ] &&
+    [ -z "$forgeflow_fence_rest" ]; then
+    forgeflow_fence_length=0
+    forgeflow_fence_changed=1
+  fi
+}
+
+forgeflow_is_exact_literal() {
+  forgeflow_exact_literal=$1
+  forgeflow_trim "$forgeflow_exact_literal"
+  forgeflow_exact_literal=$forgeflow_trimmed
+
+  case "$forgeflow_exact_literal" in
+    \`*\`) ;;
+    *) return 1 ;;
+  esac
+
+  forgeflow_exact_literal=${forgeflow_exact_literal#\`}
+  forgeflow_exact_literal=${forgeflow_exact_literal%\`}
+
+  case "$forgeflow_exact_literal" in
+    ''|*'`'*) return 1 ;;
+    *[![:space:]]*) ;;
+    *) return 1 ;;
+  esac
+
+  case "$forgeflow_exact_literal" in
+    '*'|'-'|TBD|tbd|TODO|todo|'N/A'|'n/a'|'...') return 1 ;;
+  esac
+
+  return 0
+}
+
+forgeflow_unquote() {
+  forgeflow_unquoted=$1
+  forgeflow_trim "$forgeflow_unquoted"
+  forgeflow_unquoted=$forgeflow_trimmed
+  forgeflow_unquoted=${forgeflow_unquoted#\`}
+  forgeflow_unquoted=${forgeflow_unquoted%\`}
+}
+
+# Walks the "* label: value" bullets of one Markdown section and hands each one
+# to a callback. The reader owns fences and heading scope; the callback owns
+# meaning, so every section below shares exactly one parsing subset.
+forgeflow_scan_section() {
+  forgeflow_scan_file=$1
+  forgeflow_scan_heading=$2
+  forgeflow_scan_callback=$3
+  forgeflow_section_count=0
+  forgeflow_scan_in=0
+  forgeflow_fence_length=0
+
+  while IFS= read -r forgeflow_scan_line || [ -n "$forgeflow_scan_line" ]; do
+    forgeflow_trim "$forgeflow_scan_line"
+    forgeflow_scan_line=$forgeflow_trimmed
+
+    forgeflow_update_fence "$forgeflow_scan_line"
+    [ "$forgeflow_fence_changed" -eq 0 ] || continue
+    [ "$forgeflow_fence_length" -eq 0 ] || continue
+
+    case "$forgeflow_scan_line" in
+      '#'*)
+        if [ "$forgeflow_scan_line" = "$forgeflow_scan_heading" ]; then
+          forgeflow_section_count=$((forgeflow_section_count + 1))
+          forgeflow_scan_in=1
+        else
+          forgeflow_scan_in=0
+        fi
+        continue
+        ;;
+    esac
+
+    [ "$forgeflow_scan_in" -eq 1 ] || continue
+
+    case "$forgeflow_scan_line" in
+      '- '*) forgeflow_scan_line="* ${forgeflow_scan_line#'- '}" ;;
+    esac
+
+    case "$forgeflow_scan_line" in
+      '* '*) ;;
+      *) continue ;;
+    esac
+
+    forgeflow_scan_bullet=${forgeflow_scan_line#'* '}
+    forgeflow_trim "$forgeflow_scan_bullet"
+    forgeflow_scan_bullet=$forgeflow_trimmed
+    [ -n "$forgeflow_scan_bullet" ] || continue
+
+    "$forgeflow_scan_callback" "$forgeflow_scan_bullet"
+  done <"$forgeflow_scan_file"
+}
+
+forgeflow_split_bullet() {
+  forgeflow_bullet_label=
+  forgeflow_bullet_value=
+
+  case "$1" in
+    *': '*)
+      forgeflow_bullet_label=${1%%': '*}
+      forgeflow_bullet_value=${1#*': '}
+      ;;
+    *':')
+      forgeflow_bullet_label=${1%':'}
+      ;;
+    *) return 1 ;;
+  esac
+
+  forgeflow_trim "$forgeflow_bullet_label"
+  forgeflow_bullet_label=$forgeflow_trimmed
+  forgeflow_trim "$forgeflow_bullet_value"
+  forgeflow_bullet_value=$forgeflow_trimmed
+  [ -n "$forgeflow_bullet_label" ]
+}
+
+forgeflow_report() {
+  printf '%s  %s: %s\n' "$1" "$forgeflow_story_label" "$2"
+}
+
+forgeflow_plan_fail() {
+  forgeflow_report 'FAIL' "plan: $1"
+  forgeflow_plan_incomplete=$((forgeflow_plan_incomplete + 1))
+}
+
+forgeflow_record_fail() {
+  forgeflow_report 'FAIL' "result: $1"
+  forgeflow_record_incomplete=$((forgeflow_record_incomplete + 1))
+}
+
+# --- Story declarations -----------------------------------------------------
+
+forgeflow_classification_bullet() {
+  forgeflow_split_bullet "$1" || return 0
+
+  if [ "$forgeflow_bullet_label" = 'Task mode' ]; then
+    forgeflow_task_mode_count=$((forgeflow_task_mode_count + 1))
+    forgeflow_task_mode=$forgeflow_bullet_value
+  fi
+}
+
+forgeflow_authority_bullet() {
+  forgeflow_split_bullet "$1" || {
+    forgeflow_plan_fail "authority entry is not a declaration: $1"
+    return 0
+  }
+
+  case " $forgeflow_authority_keys " in
+    *" $forgeflow_bullet_label "*) ;;
+    *)
+      forgeflow_plan_fail "authority declares an unknown operation: $forgeflow_bullet_label"
+      return 0
+      ;;
+  esac
+
+  case " $forgeflow_authority_seen " in
+    *" $forgeflow_bullet_label "*)
+      forgeflow_plan_fail "authority declares $forgeflow_bullet_label more than once"
+      return 0
+      ;;
+  esac
+  forgeflow_authority_seen="$forgeflow_authority_seen $forgeflow_bullet_label"
+
+  case "$forgeflow_bullet_value" in
+    yes|no) ;;
+    *)
+      forgeflow_plan_fail "authority $forgeflow_bullet_label must be declared as yes or no"
+      return 0
+      ;;
+  esac
+
+  eval "forgeflow_authority_$forgeflow_bullet_label=\$forgeflow_bullet_value"
+}
+
+forgeflow_architecture_bullet() {
+  forgeflow_split_bullet "$1" || {
+    forgeflow_plan_fail "architecture entry is not a declaration: $1"
+    return 0
+  }
+
+  case "$forgeflow_bullet_label" in
+    Impact)
+      forgeflow_impact_count=$((forgeflow_impact_count + 1))
+      forgeflow_impact=$forgeflow_bullet_value
+      ;;
+    Decision)
+      forgeflow_decision_count=$((forgeflow_decision_count + 1))
+      if forgeflow_is_exact_literal "$forgeflow_bullet_value"; then
+        forgeflow_unquote "$forgeflow_bullet_value"
+        forgeflow_decisions="$forgeflow_decisions$forgeflow_unquoted "
+      else
+        forgeflow_plan_fail 'architecture decision must name one exact backticked decision ID'
+      fi
+      ;;
+    Boundary)
+      forgeflow_boundary_count=$((forgeflow_boundary_count + 1))
+      if forgeflow_is_exact_literal "$forgeflow_bullet_value"; then
+        forgeflow_unquote "$forgeflow_bullet_value"
+        forgeflow_boundaries="$forgeflow_boundaries$forgeflow_unquoted|"
+      else
+        forgeflow_plan_fail 'architecture boundary must name one exact backticked boundary'
+      fi
+      ;;
+    Contract)
+      forgeflow_contract_count=$((forgeflow_contract_count + 1))
+      forgeflow_is_exact_literal "$forgeflow_bullet_value" ||
+        forgeflow_plan_fail 'architecture contract must state one exact backticked contract'
+      ;;
+    Owner)
+      forgeflow_owner_count=$((forgeflow_owner_count + 1))
+      if forgeflow_is_exact_literal "$forgeflow_bullet_value"; then
+        forgeflow_unquote "$forgeflow_bullet_value"
+        forgeflow_owners="$forgeflow_owners$forgeflow_unquoted|"
+      else
+        forgeflow_plan_fail 'architecture owner must state one exact backticked `<boundary> = <owner>`'
+      fi
+      ;;
+    *)
+      forgeflow_plan_fail "architecture declares an unknown label: $forgeflow_bullet_label"
+      ;;
+  esac
+}
+
+forgeflow_risk_bullet() {
+  forgeflow_split_bullet "$1" || {
+    forgeflow_plan_fail "risk entry is not a declaration: $1"
+    return 0
+  }
+
+  case "$forgeflow_bullet_label" in
+    Level)
+      forgeflow_risk_level_count=$((forgeflow_risk_level_count + 1))
+      forgeflow_risk_level=$forgeflow_bullet_value
+      ;;
+    Reason)
+      forgeflow_reason_count=$((forgeflow_reason_count + 1))
+      if forgeflow_is_exact_literal "$forgeflow_bullet_value"; then
+        forgeflow_unquote "$forgeflow_bullet_value"
+        forgeflow_reasons="$forgeflow_reasons$forgeflow_unquoted "
+      else
+        forgeflow_plan_fail 'risk reason must name one exact backticked signal'
+      fi
+      ;;
+    *)
+      forgeflow_plan_fail "risk declares an unknown label: $forgeflow_bullet_label"
+      ;;
+  esac
+}
+
+forgeflow_resolve_story() {
+  forgeflow_task_mode=execution
+  forgeflow_task_mode_count=0
+  forgeflow_impact=low
+  forgeflow_impact_count=0
+  forgeflow_risk_level=low
+  forgeflow_risk_level_count=0
+  forgeflow_decisions=
+  forgeflow_decision_count=0
+  forgeflow_boundaries=
+  forgeflow_boundary_count=0
+  forgeflow_contract_count=0
+  forgeflow_owners=
+  forgeflow_owner_count=0
+  forgeflow_reasons=
+  forgeflow_reason_count=0
+  forgeflow_authority_seen=
+
+  forgeflow_scan_section "$forgeflow_story_file" '## Classification' \
+    forgeflow_classification_bullet
+
+  if [ "$forgeflow_task_mode_count" -gt 1 ]; then
+    forgeflow_plan_fail 'Classification must declare "Task mode" at most once'
+    forgeflow_task_mode=execution
+  fi
+
+  case "$forgeflow_task_mode" in
+    architecture|execution|evidence|mixed) ;;
+    *)
+      forgeflow_plan_fail 'Task mode must be architecture, execution, evidence, or mixed'
+      forgeflow_task_mode=execution
+      ;;
+  esac
+
+  # Least privilege by task mode. An older Story that declares no authority at
+  # all keeps the historical implementation permission, because entering
+  # implementation is what an approved execution Story already authorized. It
+  # never inherits commit, push, deploy, dependency, or migration authority.
+  forgeflow_authority_plan=yes
+  forgeflow_authority_add_dependency=no
+  forgeflow_authority_migration=no
+  forgeflow_authority_commit=no
+  forgeflow_authority_push=no
+  forgeflow_authority_deploy=no
+  case "$forgeflow_task_mode" in
+    execution|mixed) forgeflow_authority_modify=yes ;;
+    *) forgeflow_authority_modify=no ;;
+  esac
+
+  forgeflow_scan_section "$forgeflow_story_file" '## Authority' \
+    forgeflow_authority_bullet
+  forgeflow_authority_declared=$forgeflow_section_count
+
+  if [ "$forgeflow_authority_declared" -gt 1 ]; then
+    forgeflow_plan_fail 'Story must declare ## Authority at most once'
+  fi
+
+  forgeflow_scan_section "$forgeflow_story_file" '## Architecture' \
+    forgeflow_architecture_bullet
+  forgeflow_architecture_declared=$forgeflow_section_count
+
+  if [ "$forgeflow_architecture_declared" -gt 1 ]; then
+    forgeflow_plan_fail 'Story must declare ## Architecture at most once'
+  fi
+
+  if [ "$forgeflow_impact_count" -gt 1 ]; then
+    forgeflow_plan_fail 'Architecture must declare "Impact" at most once'
+    forgeflow_impact=low
+  fi
+
+  case "$forgeflow_impact" in
+    low|medium|high) ;;
+    *)
+      forgeflow_plan_fail 'Architecture impact must be low, medium, or high'
+      forgeflow_impact=low
+      ;;
+  esac
+
+  forgeflow_scan_section "$forgeflow_story_file" '## Risk' forgeflow_risk_bullet
+  forgeflow_risk_declared=$forgeflow_section_count
+
+  if [ "$forgeflow_risk_declared" -gt 1 ]; then
+    forgeflow_plan_fail 'Story must declare ## Risk at most once'
+  fi
+
+  if [ "$forgeflow_risk_level_count" -gt 1 ]; then
+    forgeflow_plan_fail 'Risk must declare "Level" at most once'
+    forgeflow_risk_level=low
+  fi
+
+  case "$forgeflow_risk_level" in
+    low|medium|high) ;;
+    *)
+      forgeflow_plan_fail 'Risk level must be low, medium, or high'
+      forgeflow_risk_level=low
+      ;;
+  esac
+
+  case "$forgeflow_risk_level" in
+    low) forgeflow_required_checks='lint static unit' ;;
+    medium) forgeflow_required_checks='lint static unit integration' ;;
+    high) forgeflow_required_checks='lint static unit integration contract e2e' ;;
+  esac
+
+  case "$forgeflow_impact" in
+    medium|high)
+      forgeflow_required_checks="$forgeflow_required_checks architecture"
+      ;;
+  esac
+}
+
+forgeflow_print_plan() {
+  printf '\n%s:\n' "$forgeflow_story_label"
+  printf '  Task mode: %s\n' "$forgeflow_task_mode"
+  printf '  Authority: plan=%s modify=%s add_dependency=%s migration=%s commit=%s push=%s deploy=%s\n' \
+    "$forgeflow_authority_plan" "$forgeflow_authority_modify" \
+    "$forgeflow_authority_add_dependency" "$forgeflow_authority_migration" \
+    "$forgeflow_authority_commit" "$forgeflow_authority_push" \
+    "$forgeflow_authority_deploy"
+  printf '  Risk level: %s\n' "$forgeflow_risk_level"
+  printf '  Architecture impact: %s\n' "$forgeflow_impact"
+  printf '  Required checks: %s\n' "$forgeflow_required_checks"
+}
+
+# --- Acceptance criteria ----------------------------------------------------
+
+forgeflow_read_acceptance_ids() {
+  forgeflow_ac_ids=' '
+  forgeflow_ac_count=0
+  forgeflow_fence_length=0
+
+  while IFS= read -r forgeflow_ac_line || [ -n "$forgeflow_ac_line" ]; do
+    forgeflow_trim "$forgeflow_ac_line"
+    forgeflow_ac_line=$forgeflow_trimmed
+
+    forgeflow_update_fence "$forgeflow_ac_line"
+    [ "$forgeflow_fence_changed" -eq 0 ] || continue
+    [ "$forgeflow_fence_length" -eq 0 ] || continue
+
+    case "$forgeflow_ac_line" in
+      '* '*|'- '*) forgeflow_ac_line=${forgeflow_ac_line#??} ;;
+      *) continue ;;
+    esac
+
+    case "$forgeflow_ac_line" in
+      '[ ] '*|'[x] '*|'[X] '*) forgeflow_ac_line=${forgeflow_ac_line#????} ;;
+      *) continue ;;
+    esac
+
+    case "$forgeflow_ac_line" in
+      AC-*:*) ;;
+      *) continue ;;
+    esac
+
+    forgeflow_ac_id=${forgeflow_ac_line%%:*}
+    case "${forgeflow_ac_id#AC-}" in
+      ''|*[!0-9]*) continue ;;
+    esac
+
+    case "$forgeflow_ac_ids" in
+      *" $forgeflow_ac_id "*) continue ;;
+    esac
+
+    forgeflow_ac_ids="$forgeflow_ac_ids$forgeflow_ac_id "
+    forgeflow_ac_count=$((forgeflow_ac_count + 1))
+  done <"$forgeflow_acceptance_file"
+}
+
+# --- Verification result record ---------------------------------------------
+
+forgeflow_check_bullet() {
+  forgeflow_split_bullet "$1" || {
+    forgeflow_record_fail "check entry is not a declaration: $1"
+    return 0
+  }
+
+  forgeflow_check_name=$forgeflow_bullet_label
+  forgeflow_check_rest=$forgeflow_bullet_value
+
+  case " $forgeflow_check_layers " in
+    *" $forgeflow_check_name "*) ;;
+    *)
+      forgeflow_record_fail "unknown verification check: $forgeflow_check_name"
+      return 0
+      ;;
+  esac
+
+  case " $forgeflow_checks_seen " in
+    *" $forgeflow_check_name "*)
+      forgeflow_record_fail "verification check is recorded more than once: $forgeflow_check_name"
+      return 0
+      ;;
+  esac
+  forgeflow_checks_seen="$forgeflow_checks_seen $forgeflow_check_name"
+
+  case "$forgeflow_check_rest" in
+    *' — '*)
+      forgeflow_check_status=${forgeflow_check_rest%%' — '*}
+      forgeflow_check_detail=${forgeflow_check_rest#*' — '}
+      ;;
+    *)
+      forgeflow_check_status=$forgeflow_check_rest
+      forgeflow_check_detail=
+      ;;
+  esac
+
+  forgeflow_trim "$forgeflow_check_status"
+  forgeflow_check_status=$forgeflow_trimmed
+
+  case "$forgeflow_check_status" in
+    pass|fail|skipped|blocked|unsupported) ;;
+    *)
+      forgeflow_record_fail "check $forgeflow_check_name status must be pass, fail, skipped, blocked, or unsupported"
+      return 0
+      ;;
+  esac
+
+  forgeflow_is_exact_literal "$forgeflow_check_detail" ||
+    forgeflow_record_fail "check $forgeflow_check_name must name one exact backticked command or reason"
+
+  forgeflow_check_report="$forgeflow_check_report$forgeflow_check_name=$forgeflow_check_status "
+
+  case "$forgeflow_check_status" in
+    fail) forgeflow_result_failed=$((forgeflow_result_failed + 1)) ;;
+  esac
+}
+
+forgeflow_evidence_bullet() {
+  forgeflow_split_bullet "$1" || {
+    forgeflow_record_fail "evidence entry is not a declaration: $1"
+    return 0
+  }
+
+  if ! forgeflow_is_exact_literal "$forgeflow_bullet_label"; then
+    forgeflow_record_fail "evidence entry must name one exact backticked AC ID: $forgeflow_bullet_label"
+    return 0
+  fi
+
+  forgeflow_unquote "$forgeflow_bullet_label"
+  forgeflow_evidence_ac=$forgeflow_unquoted
+
+  case "$forgeflow_ac_ids" in
+    *" $forgeflow_evidence_ac "*) ;;
+    *)
+      forgeflow_record_fail "evidence names unknown AC ID: $forgeflow_evidence_ac"
+      return 0
+      ;;
+  esac
+
+  case " $forgeflow_evidence_seen " in
+    *" $forgeflow_evidence_ac "*)
+      forgeflow_record_fail "evidence duplicates AC ID: $forgeflow_evidence_ac"
+      return 0
+      ;;
+  esac
+  forgeflow_evidence_seen="$forgeflow_evidence_seen $forgeflow_evidence_ac"
+  forgeflow_evidence_traced=$((forgeflow_evidence_traced + 1))
+
+  case "$forgeflow_bullet_value" in
+    *' — '*)
+      forgeflow_evidence_status=${forgeflow_bullet_value%%' — '*}
+      forgeflow_evidence_detail=${forgeflow_bullet_value#*' — '}
+      ;;
+    *)
+      forgeflow_evidence_status=$forgeflow_bullet_value
+      forgeflow_evidence_detail=
+      ;;
+  esac
+
+  forgeflow_trim "$forgeflow_evidence_status"
+  forgeflow_evidence_status=$forgeflow_trimmed
+
+  case "$forgeflow_evidence_status" in
+    pass|fail|blocked|skipped) ;;
+    *)
+      forgeflow_record_fail "evidence $forgeflow_evidence_ac status must be pass, fail, blocked, or skipped"
+      return 0
+      ;;
+  esac
+
+  forgeflow_is_exact_literal "$forgeflow_evidence_detail" ||
+    forgeflow_record_fail "evidence $forgeflow_evidence_ac must name one exact backticked observation"
+
+  case "$forgeflow_evidence_status" in
+    pass) forgeflow_evidence_passed="$forgeflow_evidence_passed$forgeflow_evidence_ac " ;;
+    fail) forgeflow_result_failed=$((forgeflow_result_failed + 1)) ;;
+  esac
+}
+
+forgeflow_authority_used_bullet() {
+  forgeflow_trim "$1"
+  forgeflow_used=$forgeflow_trimmed
+
+  case " $forgeflow_authority_keys " in
+    *" $forgeflow_used "*) ;;
+    *)
+      forgeflow_record_fail "authority used names an unknown operation: $forgeflow_used"
+      return 0
+      ;;
+  esac
+
+  eval "forgeflow_granted=\$forgeflow_authority_$forgeflow_used"
+
+  if [ "$forgeflow_granted" != yes ]; then
+    forgeflow_report 'FAIL' \
+      "authority conflict: $forgeflow_used was used but the Story does not grant it"
+    forgeflow_result_failed=$((forgeflow_result_failed + 1))
+  fi
+}
+
+forgeflow_residual_bullet() {
+  forgeflow_residual_count=$((forgeflow_residual_count + 1))
+  forgeflow_is_exact_literal "$1" ||
+    forgeflow_record_fail 'every residual risk must be one exact backticked statement'
+}
+
+forgeflow_check_result() {
+  forgeflow_result_file="$forgeflow_story_directory/verification.md"
+
+  if [ -L "$forgeflow_result_file" ]; then
+    printf 'ERROR %s: verification record is a symlink: %s\n' \
+      "$forgeflow_story_label" "$forgeflow_result_file" >&2
+    forgeflow_operational_error=1
+    return
+  fi
+
+  if [ ! -f "$forgeflow_result_file" ] || [ ! -r "$forgeflow_result_file" ] ||
+    [ ! -s "$forgeflow_result_file" ]; then
+    forgeflow_record_fail 'verification.md is missing, unreadable, or empty'
+    return
+  fi
+
+  forgeflow_read_acceptance_ids
+
+  forgeflow_checks_seen=
+  forgeflow_check_report=
+  forgeflow_evidence_seen=
+  forgeflow_evidence_traced=0
+  forgeflow_evidence_passed=' '
+  forgeflow_residual_count=0
+  forgeflow_result_failed=0
+
+  forgeflow_scan_section "$forgeflow_result_file" '## Checks' \
+    forgeflow_check_bullet
+  forgeflow_checks_declared=$forgeflow_section_count
+
+  forgeflow_scan_section "$forgeflow_result_file" '## Evidence' \
+    forgeflow_evidence_bullet
+  forgeflow_evidence_declared=$forgeflow_section_count
+
+  forgeflow_scan_section "$forgeflow_result_file" '## Authority Used' \
+    forgeflow_authority_used_bullet
+
+  forgeflow_scan_section "$forgeflow_result_file" '## Residual Risks' \
+    forgeflow_residual_bullet
+
+  if [ "$forgeflow_checks_declared" -ne 1 ]; then
+    forgeflow_record_fail 'verification.md must declare ## Checks exactly once'
+    return
+  fi
+
+  if [ "$forgeflow_evidence_declared" -ne 1 ]; then
+    forgeflow_record_fail 'verification.md must declare ## Evidence exactly once'
+    return
+  fi
+
+  if [ "$forgeflow_ac_count" -eq 0 ]; then
+    forgeflow_record_fail 'acceptance.md declares no checkbox AC to trace evidence to'
+    return
+  fi
+
+  # A recorded result is complete only when every required check and every
+  # acceptance criterion is accounted for. Silence is never PASS.
+  forgeflow_missing=0
+
+  for forgeflow_required_check in $forgeflow_required_checks
+  do
+    case "$forgeflow_check_report" in
+      *"$forgeflow_required_check=pass "*) continue ;;
+      *"$forgeflow_required_check="*)
+        forgeflow_report 'WARN' \
+          "required check did not pass: $forgeflow_required_check"
+        ;;
+      *)
+        forgeflow_report 'WARN' \
+          "required check is not recorded: $forgeflow_required_check"
+        ;;
+    esac
+    forgeflow_missing=$((forgeflow_missing + 1))
+  done
+
+  for forgeflow_required_ac in $forgeflow_ac_ids
+  do
+    case "$forgeflow_evidence_passed" in
+      *" $forgeflow_required_ac "*) ;;
+      *)
+        forgeflow_report 'WARN' \
+          "acceptance criterion has no passing evidence: $forgeflow_required_ac"
+        forgeflow_missing=$((forgeflow_missing + 1))
+        ;;
+    esac
+  done
+
+  forgeflow_trim "$forgeflow_check_report"
+  printf '  Checks: %s\n' "${forgeflow_trimmed:-none}"
+  printf '  Evidence traced: %s of %s\n' \
+    "$forgeflow_evidence_traced" "$forgeflow_ac_count"
+
+  if [ "$forgeflow_result_failed" -gt 0 ]; then
+    printf '  Status: FAIL\n'
+    forgeflow_result_fail_total=$((forgeflow_result_fail_total + 1))
+    return
+  fi
+
+  if [ "$forgeflow_missing" -gt 0 ]; then
+    if [ "$forgeflow_residual_count" -eq 0 ]; then
+      forgeflow_record_fail 'incomplete verification must record at least one residual risk'
+    fi
+    printf '  Status: PARTIAL\n'
+    forgeflow_result_partial_total=$((forgeflow_result_partial_total + 1))
+    return
+  fi
+
+  printf '  Status: PASS\n'
+}
+
+# --- Driver -----------------------------------------------------------------
+
+forgeflow_check_story() {
+  forgeflow_story_directory=$1
+  forgeflow_story_label=$forgeflow_story_directory
+
+  forgeflow_story_file="$forgeflow_story_directory/story.md"
+  forgeflow_acceptance_file="$forgeflow_story_directory/acceptance.md"
+
+  for forgeflow_required_story_file in \
+    "$forgeflow_story_file" "$forgeflow_acceptance_file"
+  do
+    if [ -L "$forgeflow_required_story_file" ]; then
+      printf 'ERROR %s: required Story file is a symlink: %s\n' \
+        "$forgeflow_story_label" "$forgeflow_required_story_file" >&2
+      forgeflow_operational_error=1
+      return
+    fi
+
+    if [ ! -f "$forgeflow_required_story_file" ] ||
+      [ ! -r "$forgeflow_required_story_file" ] ||
+      [ ! -s "$forgeflow_required_story_file" ]; then
+      printf 'ERROR %s: required Story file is missing or unreadable: %s\n' \
+        "$forgeflow_story_label" "$forgeflow_required_story_file" >&2
+      forgeflow_operational_error=1
+      return
+    fi
+  done
+
+  forgeflow_resolve_story
+  forgeflow_print_plan
+
+  if [ "$forgeflow_result" -eq 1 ]; then
+    forgeflow_check_result
+  fi
+}
+
+forgeflow_cr=$(printf '\r')
+forgeflow_tab=$(printf '\t')
+forgeflow_authority_keys='plan modify add_dependency migration commit push deploy'
+forgeflow_check_layers='lint static unit integration contract e2e architecture'
+forgeflow_result=0
+
+if [ "${1-}" = --result ]; then
+  forgeflow_result=1
+  shift
+fi
+
+case "${1-}" in
+  --help)
+    if [ "$#" -ne 1 ] || [ "$forgeflow_result" -eq 1 ]; then
+      usage_error
+      exit 2
+    fi
+    help
+    exit 0
+    ;;
+  -*)
+    usage_error
+    exit 2
+    ;;
+esac
+
+forgeflow_plan_incomplete=0
+forgeflow_record_incomplete=0
+forgeflow_result_fail_total=0
+forgeflow_result_partial_total=0
+forgeflow_operational_error=0
+forgeflow_checked=0
+
+printf 'ForgeFlow Verification Check\n'
+
+if [ "$#" -eq 0 ]; then
+  if [ ! -d specs/stories ]; then
+    printf 'ERROR Story directory is missing: specs/stories/\n' >&2
+    printf '\nResult: ERROR\n'
+    printf 'Stories checked: 0\n'
+    exit 2
+  fi
+
+  for forgeflow_candidate in specs/stories/*
+  do
+    [ -d "$forgeflow_candidate" ] || continue
+
+    case "$forgeflow_candidate" in
+      */_template) continue ;;
+    esac
+
+    forgeflow_checked=$((forgeflow_checked + 1))
+    forgeflow_check_story "$forgeflow_candidate"
+  done
+else
+  for forgeflow_candidate in "$@"
+  do
+    case "$forgeflow_candidate" in
+      -*) usage_error; exit 2 ;;
+    esac
+
+    if [ ! -d "$forgeflow_candidate" ]; then
+      printf 'ERROR Story directory is missing: %s\n' \
+        "$forgeflow_candidate" >&2
+      forgeflow_operational_error=1
+      continue
+    fi
+
+    forgeflow_checked=$((forgeflow_checked + 1))
+    forgeflow_check_story "$forgeflow_candidate"
+  done
+fi
+
+printf '\n'
+
+if [ "$forgeflow_operational_error" -eq 1 ]; then
+  printf 'Result: ERROR\n'
+  printf 'Stories checked: %s\n' "$forgeflow_checked"
+  exit 2
+fi
+
+if [ "$forgeflow_checked" -eq 0 ]; then
+  printf 'ERROR No Story directory was checked\n' >&2
+  printf 'Result: ERROR\n'
+  printf 'Stories checked: 0\n'
+  exit 2
+fi
+
+if [ "$forgeflow_result" -eq 0 ]; then
+  if [ "$forgeflow_plan_incomplete" -gt 0 ]; then
+    printf 'Result: VERIFICATION_PLAN_INCOMPLETE\n'
+    printf 'Stories checked: %s\n\n' "$forgeflow_checked"
+    printf 'Next:\n'
+    printf 'Correct the reported task mode, authority, architecture, or risk\n'
+    printf 'declaration in the Story, then run this check again.\n'
+    exit 1
+  fi
+
+  printf 'Result: VERIFICATION_PLAN_OK\n'
+  printf 'Stories checked: %s\n\n' "$forgeflow_checked"
+  printf 'Next:\n'
+  printf 'A resolved plan only. Run make verify, record the result, and take\n'
+  printf 'the work to human review.\n'
+  exit 0
+fi
+
+if [ "$forgeflow_plan_incomplete" -gt 0 ]; then
+  printf 'Plan: VERIFICATION_PLAN_INCOMPLETE\n'
+else
+  printf 'Plan: VERIFICATION_PLAN_OK\n'
+fi
+
+if [ "$forgeflow_plan_incomplete" -gt 0 ] ||
+  [ "$forgeflow_record_incomplete" -gt 0 ]; then
+  printf 'Result: VERIFICATION_RESULT_INCOMPLETE\n'
+  printf 'Stories checked: %s\n' "$forgeflow_checked"
+  exit 1
+fi
+
+if [ "$forgeflow_result_fail_total" -gt 0 ]; then
+  printf 'Result: VERIFICATION_FAIL\n'
+  printf 'Stories checked: %s\n' "$forgeflow_checked"
+  exit 1
+fi
+
+if [ "$forgeflow_result_partial_total" -gt 0 ]; then
+  printf 'Result: VERIFICATION_PARTIAL\n'
+  printf 'Stories checked: %s\n\n' "$forgeflow_checked"
+  printf 'Next:\n'
+  printf 'A required check or acceptance criterion is unproven. The Story is\n'
+  printf 'not complete; resolve the recorded residual risk or record the\n'
+  printf 'missing evidence.\n'
+  exit 1
+fi
+
+printf 'Result: VERIFICATION_PASS\n'
+printf 'Stories checked: %s\n\n' "$forgeflow_checked"
+printf 'Next:\n'
+printf 'Declared evidence only. Human Review still decides product, design,\n'
+printf 'and architecture acceptance.\n'

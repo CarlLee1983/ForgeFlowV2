@@ -1,15 +1,19 @@
 # Contract Checks
 
-ForgeFlow ships two static, read-only checkers for the artifacts humans write:
-`scripts/story-check` for Stories and `scripts/handoff-check` for handoffs.
-Both report structure only by default; Story readiness is opt-in. Neither executes repository code, replaces
-`make verify`, nor authorizes a merge.
+ForgeFlow ships three static, read-only checkers for the artifacts humans
+write: `scripts/story-check` for Stories, `scripts/handoff-check` for handoffs,
+and `scripts/verification-check` for the execution contract and the recorded
+verification result.
 
-Both are written with shell builtins alone and invoke no external command. A
-checker's verdict therefore depends on the file it was given and nothing else:
-an unusual or empty `PATH` cannot turn a conformant artifact into an
-`INCOMPLETE` result, which matters because Repository Doctor composes both
-verdicts into its own.
+Each reports declared structure only by default; Story readiness and the
+recorded verification result are opt-in. None executes repository code, replaces
+`make verify`, or authorizes a merge.
+
+All three are written with shell builtins alone and invoke no external command.
+A checker's verdict therefore depends on the files it was given and nothing
+else: an unusual or empty `PATH` cannot turn a conformant artifact into an
+`INCOMPLETE` result, which matters because Repository Doctor composes the Story
+and handoff verdicts into its own.
 
 ## Story contract check
 
@@ -116,6 +120,56 @@ Neither result means human-approved READY, sound requirements, correct
 implementation, or Human Review acceptance. The map declares a planned proof;
 the checker never runs it or parses test sources. No AC must be automated.
 
+## Execution governance and verification result check
+
+```sh
+./scripts/verification-check [story-directory ...]
+./scripts/verification-check --result [story-directory ...]
+```
+
+Discovery matches `story-check`: with no argument, every directory under
+`specs/stories/` except `_template/` is checked relative to the current
+directory. The flag appears once before directories.
+
+The default mode resolves and prints the task mode, authority set, risk level,
+architecture impact, and required verification profile a Story declares,
+applying the documented defaults from the
+[Execution Contract](../protocol/execution.md). A Story that declares nothing
+new resolves to `execution`, `plan` and `modify` authority, low risk, low
+architecture impact, and the `lint static unit` profile.
+
+| Result | Exit | Meaning |
+| --- | --- | --- |
+| `VERIFICATION_PLAN_OK` | `0` | Every checked Story resolves to a valid execution contract. |
+| `VERIFICATION_PLAN_INCOMPLETE` | `1` | A declaration is unknown, repeated, or invalid. |
+| `ERROR` | `2` | Invalid invocation, or a missing, unreadable, or symlinked Story file. |
+
+`--result` additionally reads `verification.md` beside the Story and judges it
+against that profile and the Story's checkbox acceptance criteria. It reports a
+`Plan:` line and then:
+
+| Result | Exit | Meaning |
+| --- | --- | --- |
+| `VERIFICATION_PASS` | `0` | Every required check passed and every acceptance criterion has a passing observation. |
+| `VERIFICATION_PARTIAL` | `1` | A required check is absent or did not pass, or a criterion is unproven. |
+| `VERIFICATION_FAIL` | `1` | A check failed, a criterion failed, or an ungranted operation was used. |
+| `VERIFICATION_RESULT_INCOMPLETE` | `1` | The record is missing or malformed, or an incomplete result retains no residual risk. |
+| `ERROR` | `2` | An operational failure, as above. |
+
+Like the other checkers it is written with shell builtins alone, so its verdict
+depends on the files it was given and not on the caller's `PATH`. It never
+executes a recorded command, never re-runs a check, and never infers a result
+that was not written down: a required check that is simply absent is reported,
+not assumed.
+
+`scripts/story-check` validates the declarations themselves. It reports an
+unknown or repeated authority operation, an authority set that grants `deploy`
+without `push`, `push` without `commit`, or `commit` without `modify`, an
+`evidence` Story that grants any mutating operation, architecture impact
+`medium` or `high` with no decision or contract, a referenced decision that does
+not exist or is not usable, an owner naming an undeclared boundary, and a
+recognized high-risk signal filed below `high`.
+
 ## Handoff contract check
 
 ```sh
@@ -146,6 +200,10 @@ stale `pass` is a review concern, not a checker failure. Prose outside the
 block, and comments inside it, are ignored.
 
 ## Composed by Doctor
+
+Repository Doctor composes the Story and handoff checks only.
+`scripts/verification-check` is not part of Doctor's static inspection, so an
+adopter's Doctor result is unchanged by this capability.
 
 [Repository Doctor](doctor.md) runs both checks in static mode once the
 required structure is confirmed, using their documented command forms and

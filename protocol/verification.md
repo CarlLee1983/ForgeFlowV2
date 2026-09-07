@@ -64,6 +64,139 @@ Doctor's `STRUCTURE_OK` result is only a static structure result, while
 (both remain `NOT_CHECKED`), and neither replaces required human review or the
 repository's own merge decision.
 
+## Verification profiles
+
+The declared [risk level](execution.md#risk) selects how much of the
+verification surface a Story owes:
+
+| Risk level | Required checks |
+| --- | --- |
+| `low` | `lint`, `static`, `unit` |
+| `medium` | `lint`, `static`, `unit`, `integration` |
+| `high` | `lint`, `static`, `unit`, `integration`, `contract`, `e2e` |
+
+An `architecture` check is added when the Story declares
+`Architecture impact: medium` or `high`.
+
+A profile names verification *layers*, not commands. ForgeFlow does not assume
+that any repository has a command for each layer: the repository maps a layer to
+its own tooling behind `make verify`, exactly as it already does. A layer the
+repository does not have is recorded as `unsupported`. It is never recorded as
+a pass.
+
+The default profile for a Story that declares no risk is `low`, so an existing
+Story keeps the surface it already had.
+
+## Verification result
+
+A Story may record what verification actually did in
+`specs/stories/<id>/verification.md`, using
+[the result template](../templates/story/verification.md):
+
+```markdown
+## Checks
+
+* unit: pass — `make verify`
+* e2e: unsupported — `no browser environment in this repository`
+
+## Evidence
+
+* `AC-001`: pass — `PaymentRetryPolicyTest`
+
+## Authority Used
+
+* modify
+
+## Residual Risks
+
+* `end-to-end environment unavailable`
+```
+
+A check status is `pass`, `fail`, `skipped`, `blocked`, or `unsupported`. An
+evidence status is `pass`, `fail`, `blocked`, or `skipped`. Every detail is one
+exact backticked command, test, or reason.
+
+## Acceptance evidence traceability
+
+A green command is not a finished Story. `acceptance.md` declares, before
+implementation, which observation will prove each criterion; `verification.md`
+records, after implementation, what that observation actually was:
+
+```text
+Acceptance Criterion → Verification → Evidence
+```
+
+An entire test suite passing while no observation ties a criterion to a result
+means the criterion is unproven, and the Story is not verified.
+
+## Judging the result
+
+```sh
+./scripts/verification-check --result [story-directory ...]
+```
+
+reads the Story, resolves its profile, and judges the recorded result. It never
+runs a recorded command and never infers one that was not recorded.
+
+| Result | Exit | Meaning |
+| --- | --- | --- |
+| `VERIFICATION_PASS` | `0` | Every required check passed and every acceptance criterion has a passing observation. |
+| `VERIFICATION_PARTIAL` | `1` | A required check is absent or did not pass, or a criterion is unproven. |
+| `VERIFICATION_FAIL` | `1` | A check failed, a criterion failed, or an operation was used that the Story does not grant. |
+| `VERIFICATION_RESULT_INCOMPLETE` | `1` | The record is missing or malformed, or an incomplete result retains no residual risk. |
+| `ERROR` | `2` | Invalid invocation, or a missing, unreadable, or symlinked Story file. |
+
+An operation recorded under `## Authority Used` that the Story does not grant is
+an **authority conflict** and makes the result `VERIFICATION_FAIL`.
+
+`PASS` here means the declared evidence is complete, not that the evidence is
+convincing. Human Review still decides whether the recorded observation actually
+proves the criterion.
+
+## The verification flow
+
+```text
+make verify
+     │
+     ▼
+resolve task mode, authority, risk, architecture impact
+     │
+     ▼
+resolve the verification profile
+     │
+     ├── lint
+     ├── static
+     ├── unit
+     ├── integration
+     ├── contract
+     ├── e2e
+     └── architecture
+     │
+     ▼
+record the result and the evidence per acceptance criterion
+     │
+     ▼
+PASS · PARTIAL · FAIL
+```
+
+`make verify` remains the canonical gate and the only authority on whether the
+checks themselves passed. The result record adds what an exit status cannot
+carry: which layer each check belonged to, which criterion each observation
+proves, which authority was used, and what risk survived.
+
+## Completion
+
+A Story is complete only when all of the following hold:
+
+* the implementation is complete;
+* the required verification passed;
+* every required acceptance criterion has passing evidence; and
+* no unresolved authority conflict remains.
+
+A skipped required check, a blocked verification, or a missing observation makes
+the Story `PARTIAL`. Partial work is not Done, and reporting it as Done is a
+protocol violation rather than a rounding error.
+
 ## Repair loop
 
 On FAIL, the implementing agent:

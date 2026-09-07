@@ -39,6 +39,8 @@ forgeflow_repo=$(CDPATH='' cd -P "$(dirname "$0")/.." >/dev/null 2>&1 && pwd)
 forgeflow_portability_shell=${PORTABILITY_SHELL:-}
 forgeflow_test_dir=$(mktemp -d "${TMPDIR:-/tmp}/forgeflow-portability.XXXXXX")
 forgeflow_copy="$forgeflow_test_dir/source"
+forgeflow_production_scripts='bootstrap doctor story-check handoff-check release-check verification-check'
+forgeflow_behavior_suites='bootstrap doctor story-check handoff-check release-check execution-governance'
 
 unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY
 unset GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_CEILING_DIRECTORIES
@@ -99,7 +101,7 @@ prepare_clean_git_fixture() {
 }
 
 rewrite_production_shebangs() {
-  for forgeflow_script in bootstrap doctor story-check handoff-check release-check
+  for forgeflow_script in $forgeflow_production_scripts
   do
     forgeflow_source="$forgeflow_repo/scripts/$forgeflow_script"
     forgeflow_copied="$forgeflow_copy/scripts/$forgeflow_script"
@@ -126,7 +128,7 @@ rewrite_production_shebangs() {
 }
 
 source_scripts_remain_unchanged() {
-  for forgeflow_script in bootstrap doctor story-check handoff-check release-check
+  for forgeflow_script in $forgeflow_production_scripts
   do
     cmp "$forgeflow_test_dir/$forgeflow_script.original" \
       "$forgeflow_repo/scripts/$forgeflow_script" >/dev/null ||
@@ -135,7 +137,7 @@ source_scripts_remain_unchanged() {
 }
 
 canonical_verify_is_unchanged() {
-  grep -Fqx 'verify: verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions' \
+  grep -Fqx 'verify: verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions verify-execution' \
     "$forgeflow_repo/Makefile" || fail 'canonical verify dependencies changed'
   grep -Fqx 'release-check: verify' "$forgeflow_repo/Makefile" ||
     fail 'release-check no longer depends on canonical verify'
@@ -148,7 +150,7 @@ copied_scripts_use_selected_shell() {
 }
 
 selected_shell_runs_existing_behavior_suites() {
-  for forgeflow_suite in bootstrap doctor story-check handoff-check release-check
+  for forgeflow_suite in $forgeflow_behavior_suites
   do
     "$forgeflow_portability_shell" "$forgeflow_copy/tests/$forgeflow_suite.sh"
   done

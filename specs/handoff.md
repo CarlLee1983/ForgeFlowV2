@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: FF-223
+  current_story: none
   next_story: pending
   completed_stories:
     - FF-201
@@ -33,14 +33,17 @@ workflow:
     - FF-220
     - FF-221
     - FF-222
-  status: review
+    - FF-223
+    - FF-224
+  status: done
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: ff-223-engineering-guidance-release
-  commit: b7d6a0174bc84e2e765a46212dd449e1da53b2a1
-  dirty_worktree: false
-  story_owned_paths: []
+  branch: ff-224-execution-governance
+  commit: 9279aa6a98f257e33a7236e4ea50c06e23b1dd90
+  dirty_worktree: true
+  story_owned_paths:
+    - specs/handoff.md
   known_unrelated_paths: []
 
 verification:
@@ -50,12 +53,45 @@ verification:
 
 ## Notes
 
-* Carl accepted FF-223 on 2026-09-07 and authorized commit and full release.
-  PR #14 merged at `68d4a0b9a7127ed2ae80b82e28ec2ba0ec81da34` on 2026-09-07,
-  but GitHub currently reports `REVIEW_REQUIRED`, so FF-223 remains in REVIEW.
-  `v0.4.1` was published on 2026-09-07; its GitHub Release is neither draft nor
-  prerelease. These are historical observations, not a substitute for resolving
-  the required PR approval.
+* FF-224 implements execution governance and evidence-backed completion as the
+  Additive protocol version `0.5.0`. Task mode, authority, architecture
+  metadata, and risk are optional Story declarations; `specs/decisions/` holds
+  ForgeFlow-native decision records; `scripts/verification-check` resolves the
+  execution contract and judges a recorded `verification.md`. Every existing
+  Story resolves to the documented defaults and keeps its previous verdict.
+* The baseline is the complete FF-224 implementation commit above, on branch
+  `ff-224-execution-governance`. This handoff-only follow-up records that
+  baseline and is the single remaining dirty path. FF-224 deliberately changes
+  one baseline behavior — the canonical `verify` dependency list pinned by
+  `tests/portability.sh` FF220-AC-001 — and its `## Superseded Behavior`
+  records that.
+* Full `make verify` passed on this tree, as did
+  `make verify-portability` under `/bin/sh` and `/bin/dash`. Human Review has
+  not seen FF-224 yet.
+* Carl accepted FF-224 on 2026-09-07 after reviewing the four judgment calls and
+  the deliberate baseline replacement, and authorized push and a pull request.
+  The Story's `## Authority` was raised from `commit: no` to `commit: yes` and
+  then `push: no` to `push: yes` as each authorization was given, and
+  `verification.md` records both under `## Authority Used`, so granted and used
+  authority agree rather than an operation being performed outside the
+  declaration. `deploy` remains `no`.
+* Disclosure on FF-224's DONE record: Carl's acceptance is the Human Review half
+  of REVIEW -> DONE. The merge-policy half is outstanding at the time of
+  writing — the pull request is open and unmerged, and `VERSION` is already
+  `0.5.0` with `docs/releases/0.5.0.md` written while no `v0.5.0` tag or GitHub
+  Release exists. Recording DONE ahead of the merge is Carl's decision, noted
+  here so the state is not mistaken for a completed merge.
+* FF-223 is DONE. Carl accepted it on 2026-09-07 and confirmed that acceptance
+  again on 2026-09-07 after the merge-policy question was raised, which is the
+  Human Review decision the lifecycle requires. PR #14 merged at
+  `68d4a0b9a7127ed2ae80b82e28ec2ba0ec81da34`, that commit is an ancestor of this
+  branch, and remote tag `v0.4.1` peels to it.
+* One remote fact is unresolved and is deliberately not being reported as
+  resolved: PR #14 still returns `reviewDecision: REVIEW_REQUIRED`. The PR is
+  already merged, so this is a stale branch-protection record rather than a
+  blocked merge, and no agent can clear it — GitHub refuses a self-approval from
+  the PR author. Carl's acceptance is recorded here instead. Verified
+  2026-09-07; remote state stays time-sensitive.
 * FF-223 implements the additive Engineering Guidance Layer Phase 1 as `0.4.1`.
   Fresh bootstrap and explicit `--force` seed its four files; `--upgrade` never
   reads or writes repository/team-owned Guidance. Doctor reports absent Guidance
@@ -64,8 +100,13 @@ verification:
   `b7d6a0174bc84e2e765a46212dd449e1da53b2a1`. This handoff-only follow-up records that baseline;
   the release candidate is clean after committing this record. `make verify` passed after the implementation and
   behavioral corrections; the final declaration-only evidence and handoff
-  updates are attributed here and checked narrowly. FF-223 is in REVIEW, while
-  FF-222 remains in REVIEW and is not added to completed Stories.
+  updates are attributed here and checked narrowly.
+* Correction: an earlier note here claimed FF-222 remained in REVIEW and was not
+  recorded as completed, which contradicted this handoff's own lifecycle block.
+  FF-222 is DONE. PR #11 merged as
+  `998c63fd6b530b9b15ced35a4a118b41916c79fa` on 2026-09-05, the remote
+  annotated tag `v0.4.0` peels to that exact commit, and it is an ancestor of
+  this branch. Verified on 2026-09-07; remote state stays time-sensitive.
 
 ## Historical FF-222 and release notes
 

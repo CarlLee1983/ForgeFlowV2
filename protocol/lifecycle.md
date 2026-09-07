@@ -53,6 +53,17 @@ the implementation repair loop. These review outcomes do not change existing
 PASS, FAIL, or Repair Loop semantics. See [Human Review](../docs/human-review.md)
 for the contextual review dimensions and authority boundary.
 
+## Completion is evidence, not a green command
+
+`VERIFYING → REVIEW` requires more than a zero exit status. The Story advances
+when the required verification passed and every required acceptance criterion
+has passing evidence recorded against it. A required check that was skipped,
+blocked, or unsupported, or a criterion with no observation, leaves the work
+partial: it returns to IMPLEMENTING, or to SPEC_BLOCKED when the gap is a
+missing human decision. This adds no state and changes no transition; it states
+what `make verify` passing has to mean before REVIEW begins. See
+[Completion](verification.md#completion).
+
 ## Handing work over
 
 When work changes hands, the state is recorded in a handoff whose lifecycle

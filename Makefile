@@ -1,6 +1,6 @@
-.PHONY: verify verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions verify-portability release-check
+.PHONY: verify verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-execution verify-release verify-typescript verify-go verify-actions verify-portability release-check
 
-verify: verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions
+verify: verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions verify-execution
 
 release-check: verify
 	./scripts/release-check
@@ -30,6 +30,13 @@ verify-handoff:
 	sh -n scripts/handoff-check tests/handoff-check.sh
 	./tests/handoff-check.sh
 	./scripts/handoff-check
+
+verify-execution:
+	sh -n scripts/verification-check tests/execution-governance.sh
+	./tests/execution-governance.sh
+	./scripts/verification-check
+	./scripts/verification-check examples/*/specs/stories/*
+	./scripts/verification-check --result specs/stories/FF-224-execution-governance
 
 verify-release:
 	sh -n scripts/release-check tests/release-check.sh
