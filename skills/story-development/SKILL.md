@@ -23,16 +23,20 @@ the completion authority.
    with an exact payload and expected persisted output; when it declares
    superseded behavior, change the named tests deliberately instead of treating
    the conflict as a defect.
-3. Read the repository agent guide and inspect the relevant architecture, code,
+3. Read `guidance/ENTRY.md` when it exists, then load only the guidance relevant
+   to the Story. Guidance is advisory: the approved Story remains canonical,
+   specific approved context beats generic guidance, and a real conflict goes to
+   Human Review rather than an invented resolution.
+4. Read the repository agent guide and inspect the relevant architecture, code,
    tests, dependencies, and documented commands. Project tooling is the source
    of truth for technology-specific mechanics.
-4. Form a dependency-ordered implementation plan for the smallest coherent
+5. Form a dependency-ordered implementation plan for the smallest coherent
    end-to-end change. Keep requirement decisions with the human; ask only when a
    missing decision materially changes behavior or risk.
-5. Implement within the Story boundary. Add or update tests at the lowest useful
+6. Implement within the Story boundary. Add or update tests at the lowest useful
    boundary for changed behavior, including stable regression coverage for
    repaired defects.
-6. Run useful focused checks while developing, then run `make verify`
+7. Run useful focused checks while developing, then run `make verify`
    from the repository root.
 
 ## Review Preparation

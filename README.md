@@ -48,6 +48,15 @@ The protocol is split into six small contracts:
 - [Repository adoption](protocol/repository-contract.md)
 - [Versioning and compatibility](protocol/versioning.md)
 
+## Optional engineering guidance
+
+ForgeFlow may provide lightweight repository-readable engineering guidance that
+helps agents reuse durable repository or team decisions. Guidance remains
+advisory unless the adopting repository deliberately converts it into an
+executable rule behind `make verify`; it never replaces the Story, verification,
+or Human Review. The baseline is [selectively loaded](guidance/ENTRY.md), not a
+knowledge-base platform or agent runtime.
+
 ## Code quality
 
 ForgeFlow can enforce Code Style without defining a cross-language style. The
@@ -76,6 +85,11 @@ It installs:
 
 ```text
 AGENTS.md
+guidance/
+├── ENTRY.md
+├── PRINCIPLES.md
+├── DECISIONS.md
+└── PRACTICES.md
 specs/
 ├── .forgeflow-adoption
 └── stories/
@@ -141,9 +155,10 @@ Repository Doctor can statically inspect an adoption without changing it:
 ./scripts/doctor /path/to/repository
 ```
 
-It checks only the required `AGENTS.md`, `specs/stories/`, and `Makefile`
-surface. Static success does not run `make verify`, check CI or merge policy,
-or replace human review. For a repository you trust, explicit execution mode
+It requires only the `AGENTS.md`, `specs/stories/`, and `Makefile` surface. When
+`guidance/` is present, its optional four-file baseline is also scanned without
+making an absent directory invalid. Static success does not run `make verify`,
+check CI or merge policy, or replace human review. For a repository you trust, explicit execution mode
 runs its canonical gate once:
 
 ```sh

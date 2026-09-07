@@ -258,16 +258,24 @@ esac
 forgeflow_managed_files='templates/AGENTS.md AGENTS.md
 templates/story/story.md specs/stories/_template/story.md
 templates/story/acceptance.md specs/stories/_template/acceptance.md
-templates/story/task.md specs/stories/_template/task.md'
+templates/story/task.md specs/stories/_template/task.md
+guidance/ENTRY.md guidance/ENTRY.md
+guidance/PRINCIPLES.md guidance/PRINCIPLES.md
+guidance/DECISIONS.md guidance/DECISIONS.md
+guidance/PRACTICES.md guidance/PRACTICES.md'
 
 forgeflow_managed_destinations="AGENTS.md
 specs/stories/_template/story.md
 specs/stories/_template/acceptance.md
 specs/stories/_template/task.md
+guidance/ENTRY.md
+guidance/PRINCIPLES.md
+guidance/DECISIONS.md
+guidance/PRACTICES.md
 $forgeflow_marker_relative"
 
-# An upgrade moves the templates and the marker only. AGENTS.md is
-# repository-owned once installed, so it leaves the managed surface entirely.
+# An upgrade moves the templates and the marker only. AGENTS.md and guidance
+# become repository-owned once installed, so they leave the managed surface.
 forgeflow_upgrade_files='templates/story/story.md specs/stories/_template/story.md
 templates/story/acceptance.md specs/stories/_template/acceptance.md
 templates/story/task.md specs/stories/_template/task.md'
@@ -280,9 +288,11 @@ $forgeflow_marker_relative"
 if [ "$forgeflow_upgrade" -eq 1 ]; then
   forgeflow_active_files=$forgeflow_upgrade_files
   forgeflow_active_destinations=$forgeflow_upgrade_destinations
+  forgeflow_managed_directories='specs specs/stories specs/stories/_template'
 else
   forgeflow_active_files=$forgeflow_managed_files
   forgeflow_active_destinations=$forgeflow_managed_destinations
+  forgeflow_managed_directories='specs specs/stories specs/stories/_template guidance'
 fi
 
 while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
@@ -305,10 +315,7 @@ if [ "$forgeflow_upgrade" -eq 1 ] &&
   exit 1
 fi
 
-for forgeflow_relative_directory in \
-  specs \
-  specs/stories \
-  specs/stories/_template
+for forgeflow_relative_directory in $forgeflow_managed_directories
 do
   forgeflow_directory="$forgeflow_target/$forgeflow_relative_directory"
 
@@ -404,7 +411,7 @@ forgeflow_committed=0
 trap finish_install 0
 trap 'exit 1' HUP INT TERM
 
-for forgeflow_relative_directory in specs specs/stories specs/stories/_template
+for forgeflow_relative_directory in $forgeflow_managed_directories
 do
   if [ ! -d "$forgeflow_target/$forgeflow_relative_directory" ]; then
     forgeflow_created_directories="$forgeflow_relative_directory
@@ -445,13 +452,13 @@ forgeflow_committed=1
 finish_install
 
 if [ "$forgeflow_upgrade" -eq 1 ]; then
-  printf 'AGENTS.md was left unchanged; it is owned by this repository.\n'
+  printf 'AGENTS.md and guidance/ were left unchanged; they are owned by this repository.\n'
 
   if [ -n "$forgeflow_previous_version" ] &&
     [ "$forgeflow_previous_version" != "$forgeflow_version" ]; then
     printf 'WARNING: this adoption last recorded ForgeFlow %s and these templates are %s.\n' \
       "$forgeflow_previous_version" "$forgeflow_version" >&2
-    printf 'AGENTS.md was not written and may predate either version; see docs/upgrading.md.\n' >&2
+    printf 'AGENTS.md and guidance/ were not written and may predate either version; see docs/upgrading.md.\n' >&2
   fi
 
   printf 'ForgeFlow templates upgraded in %s\n' "$forgeflow_target"

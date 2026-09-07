@@ -62,7 +62,11 @@ for forgeflow_relative_path in \
   AGENTS.md \
   specs/stories/_template/story.md \
   specs/stories/_template/acceptance.md \
-  specs/stories/_template/task.md
+  specs/stories/_template/task.md \
+  guidance/ENTRY.md \
+  guidance/PRINCIPLES.md \
+  guidance/DECISIONS.md \
+  guidance/PRACTICES.md
 do
   printf '%s\n' "$forgeflow_dry_output" | grep "Would install $forgeflow_fresh_canonical/$forgeflow_relative_path" \
     >/dev/null || fail "dry run did not report $forgeflow_relative_path"
@@ -87,6 +91,12 @@ cmp "$forgeflow_repo/templates/story/acceptance.md" \
 cmp "$forgeflow_repo/templates/story/task.md" \
   "$forgeflow_fresh/specs/stories/_template/task.md" >/dev/null ||
   fail "task.md was not installed from the template"
+for forgeflow_guidance_file in ENTRY.md PRINCIPLES.md DECISIONS.md PRACTICES.md
+do
+  cmp "$forgeflow_repo/guidance/$forgeflow_guidance_file" \
+    "$forgeflow_fresh/guidance/$forgeflow_guidance_file" >/dev/null ||
+    fail "guidance/$forgeflow_guidance_file was not installed"
+done
 
 if "$forgeflow_repo/scripts/bootstrap" "$forgeflow_fresh" >/dev/null 2>&1; then
   fail "a second install overwrote managed files without --force"
@@ -99,7 +109,11 @@ for forgeflow_relative_path in \
   AGENTS.md \
   specs/stories/_template/story.md \
   specs/stories/_template/acceptance.md \
-  specs/stories/_template/task.md
+  specs/stories/_template/task.md \
+  guidance/ENTRY.md \
+  guidance/PRINCIPLES.md \
+  guidance/DECISIONS.md \
+  guidance/PRACTICES.md
 do
   printf '%s\n' "$forgeflow_force_dry_output" | grep "Would replace $forgeflow_fresh_canonical/$forgeflow_relative_path" \
     >/dev/null || fail "--force --dry-run did not preview replacement of $forgeflow_relative_path"
@@ -116,7 +130,11 @@ for forgeflow_relative_path in \
   AGENTS.md \
   specs/stories/_template/story.md \
   specs/stories/_template/acceptance.md \
-  specs/stories/_template/task.md
+  specs/stories/_template/task.md \
+  guidance/ENTRY.md \
+  guidance/PRINCIPLES.md \
+  guidance/DECISIONS.md \
+  guidance/PRACTICES.md
 do
   forgeflow_conflict_number=$((forgeflow_conflict_number + 1))
   forgeflow_conflict="$forgeflow_test_dir/conflict-$forgeflow_conflict_number"
@@ -361,7 +379,8 @@ make_forgeflow_checkout() {
   forgeflow_case_checkout=$1
 
   mkdir -p "$forgeflow_case_checkout/scripts" \
-    "$forgeflow_case_checkout/templates/story"
+    "$forgeflow_case_checkout/templates/story" \
+    "$forgeflow_case_checkout/guidance"
   cp "$forgeflow_repo/scripts/bootstrap" "$forgeflow_case_checkout/scripts/"
   cp "$forgeflow_repo/VERSION" "$forgeflow_case_checkout/"
   cp "$forgeflow_repo/templates/AGENTS.md" "$forgeflow_case_checkout/templates/"
@@ -369,6 +388,11 @@ make_forgeflow_checkout() {
     "$forgeflow_repo/templates/story/acceptance.md" \
     "$forgeflow_repo/templates/story/task.md" \
     "$forgeflow_case_checkout/templates/story/"
+  cp "$forgeflow_repo/guidance/ENTRY.md" \
+    "$forgeflow_repo/guidance/PRINCIPLES.md" \
+    "$forgeflow_repo/guidance/DECISIONS.md" \
+    "$forgeflow_repo/guidance/PRACTICES.md" \
+    "$forgeflow_case_checkout/guidance/"
 }
 
 revision_states_what_the_snapshot_can_prove() {
@@ -940,7 +964,11 @@ if [ ! -f "$FF_FAULT_ROOT/triggered" ]; then
     mv:mv)
       [ "$fault_destination" != "$FF_FAULT_TARGET/$FF_FAULT_RELATIVE" ] || fault_match=1 ;;
     cp:cp)
-      [ "$fault_source" != "$FF_SOURCE/templates/story/$FF_FAULT_RELATIVE" ] || fault_match=1 ;;
+      case "$FF_FAULT_RELATIVE" in
+        guidance/*) fault_expected="$FF_SOURCE/$FF_FAULT_RELATIVE" ;;
+        *) fault_expected="$FF_SOURCE/templates/story/$FF_FAULT_RELATIVE" ;;
+      esac
+      [ "$fault_source" != "$fault_expected" ] || fault_match=1 ;;
     backup:cp)
       case "$fault_destination" in */original) fault_match=1 ;; esac ;;
     mkdir:mkdir)
@@ -1046,7 +1074,7 @@ preparation_failures_leave_originals_unchanged() {
     diff -r "$forgeflow_fault_root/before" "$forgeflow_fault_target" >/dev/null ||
       fail "preparation failure changed originals: $forgeflow_failure_copy"
   done
-  for forgeflow_failure_directory in specs specs/stories specs/stories/_template stage
+  for forgeflow_failure_directory in specs specs/stories specs/stories/_template guidance stage
   do
     prepare_recovery_fault "mkdir-${forgeflow_failure_directory##*/}"
     cp -R "$forgeflow_fault_target" "$forgeflow_fault_root/before"
@@ -1081,6 +1109,8 @@ recovery_preserves_existing_and_absent_files() {
       mkdir -p "$forgeflow_fault_target/specs/stories/_template"
       printf 'original guide\n' >"$forgeflow_fault_target/AGENTS.md"
       printf 'original story\n' >"$forgeflow_fault_target/specs/stories/_template/story.md"
+      mkdir "$forgeflow_fault_target/guidance"
+      printf 'team guidance\n' >"$forgeflow_fault_target/guidance/ENTRY.md"
     fi
     printf 'unmanaged\n' >"$forgeflow_fault_target/notes.txt"
     cp -R "$forgeflow_fault_target" "$forgeflow_fault_root/before"
@@ -1152,11 +1182,135 @@ recovery_guarantees_are_documented() {
   done
 }
 
+guidance_is_seeded_explicitly_and_preserved_on_upgrade() {
+  forgeflow_guidance_owner_target="$forgeflow_test_dir/guidance ownership"
+  forgeflow_case_target=$forgeflow_guidance_owner_target
+  mkdir -p "$forgeflow_case_target"
+  "$forgeflow_repo/scripts/bootstrap" "$forgeflow_case_target" >/dev/null
+
+  printf 'team decision\n' >"$forgeflow_case_target/guidance/DECISIONS.md"
+  "$forgeflow_repo/scripts/bootstrap" --upgrade "$forgeflow_case_target" >/dev/null
+  [ "$(cat "$forgeflow_case_target/guidance/DECISIONS.md")" = 'team decision' ] ||
+    fail '--upgrade replaced repository-owned guidance'
+
+  rm -rf "$forgeflow_case_target/guidance"
+  printf 'outside guidance\n' >"$forgeflow_test_dir/outside-guidance"
+  ln -s "$forgeflow_test_dir/outside-guidance" "$forgeflow_case_target/guidance"
+  "$forgeflow_repo/scripts/bootstrap" --upgrade "$forgeflow_case_target" >/dev/null ||
+    fail '--upgrade inspected repository-owned guidance'
+  [ "$(cat "$forgeflow_test_dir/outside-guidance")" = 'outside guidance' ] ||
+    fail '--upgrade wrote through repository-owned guidance'
+
+  forgeflow_case_target="$forgeflow_test_dir/upgrade absent"
+  make_prior_adoption "$forgeflow_case_target"
+  "$forgeflow_repo/scripts/bootstrap" --upgrade "$forgeflow_case_target" >/dev/null
+  [ ! -e "$forgeflow_case_target/guidance" ] ||
+    fail '--upgrade installed absent repository-owned guidance'
+
+  mkdir "$forgeflow_case_target/guidance"
+  printf 'partial team guidance\n' >"$forgeflow_case_target/guidance/DECISIONS.md"
+  forgeflow_case_output=$("$forgeflow_repo/scripts/bootstrap" --upgrade --dry-run "$forgeflow_case_target")
+  if printf '%s\n' "$forgeflow_case_output" | grep -Fq '/guidance'; then
+    fail '--upgrade --dry-run previewed repository-owned guidance'
+  fi
+  "$forgeflow_repo/scripts/bootstrap" --upgrade "$forgeflow_case_target" >/dev/null
+  [ "$(cat "$forgeflow_case_target/guidance/DECISIONS.md")" = 'partial team guidance' ] ||
+    fail '--upgrade replaced partial repository-owned guidance'
+  [ ! -e "$forgeflow_case_target/guidance/ENTRY.md" ] ||
+    fail '--upgrade completed partial repository-owned guidance'
+
+  forgeflow_case_target=$forgeflow_guidance_owner_target
+  rm "$forgeflow_case_target/guidance"
+  mkdir "$forgeflow_case_target/guidance"
+  printf 'custom guidance\n' >"$forgeflow_case_target/guidance/ENTRY.md"
+  "$forgeflow_repo/scripts/bootstrap" --force "$forgeflow_case_target" >/dev/null
+  cmp "$forgeflow_repo/guidance/ENTRY.md" "$forgeflow_case_target/guidance/ENTRY.md" >/dev/null ||
+    fail '--force did not explicitly replace guidance baseline'
+
+  forgeflow_case_target="$forgeflow_test_dir/guidance-leaf-symlink"
+  forgeflow_case_outside="$forgeflow_test_dir/outside-guidance-leaf"
+  mkdir -p "$forgeflow_case_target/guidance"
+  printf 'outside leaf\n' >"$forgeflow_case_outside"
+  ln -s "$forgeflow_case_outside" "$forgeflow_case_target/guidance/ENTRY.md"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" "$forgeflow_case_target"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --force "$forgeflow_case_target"
+  [ "$(cat "$forgeflow_case_outside")" = 'outside leaf' ] ||
+    fail 'bootstrap wrote through a Guidance leaf symlink'
+
+  prepare_recovery_fault guidance-copy
+  cp -R "$forgeflow_fault_target" "$forgeflow_fault_root/before"
+  forgeflow_fault_kind=cp
+  forgeflow_fault_relative=guidance/ENTRY.md
+  run_recovery_fault
+  assert_recovery_failed_safely
+  diff -r "$forgeflow_fault_root/before" "$forgeflow_fault_target" >/dev/null ||
+    fail 'Guidance source-copy failure changed a fresh target'
+
+  prepare_recovery_fault guidance-mkdir
+  cp -R "$forgeflow_fault_target" "$forgeflow_fault_root/before"
+  forgeflow_fault_kind=mkdir
+  forgeflow_fault_relative=guidance
+  run_recovery_fault
+  assert_recovery_failed_safely
+  diff -r "$forgeflow_fault_root/before" "$forgeflow_fault_target" >/dev/null ||
+    fail 'Guidance directory failure changed a fresh target'
+}
+
+fresh_guidance_dry_run_is_non_destructive() {
+  forgeflow_case_target="$forgeflow_test_dir/fresh guidance dry run"
+  mkdir -p "$forgeflow_case_target"
+  forgeflow_case_target_canonical=$(cd -P "$forgeflow_case_target" >/dev/null 2>&1 && pwd)
+  forgeflow_case_output=$("$forgeflow_repo/scripts/bootstrap" --dry-run "$forgeflow_case_target")
+  for forgeflow_guidance_file in ENTRY.md PRINCIPLES.md DECISIONS.md PRACTICES.md
+  do
+    printf '%s\n' "$forgeflow_case_output" |
+      grep -Fq "Would install $forgeflow_case_target_canonical/guidance/$forgeflow_guidance_file" ||
+      fail "fresh dry-run omitted guidance/$forgeflow_guidance_file"
+  done
+  [ -z "$(find "$forgeflow_case_target" -mindepth 1)" ] ||
+    fail 'fresh dry-run wrote Guidance paths'
+  "$forgeflow_repo/scripts/bootstrap" "$forgeflow_case_target" >/dev/null
+  cmp "$forgeflow_repo/guidance/ENTRY.md" "$forgeflow_case_target/guidance/ENTRY.md" >/dev/null ||
+    fail 'fresh bootstrap did not seed Guidance'
+}
+
+guidance_dry_run_refuses_unsafe_paths() {
+  forgeflow_case_target="$forgeflow_test_dir/guidance dry-run leaf symlink"
+  forgeflow_case_outside="$forgeflow_test_dir/outside dry-run guidance"
+  mkdir -p "$forgeflow_case_target/guidance"
+  printf 'outside leaf\n' >"$forgeflow_case_outside"
+  ln -s "$forgeflow_case_outside" "$forgeflow_case_target/guidance/ENTRY.md"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --dry-run "$forgeflow_case_target"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --force --dry-run "$forgeflow_case_target"
+  [ "$(cat "$forgeflow_case_outside")" = 'outside leaf' ] ||
+    fail 'dry-run wrote through a Guidance leaf symlink'
+
+  forgeflow_case_target="$forgeflow_test_dir/guidance dry-run directory symlink"
+  mkdir -p "$forgeflow_case_target"
+  ln -s "$forgeflow_test_dir" "$forgeflow_case_target/guidance"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --dry-run "$forgeflow_case_target"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --force --dry-run "$forgeflow_case_target"
+
+  forgeflow_case_target="$forgeflow_test_dir/guidance dry-run wrong type"
+  mkdir -p "$forgeflow_case_target"
+  : >"$forgeflow_case_target/guidance"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --dry-run "$forgeflow_case_target"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --force --dry-run "$forgeflow_case_target"
+
+  forgeflow_case_target="$forgeflow_test_dir/guidance dry-run leaf wrong type"
+  mkdir -p "$forgeflow_case_target/guidance/ENTRY.md"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --dry-run "$forgeflow_case_target"
+  expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --force --dry-run "$forgeflow_case_target"
+}
+
 run_case 'FF219-AC-001' replacement_failures_restore_every_original
 run_case 'FF219-AC-002' preparation_failures_leave_originals_unchanged
 run_case 'FF219-AC-003' recovery_preserves_existing_and_absent_files
 run_case 'FF219-AC-004' rollback_failure_retains_recovery_evidence
 run_case 'FF219-AC-005' recovery_preserves_normal_and_dry_run_behavior
 run_case 'FF219-AC-006' recovery_guarantees_are_documented
+run_case 'FF223-AC-012-fresh' fresh_guidance_dry_run_is_non_destructive
+run_case 'FF223-AC-012-dry-run-safety' guidance_dry_run_refuses_unsafe_paths
+run_case 'FF223-AC-012-ownership' guidance_is_seeded_explicitly_and_preserved_on_upgrade
 
 printf 'bootstrap tests passed\n'

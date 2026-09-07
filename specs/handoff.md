@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: none
+  current_story: FF-223
   next_story: pending
   completed_stories:
     - FF-201
@@ -33,16 +33,14 @@ workflow:
     - FF-220
     - FF-221
     - FF-222
-  status: done
+  status: review
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: main
-  commit: 998c63fd6b530b9b15ced35a4a118b41916c79fa
-  dirty_worktree: true
-  story_owned_paths:
-    - specs/handoff.md
-    - specs/stories/FF-222-acceptance-evidence/task.md
+  branch: ff-223-engineering-guidance-release
+  commit: b7d6a0174bc84e2e765a46212dd449e1da53b2a1
+  dirty_worktree: false
+  story_owned_paths: []
   known_unrelated_paths: []
 
 verification:
@@ -51,6 +49,25 @@ verification:
 ```
 
 ## Notes
+
+* Carl accepted FF-223 on 2026-09-07 and authorized commit and full release.
+  The implementation and its human-review evidence are accepted; FF-223 remains
+  in REVIEW until the required GitHub PR approval and merge policy are satisfied.
+  Publication of `v0.4.1` still requires the release runbook's clean-candidate,
+  exact-SHA CI, annotated-tag, and GitHub Release checks. No publication is
+  claimed here.
+* FF-223 implements the additive Engineering Guidance Layer Phase 1 as `0.4.1`.
+  Fresh bootstrap and explicit `--force` seed its four files; `--upgrade` never
+  reads or writes repository/team-owned Guidance. Doctor reports absent Guidance
+  as optional, a present partial baseline as drift, and unsafe paths as errors.
+  The baseline is the complete accepted implementation commit
+  `b7d6a0174bc84e2e765a46212dd449e1da53b2a1`. This handoff-only follow-up records that baseline;
+  the release candidate is clean after committing this record. `make verify` passed after the implementation and
+  behavioral corrections; the final declaration-only evidence and handoff
+  updates are attributed here and checked narrowly. FF-223 is in REVIEW, while
+  FF-222 remains in REVIEW and is not added to completed Stories.
+
+## Historical FF-222 and release notes
 
 * Carl authorized commit and release on 2026-09-06. The release candidate
   includes FF-222 and the reviewed optional Agentic Discipline documentation.

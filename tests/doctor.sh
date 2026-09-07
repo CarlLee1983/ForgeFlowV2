@@ -1171,6 +1171,93 @@ a_marker_written_with_carriage_returns_is_not_drift() {
   assert_output_excludes 'differs from this checkout'
 }
 
+guidance_is_optional_but_present_baselines_are_safe_and_deterministic() {
+  mkdir -p "$forgeflow_test_dir/empty-path-static"
+  forgeflow_fixture="$forgeflow_test_dir/guidance-absent"
+  create_adopted_fixture "$forgeflow_fixture"
+  run_doctor "$forgeflow_fixture"
+  assert_status 0
+  assert_output_contains 'Guidance: OPTIONAL_LEGACY'
+  assert_output_contains 'Result: STRUCTURE_OK'
+
+  forgeflow_fixture="$forgeflow_test_dir/guidance-full"
+  create_adopted_fixture "$forgeflow_fixture"
+  cp -R "$forgeflow_repo/guidance" "$forgeflow_fixture/guidance"
+  run_doctor_with_path "$forgeflow_test_dir/empty-path-static" "$forgeflow_fixture"
+  assert_status 0
+  assert_output_contains 'Guidance: GUIDANCE_BASELINE_OK'
+  assert_output_contains 'Result: STRUCTURE_OK'
+
+  : >"$forgeflow_fixture/guidance/PRACTICES.md"
+  forgeflow_guidance_before=$(cksum "$forgeflow_fixture/guidance/PRACTICES.md")
+  run_doctor_with_path "$forgeflow_test_dir/empty-path-static" "$forgeflow_fixture"
+  assert_status 0
+  assert_output_contains 'Guidance: GUIDANCE_INCOMPLETE'
+  assert_output_contains 'Result: CONTRACT_DRIFT'
+  [ "$forgeflow_guidance_before" = "$(cksum "$forgeflow_fixture/guidance/PRACTICES.md")" ] ||
+    fail 'Doctor changed blank Guidance contents'
+
+  forgeflow_fixture="$forgeflow_test_dir/guidance-missing"
+  create_adopted_fixture "$forgeflow_fixture"
+  cp -R "$forgeflow_repo/guidance" "$forgeflow_fixture/guidance"
+  rm "$forgeflow_fixture/guidance/DECISIONS.md"
+  run_doctor "$forgeflow_fixture"
+  assert_status 0
+  assert_output_contains 'Guidance: GUIDANCE_INCOMPLETE'
+  assert_output_contains 'Guidance baseline is incomplete: guidance/DECISIONS.md'
+
+  forgeflow_fixture="$forgeflow_test_dir/guidance-wrong-type"
+  create_adopted_fixture "$forgeflow_fixture"
+  printf 'not a directory\n' >"$forgeflow_fixture/guidance"
+  run_doctor "$forgeflow_fixture"
+  assert_status 2
+  assert_output_contains 'Guidance: ERROR'
+  assert_output_contains 'Guidance path is not a directory: guidance/'
+  assert_output_contains 'Result: ERROR'
+
+  forgeflow_fixture="$forgeflow_test_dir/guidance-leaf-wrong-type"
+  create_adopted_fixture "$forgeflow_fixture"
+  cp -R "$forgeflow_repo/guidance" "$forgeflow_fixture/guidance"
+  rm "$forgeflow_fixture/guidance/ENTRY.md"
+  mkdir "$forgeflow_fixture/guidance/ENTRY.md"
+  run_doctor "$forgeflow_fixture"
+  assert_status 2
+  assert_output_contains 'Guidance: ERROR'
+  assert_output_contains 'Guidance file is not a regular file: guidance/ENTRY.md'
+
+  forgeflow_fixture="$forgeflow_test_dir/guidance-link"
+  create_adopted_fixture "$forgeflow_fixture"
+  printf 'outside\n' >"$forgeflow_test_dir/outside-guidance"
+  ln -s "$forgeflow_test_dir/outside-guidance" "$forgeflow_fixture/guidance"
+  run_doctor "$forgeflow_fixture"
+  assert_status 2
+  assert_output_contains 'Guidance: ERROR'
+  assert_output_contains 'Result: ERROR'
+
+  forgeflow_fixture="$forgeflow_test_dir/guidance-leaf-mixed"
+  create_adopted_fixture "$forgeflow_fixture"
+  cp -R "$forgeflow_repo/guidance" "$forgeflow_fixture/guidance"
+  rm "$forgeflow_fixture/guidance/ENTRY.md" "$forgeflow_fixture/guidance/PRACTICES.md"
+  ln -s "$forgeflow_test_dir/outside-guidance" "$forgeflow_fixture/guidance/ENTRY.md"
+  run_doctor_with_path "$forgeflow_test_dir/empty-path-static" "$forgeflow_fixture"
+  assert_status 2
+  assert_output_contains 'Guidance: ERROR'
+  assert_output_contains 'Guidance file is a symlink and cannot be safely read: guidance/ENTRY.md'
+  assert_output_contains 'Guidance baseline is incomplete: guidance/PRACTICES.md'
+
+  forgeflow_fixture="$forgeflow_test_dir/guidance-unreadable"
+  create_adopted_fixture "$forgeflow_fixture"
+  cp -R "$forgeflow_repo/guidance" "$forgeflow_fixture/guidance"
+  rm "$forgeflow_fixture/guidance/PRACTICES.md"
+  chmod 000 "$forgeflow_fixture/guidance/ENTRY.md"
+  run_doctor "$forgeflow_fixture"
+  chmod 600 "$forgeflow_fixture/guidance/ENTRY.md"
+  assert_status 2
+  assert_output_contains 'Guidance: ERROR'
+  assert_output_contains 'Guidance file cannot be safely read: guidance/ENTRY.md'
+  assert_output_contains 'Guidance baseline is incomplete: guidance/PRACTICES.md'
+}
+
 run_case 'FF211-AC-001' doctor_reports_a_conformant_adoption
 run_case 'FF211-AC-002' doctor_enumerates_every_story_except_the_template
 run_case 'FF211-AC-003' incomplete_stories_are_drift_without_changing_the_exit_status
@@ -1188,5 +1275,6 @@ run_case 'FF211-AC-014' static_mode_needs_no_external_utilities
 run_case 'FF212-AC-003' the_composed_verdict_needs_no_external_utilities
 run_case 'FF211-AC-015' an_incomplete_forgeflow_installation_is_an_error
 run_case 'FF211-AC-016' a_marker_written_with_carriage_returns_is_not_drift
+run_case 'FF223-AC-013' guidance_is_optional_but_present_baselines_are_safe_and_deterministic
 
 printf 'doctor tests passed\n'

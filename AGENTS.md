@@ -13,12 +13,19 @@ For implementation work:
    `## Classification` and, when present, its Trust Boundary Fields, Security
    Fixture Matrix, and Superseded Behavior.
 2. Read its acceptance criteria.
-3. Read `specs/handoff.md` for the current lifecycle state and baseline.
-4. Inspect relevant existing code.
-5. Implement the smallest coherent change.
-6. Add or update tests, mapping each case to the acceptance criterion it covers.
-7. Run `make verify`.
-8. Repair failures until verification passes.
+3. Read `guidance/ENTRY.md` when it exists, then load only the guidance relevant
+   to the Story.
+4. Read `specs/handoff.md` for the current lifecycle state and baseline.
+5. Inspect relevant existing code.
+6. Implement the smallest coherent change.
+7. Add or update tests, mapping each case to the acceptance criterion it covers.
+8. Run `make verify`.
+9. Repair failures until verification passes.
+
+Story intent remains canonical. Specific, approved repository context beats
+generic guidance; unresolved conflicts go to Human Review. Guidance is advisory
+and never adds hidden acceptance criteria, substitutes for executable checks, or
+proves design quality from a passing gate.
 
 ## Local engineering constraints
 

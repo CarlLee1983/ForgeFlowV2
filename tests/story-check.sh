@@ -1017,7 +1017,8 @@ acceptance_evidence_guidance_is_complete() {
     grep -Fq 'Acceptance Evidence' "$forgeflow_repo/$forgeflow_evidence_document" ||
       fail "$forgeflow_evidence_document omits Acceptance Evidence guidance"
   done
-  grep -Fqx '0.4.0' "$forgeflow_repo/VERSION" || fail 'VERSION is not 0.4.0'
+  grep -Fq 'FF-222 Acceptance Evidence is **Breaking** for `0.4.0`' \
+    "$forgeflow_repo/protocol/versioning.md" || fail 'versioning omits 0.4.0 record'
   grep -Fq 'Breaking' "$forgeflow_repo/protocol/versioning.md" ||
     fail 'versioning omits breaking classification'
   grep -Fq '../../protocol/versioning.md' "$forgeflow_repo/docs/releases/0.4.0.md" ||
@@ -1029,6 +1030,21 @@ full_gate_is_the_acceptance_evidence_command() {
     fail 'Makefile omits the canonical verify target'
   grep -Fq 'Run `make verify`' "$forgeflow_repo/templates/AGENTS.md" ||
     fail 'agent template omits the canonical verify command'
+}
+
+optional_guidance_preserves_story_contract_compatibility() {
+  new_story guidance-absent no no
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+
+  printf '\n## Guidance\n\nRelevant:\n\n* principle: small-coherent-change\n\nNot applicable:\n\n* practice: repair-loop\n' \
+    >>"$forgeflow_story_dir/story.md"
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Result: STORY_CONTRACT_OK'
+
+  grep -Fq 'not parsed or validated' "$forgeflow_repo/protocol/story.md" ||
+    fail 'Story contract does not document the intentional Guidance validation limit'
 }
 
 run_case 'FF218-AC-001' readiness_is_opt_in
@@ -1044,6 +1060,7 @@ run_case 'FF222-AC-002' acceptance_evidence_accepts_declared_methods
 run_case 'FF222-AC-003' acceptance_evidence_preserves_portability
 run_case 'FF222-AC-004' acceptance_evidence_guidance_is_complete
 run_case 'FF222-AC-005' full_gate_is_the_acceptance_evidence_command
+run_case 'FF223-AC-005' optional_guidance_preserves_story_contract_compatibility
 
 run_case 'AC-001' complete_security_story_passes
 run_case 'AC-002' unclassified_story_needs_no_security_sections

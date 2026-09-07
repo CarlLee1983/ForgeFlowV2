@@ -187,6 +187,16 @@ The checker validates the declaration only. Existing evidence tables are
 harmless to older checkers, but rollback requires pinning to the `0.3.6`
 checker, templates, and guidance.
 
+FF-223 Engineering Guidance Layer Phase 1 is **Additive** for `0.4.1`: a Story
+may name human-readable, optional Guidance, fresh bootstrap installs a small
+baseline, and Doctor reports a present baseline without making its absence an
+adoption failure. Existing Stories and adoptions remain valid; `--upgrade`
+intentionally does not read or write repository/team-owned `guidance/`.
+`--force` remains the explicit replacement path. No parser validates Guidance
+references because relevance and quality are Human Review judgment, not a stable
+mechanical contract. `0.4.1` is a compatible pre-1.0 PATCH release under the
+combined-release policy.
+
 Doctor's contract-drift reporting is **Additive**: it adds three static-mode
 result lines, composes the two checkers through their existing command forms,
 and changes no exit status. It does add one new value to Doctor's `Result`
