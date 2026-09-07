@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: FF-225
+  current_story: none
   next_story: pending
   completed_stories:
     - FF-201
@@ -35,17 +35,18 @@ workflow:
     - FF-222
     - FF-223
     - FF-224
-  status: implementing
+    - FF-225
+  status: done
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: ff-225-codex-project-activation
-  commit: a336973b4227384c7c5b2079ddf3ca6f4798cf43
+  branch: ff-225-release-record
+  commit: fe133421c15965935ff215827c24d3078b531f85
   dirty_worktree: true
   story_owned_paths:
     - specs/handoff.md
+    - specs/stories/FF-225-codex-project-activation/story.md
     - specs/stories/FF-225-codex-project-activation/verification.md
-    - tests/codex-activation.sh
   known_unrelated_paths: []
 
 verification:
@@ -57,8 +58,24 @@ verification:
 
 * The baseline above is the complete FF-225 implementation commit. This
   handoff-only follow-up records it and is the single remaining dirty path.
-* FF-225 is IMPLEMENTED and awaiting Human Review.
-  `./scripts/verification-check --result` reports `VERIFICATION_PASS`.
+* FF-225 is DONE and published as `0.5.1`. Carl reviewed PR #17, merged it, and
+  then directed the release, which is the Human Review decision the lifecycle
+  requires; the merge-policy half is satisfied by the merge itself. Selection of
+  the next Story is pending — it is not implied by ordering.
+* `./scripts/verification-check --result` reports `VERIFICATION_PASS`.
+* Publication evidence observed on 2026-09-07: PR #17 merged as
+  `fe133421c15965935ff215827c24d3078b531f85`, which is now `main`; exact-SHA
+  workflow 34130934115 completed successfully with `headSha` equal to that
+  commit; the remote annotated tag `90cc6798f2c6f0e1a8a9b16e4caa6a828e72f1bb`
+  peels to it; and the GitHub Release `v0.5.1` is neither draft nor prerelease:
+  https://github.com/CarlLee1983/ForgeFlowV2/releases/tag/v0.5.1. Remote state is
+  time-sensitive; query it at decision time rather than trusting this record.
+* Ordering note: the `deploy` authority record was raised after publication
+  rather than before it, unlike the `commit` and `push` grants on this Story.
+  Carl chose the FF-224 precedent explicitly, for the same reason it was set:
+  the tag has to point at the exact CI-verified commit, and recording first
+  would have moved `HEAD` and invalidated that evidence. This follow-up does not
+  change the released tag.
 * The C1-C11 walkthrough was recorded on 2026-09-07 against this snapshot and
   Carl accepted it, so AC-004 through AC-007 and the `e2e` layer now pass and
   every acceptance criterion has a passing observation. The sessions were driven

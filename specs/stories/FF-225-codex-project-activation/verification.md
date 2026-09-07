@@ -47,6 +47,7 @@ adopter repositories. Each layer therefore cites evidence the other does not.
 * modify
 * commit
 * push
+* deploy
 
 ## Residual Risks
 
