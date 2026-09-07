@@ -39,8 +39,8 @@ forgeflow_repo=$(CDPATH='' cd -P "$(dirname "$0")/.." >/dev/null 2>&1 && pwd)
 forgeflow_portability_shell=${PORTABILITY_SHELL:-}
 forgeflow_test_dir=$(mktemp -d "${TMPDIR:-/tmp}/forgeflow-portability.XXXXXX")
 forgeflow_copy="$forgeflow_test_dir/source"
-forgeflow_production_scripts='bootstrap doctor story-check handoff-check release-check verification-check'
-forgeflow_behavior_suites='bootstrap doctor story-check handoff-check release-check execution-governance'
+forgeflow_production_scripts='bootstrap doctor story-check handoff-check release-check verification-check codex-activate'
+forgeflow_behavior_suites='bootstrap doctor story-check handoff-check release-check execution-governance codex-activation'
 
 unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY
 unset GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_CEILING_DIRECTORIES

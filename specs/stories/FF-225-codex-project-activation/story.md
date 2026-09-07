@@ -44,6 +44,7 @@ declarations are new. The prior branch is source material, not a merge base.
 ## Architecture
 
 * Impact: medium
+* Decision: `ADR-002`
 * Boundary: `Bootstrap`
 * Boundary: `Activation`
 * Contract: `bootstrap and --upgrade command forms, the adoption marker format, Doctor verdicts, and make verify semantics remain unchanged`

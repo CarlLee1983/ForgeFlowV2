@@ -35,17 +35,33 @@ workflow:
     - FF-222
     - FF-223
     - FF-224
-  status: ready_for_implementation
+  status: implementing
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: main
-  commit: 0d21af765f9b5c81d6d9e67884aa11f61825c05f
+  branch: ff-225-codex-project-activation
+  commit: d9fbec0523b3a3d8629819b9acd288dd3be782a8
   dirty_worktree: true
   story_owned_paths:
+    - Makefile
+    - README.md
+    - VERSION
+    - docs/codex-activation.md
+    - docs/doctor.md
+    - docs/releases/0.5.1.md
+    - protocol/versioning.md
+    - scripts/codex-activate
+    - skills/forgeflow/SKILL.md
+    - skills/forgeflow/agents-block.md
+    - specs/decisions/ADR-002-repository-local-pinned-activation-snapshot.md
     - specs/handoff.md
-    - specs/stories/FF-225-codex-project-activation/acceptance.md
     - specs/stories/FF-225-codex-project-activation/story.md
+    - specs/stories/FF-225-codex-project-activation/verification.md
+    - specs/stories/FF-225-codex-project-activation/walkthrough-fixtures.sh
+    - tests/codex-activation.sh
+    - tests/human-review.sh
+    - tests/portability.sh
+    - tests/protocol.sh
   known_unrelated_paths: []
 
 verification:
@@ -54,6 +70,52 @@ verification:
 ```
 
 ## Notes
+
+* FF-225 is IMPLEMENTED and awaiting Human Review. It is deliberately **not**
+  complete: `./scripts/verification-check --result` reports
+  `VERIFICATION_PARTIAL`. AC-004 through AC-007 are `human` evidence requiring
+  fresh Codex sessions that no agent can produce, and the `e2e` layer is
+  recorded as `unsupported` with a residual risk rather than rounded up to a
+  pass. Carl records `walkthrough-results.md` from
+  `specs/stories/FF-225-codex-project-activation/walkthrough-fixtures.sh`
+  before the Story can reach PASS.
+* An independent code review ran over the implementation before the commit and
+  found no critical issue. Eight warnings were raised; seven are repaired here.
+  The installer no longer claims a restore after a read-only preview refusal;
+  the fixture manifest now compares mode and ownership, deliberately not link
+  count, because documented recovery restores contents and existence rather than
+  the original inode; `tests/codex-activation.sh` now accepts the `FF225-` AC ids
+  its Acceptance Evidence names, asserts an external hard-link alias across a
+  failed recovery, covers a legacy adoption with no marker, and compares Doctor's
+  verdict either side of an install instead of inferring it. The eighth is
+  recorded rather than fixed: the Security Fixture Matrix attributes the
+  custom-prefix row to AC-001, but a fresh install prepends the block at byte
+  zero, so the prefix half is exercised under AC-002. The behavior is covered and
+  the attribution is not exact; correcting approved Story text is Carl's call.
+* Root `make verify` exits 0 on this tree, as do `make verify-portability`
+  under `/bin/sh` and under `/bin/dash`. FF-225's `--result` check is
+  intentionally absent from the Makefile: adding a partial Story to the
+  canonical gate would turn an honest partial into a red build. Run it by hand.
+* FF-225 ports the implementation from the unmerged
+  `docs/ff-222-release-completion` branch rather than merging it, exactly as the
+  Story requires. The port re-IDs every test case to `FF225-`, copies
+  `guidance/` into the installer fixtures for the merged FF-223 Guidance layer,
+  and moves the fixture versions to the `0.5.x` line. That branch remains
+  read-only source material, and the separate review-evidence documentation
+  Story it carries is still unscheduled.
+* FF-225 advances `VERSION` to `0.5.1` as an **Additive** change recorded in
+  `protocol/versioning.md`, with release notes in `docs/releases/0.5.1.md`. No
+  release has been prepared or published: `push` and `deploy` remain `no` in the
+  Story's `## Authority`, and `verification.md` records only `plan` and `modify`
+  under `## Authority Used`. `make release-check` on this branch will report that
+  the expected tag does not resolve to HEAD, which is the normal pre-release
+  state, not a defect.
+* `specs/decisions/ADR-002-repository-local-pinned-activation-snapshot.md`
+  satisfies AC-010 and is referenced from the Story's `## Architecture` as
+  `* Decision: \`ADR-002\``. It is written with `Status: accepted` because an
+  `execution` Story may only reference an accepted record; whether the decision
+  is actually accepted is Carl's judgment at review, and that is recorded as a
+  residual risk.
 
 * FF-225 Codex Project Activation is READY. Carl approved the restated text on
   2026-09-07 and authorized committing the draft, so the Story's `## Authority`
