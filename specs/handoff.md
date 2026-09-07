@@ -64,11 +64,21 @@ verification:
   `ADR-003` separately. `./scripts/verification-check --result` reports
   `VERIFICATION_PASS`, 7 of 7 criteria traced. Selection of the next Story is
   pending and is not implied by ordering.
-* FF-226 is **not released**. `VERSION` is `0.5.2` and `docs/releases/0.5.2.md`
-  is written, but no `v0.5.2` tag or GitHub Release exists and `deploy` is still
-  `no` in the Story's `## Authority`. Authority used is `plan`, `modify`,
-  `commit`, and `push`. Unlike FF-225, no deploy authorization has been given,
-  so `main` carries an unreleased version advance.
+* FF-226 is published as `0.5.2`. Publication evidence observed on 2026-09-07:
+  PR #19 merged as `dddb698c0a415e532f4c01e00e7a2b0adf02042b`, which is `main`;
+  exact-SHA workflow 34139091680 completed successfully with a matching
+  `headSha`; the remote annotated tag `126fe0c168196701513da16c07a2b92a8454f525`
+  peels to that commit; and the GitHub Release `v0.5.2` is neither draft nor
+  prerelease: https://github.com/CarlLee1983/ForgeFlowV2/releases/tag/v0.5.2.
+  Remote state is time-sensitive; query it at decision time rather than trusting
+  this record.
+* Ordering note: unlike FF-224 and FF-225, the `deploy` authority record
+  precedes publication here rather than following it. Those Stories recorded it
+  afterwards because the authority commit would have moved `main` and left the
+  tag naming a commit CI had not verified. That constraint did not apply this
+  time: the record lives on this follow-up branch, so `main` stayed at the
+  CI-verified merge commit the tag names. Authority used is `plan`, `modify`,
+  `commit`, `push`, and `deploy`.
 * FF-226 states that the five source-analysis checks are a scope boundary rather
   than deferred work, gives them one vocabulary and one complete list, renames
   the architectural sense of contract drift to `public interface drift` to end a
