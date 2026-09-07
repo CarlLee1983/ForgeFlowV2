@@ -45,7 +45,7 @@ baseline:
   story_owned_paths:
     - specs/handoff.md
     - specs/stories/FF-225-codex-project-activation/verification.md
-    - specs/stories/FF-225-codex-project-activation/walkthrough-results.md
+    - tests/codex-activation.sh
   known_unrelated_paths: []
 
 verification:
@@ -57,9 +57,8 @@ verification:
 
 * The baseline above is the complete FF-225 implementation commit. This
   handoff-only follow-up records it and is the single remaining dirty path.
-* FF-225 is IMPLEMENTED and awaiting Human Review. It is still deliberately
-  **not** complete: `./scripts/verification-check --result` reports
-  `VERIFICATION_PARTIAL`.
+* FF-225 is IMPLEMENTED and awaiting Human Review.
+  `./scripts/verification-check --result` reports `VERIFICATION_PASS`.
 * The C1-C11 walkthrough was recorded on 2026-09-07 against this snapshot and
   Carl accepted it, so AC-004 through AC-007 and the `e2e` layer now pass and
   every acceptance criterion has a passing observation. The sessions were driven
@@ -70,14 +69,16 @@ verification:
   expected observation on the first attempt, C6 and C7 met theirs on a re-run
   after a Codex-side session abort, and C9 was only partially met. All three
   gaps are retained as residual risks rather than smoothed over.
-* The one remaining reason the result is PARTIAL is the `unit` layer, recorded
-  as `unsupported`. The Story's Verification Notes designate
-  `tests/codex-activation.sh` as the `contract` layer, and counting the same
-  file again as `unit` would give that layer no independent evidence. Splitting
-  the suite — invocation and marker-format validation as `unit`, whole-repository
-  installation as `contract` — would be a defensible reading that reaches PASS,
-  but re-reading a layer mapping in order to turn a result green is the pressure
-  the execution contract exists to resist, so it is left to Carl.
+* Carl decided on 2026-09-07 to split the `unit` layer out of the fixture
+  suite, and the split is structural rather than a relabel: a new
+  `invocation_and_marker_validation` case decides the argument vector and the
+  adoption marker's format before the installer looks at a repository, while the
+  five remaining cases install into and refuse against whole temporary adopter
+  repositories. Each layer now cites evidence the other does not, so the
+  recorded result is `VERIFICATION_PASS` with all seven required checks passing
+  and 10 of 10 criteria traced. That is declared evidence only; Human Review
+  still owns product, design, and architecture acceptance, and the Story is not
+  DONE.
 * An independent code review ran over the implementation before the commit and
   found no critical issue. Eight warnings were raised; seven are repaired here.
   The installer no longer claims a restore after a read-only preview refusal;

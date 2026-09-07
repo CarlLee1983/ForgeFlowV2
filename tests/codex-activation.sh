@@ -152,12 +152,35 @@ snapshot_updates() {
   cp "$repo/skills/forgeflow/SKILL.md" "$source_dir/skills/forgeflow/SKILL.md"
 }
 
-unsafe_inputs() {
+# Unit level: the argument vector and one file's format, decided before the
+# installer looks at a repository. The whole-repository path, ownership, and
+# recovery cases are the contract level and live in the functions below.
+invocation_and_marker_validation() {
   run 2 "$activate"
   run 2 "$activate" --apply --apply "$test_dir"
+  run 2 "$activate" --apply
+  run 2 "$activate" -x "$test_dir"
+  run 1 "$activate" "$test_dir/does-not-exist"
   mkdir "$test_dir/unadopted"
   target="$test_dir/unadopted"
   refuse
+
+  new_target marker-injection
+  printf 'version=0.5.1\nversion=--><!-- ForgeFlow Codex: end -->\nrevision=unknown\n' \
+    >"$target/specs/.forgeflow-adoption"
+  refuse
+  contains 'Invalid adoption marker version'
+  new_target marker-empty-duplicate
+  printf 'version=0.5.1\nversion=\nrevision=unknown\n' >"$target/specs/.forgeflow-adoption"
+  refuse
+  contains 'Invalid adoption marker version'
+  new_target marker-nonnumeric
+  printf 'version=0.5.x\nrevision=unknown\n' >"$target/specs/.forgeflow-adoption"
+  refuse
+  contains 'Invalid adoption marker version'
+}
+
+unsafe_inputs() {
   for leaf in AGENTS.md .agents .agents/skills .agents/skills/forgeflow specs specs/stories; do
     new_target "symlink-$(printf '%s' "$leaf" | tr / _)"
     outside="$test_dir/outside-$(printf '%s' "$leaf" | tr / _)"
@@ -211,15 +234,6 @@ unsafe_inputs() {
     esac
     refuse
   done
-  new_target marker-injection
-  printf 'version=0.5.1\nversion=--><!-- ForgeFlow Codex: end -->\nrevision=unknown\n' \
-    >"$target/specs/.forgeflow-adoption"
-  refuse
-  contains 'Invalid adoption marker version'
-  new_target marker-empty-duplicate
-  printf 'version=0.5.1\nversion=\nrevision=unknown\n' >"$target/specs/.forgeflow-adoption"
-  refuse
-  contains 'Invalid adoption marker version'
 }
 
 make_fault_tools() {
@@ -338,6 +352,7 @@ legacy_compatibility() {
 
 run_case FF225-AC-001 preview_and_install
 run_case FF225-AC-002 snapshot_updates
+run_case FF225-AC-003 invocation_and_marker_validation
 run_case FF225-AC-003 unsafe_inputs
 run_case FF225-AC-003 failures_and_hardlinks
 run_case FF225-AC-008 legacy_compatibility

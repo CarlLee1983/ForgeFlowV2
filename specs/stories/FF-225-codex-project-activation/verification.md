@@ -11,18 +11,20 @@ repository, and the recorded C1-C11 Codex walkthrough is the `e2e` layer. The
 walkthrough was recorded against this snapshot on 2026-09-07 and Carl accepted
 it, so `e2e` passes and the four `human` criteria it carries pass with it.
 
-`unit` remains `unsupported`: the one fixture suite is already claimed as the
-`contract` layer and is not counted twice, and this repository has no level
-below it for the shell this Story changes. The result is therefore still
-partial. That is the only remaining gap.
+`unit` and `contract` are separate cases rather than the same file counted
+twice. Carl decided the split on 2026-09-07, and it is structural, not a
+relabel: `invocation_and_marker_validation` decides the argument vector and the
+adoption marker's format before the installer looks at a repository at all,
+while the remaining cases install into and refuse against whole temporary
+adopter repositories. Each layer therefore cites evidence the other does not.
 
 ## Checks
 
 * lint: pass — `make verify-typescript`
 * static: pass — `make verify-protocol`
-* unit: unsupported — `tests/codex-activation.sh is designated the contract layer by this Story, so counting it again as unit would give that layer no independent evidence; this repository has no level below the fixture suites`
+* unit: pass — `./tests/codex-activation.sh FF225-AC-003 invocation_and_marker_validation`
 * integration: pass — `make verify`
-* contract: pass — `./tests/codex-activation.sh against temporary adopted repositories`
+* contract: pass — `./tests/codex-activation.sh preview_and_install snapshot_updates unsafe_inputs failures_and_hardlinks legacy_compatibility against temporary adopted repositories`
 * e2e: pass — `the C1-C11 fresh-session Codex walkthrough recorded in walkthrough-results.md against this snapshot`
 * architecture: pass — `./scripts/story-check specs/stories/FF-225-codex-project-activation`
 
@@ -48,7 +50,6 @@ partial. That is the only remaining gap.
 
 ## Residual Risks
 
-* `the unit layer has no evidence independent of the contract layer, so the high-risk profile is not fully satisfied and the recorded result stays PARTIAL`
 * `AC-007 passes on Carl's acceptance, but C9 was only partially met: the session did not reinstall and correctly continued unrelated work, yet surfaced the missing SKILL.md as one closing caveat rather than as a specific diagnosis with a proposed repair`
 * `C6 and C7 each failed on their first attempt, ending inside a Codex collab_tool_call wait with no receiver and no turn.completed; both passed on re-run and the failed transcripts are retained, but session completion is not deterministic`
 * `no case exercised a genuine skill-recall miss, so the explicit $forgeflow fallback was observed succeeding rather than rescuing a failure`
