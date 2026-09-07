@@ -51,11 +51,11 @@ verification:
 ## Notes
 
 * Carl accepted FF-223 on 2026-09-07 and authorized commit and full release.
-  The implementation and its human-review evidence are accepted; FF-223 remains
-  in REVIEW until the required GitHub PR approval and merge policy are satisfied.
-  Publication of `v0.4.1` still requires the release runbook's clean-candidate,
-  exact-SHA CI, annotated-tag, and GitHub Release checks. No publication is
-  claimed here.
+  PR #14 merged at `68d4a0b9a7127ed2ae80b82e28ec2ba0ec81da34` on 2026-09-07,
+  but GitHub currently reports `REVIEW_REQUIRED`, so FF-223 remains in REVIEW.
+  `v0.4.1` was published on 2026-09-07; its GitHub Release is neither draft nor
+  prerelease. These are historical observations, not a substitute for resolving
+  the required PR approval.
 * FF-223 implements the additive Engineering Guidance Layer Phase 1 as `0.4.1`.
   Fresh bootstrap and explicit `--force` seed its four files; `--upgrade` never
   reads or writes repository/team-owned Guidance. Doctor reports absent Guidance
