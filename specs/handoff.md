@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: FF-226
+  current_story: none
   next_story: pending
   completed_stories:
     - FF-201
@@ -36,30 +36,18 @@ workflow:
     - FF-223
     - FF-224
     - FF-225
-  status: implementing
+    - FF-226
+  status: done
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: ff-226-architecture-analysis-non-goal
-  commit: 4db49e226ed6b39d1b230a944af6112c6d101208
+  branch: ff-226-adr-acceptance
+  commit: dddb698c0a415e532f4c01e00e7a2b0adf02042b
   dirty_worktree: true
   story_owned_paths:
-    - VERSION
-    - docs/code-quality.md
-    - docs/doctor.md
-    - docs/human-review.md
-    - docs/releases/0.5.2.md
-    - protocol/architecture.md
-    - protocol/versioning.md
-    - scripts/verification-check
     - specs/decisions/ADR-003-forgeflow-does-not-analyze-architecture.md
     - specs/handoff.md
-    - specs/stories/FF-226-architecture-analysis-non-goal/acceptance.md
-    - specs/stories/FF-226-architecture-analysis-non-goal/story.md
     - specs/stories/FF-226-architecture-analysis-non-goal/verification.md
-    - tests/execution-governance.sh
-    - tests/human-review.sh
-    - tests/protocol.sh
   known_unrelated_paths: []
 
 verification:
@@ -71,10 +59,26 @@ verification:
 
 * The baseline above is the complete FF-225 implementation commit. This
   handoff-only follow-up records it and is the single remaining dirty path.
-* FF-226 is IMPLEMENTED and awaiting Human Review, on branch
-  `ff-226-architecture-analysis-non-goal`. `./scripts/verification-check --result` reports
-  `VERIFICATION_PASS`, 7 of 7 criteria traced. Authority used is `plan`, `modify`,
-  `commit`, and `push`; `deploy` remains `no`.
+* FF-226 is DONE. Carl reviewed PR #19 and merged it as
+  `dddb698c0a415e532f4c01e00e7a2b0adf02042b`, which is now `main`, and accepted
+  `ADR-003` separately. `./scripts/verification-check --result` reports
+  `VERIFICATION_PASS`, 7 of 7 criteria traced. Selection of the next Story is
+  pending and is not implied by ordering.
+* FF-226 is published as `0.5.2`. Publication evidence observed on 2026-09-07:
+  PR #19 merged as `dddb698c0a415e532f4c01e00e7a2b0adf02042b`, which is `main`;
+  exact-SHA workflow 34139091680 completed successfully with a matching
+  `headSha`; the remote annotated tag `126fe0c168196701513da16c07a2b92a8454f525`
+  peels to that commit; and the GitHub Release `v0.5.2` is neither draft nor
+  prerelease: https://github.com/CarlLee1983/ForgeFlowV2/releases/tag/v0.5.2.
+  Remote state is time-sensitive; query it at decision time rather than trusting
+  this record.
+* Ordering note: unlike FF-224 and FF-225, the `deploy` authority record
+  precedes publication here rather than following it. Those Stories recorded it
+  afterwards because the authority commit would have moved `main` and left the
+  tag naming a commit CI had not verified. That constraint did not apply this
+  time: the record lives on this follow-up branch, so `main` stayed at the
+  CI-verified merge commit the tag names. Authority used is `plan`, `modify`,
+  `commit`, `push`, and `deploy`.
 * FF-226 states that the five source-analysis checks are a scope boundary rather
   than deferred work, gives them one vocabulary and one complete list, renames
   the architectural sense of contract drift to `public interface drift` to end a
@@ -82,10 +86,12 @@ verification:
   did not pin the paragraph it protected, and removes unread architecture
   accumulation from `scripts/verification-check`. Corrective for `0.5.2`.
 * The Story exists because a request to "implement those four checks" could not
-  be answered from any record. `ADR-003` now carries that decision and is
-  deliberately still `proposed`: the Story records the decision and does not
-  accept it. Accepting it is a separate human act, and the `mixed` task mode is
-  the only reason a proposed record may be referenced at all.
+  be answered from any record. `ADR-003` now carries that decision. It was
+  drafted `proposed` on purpose — the Story records a decision and does not
+  accept it — and Carl accepted it on 2026-09-07 after reviewing the record in
+  PR #19, which is the separate human act the Story argued for. The `mixed` task
+  mode is what allowed the Story to reference the record while it was still
+  proposed.
 * `docs/releases/0.5.0.md` is deliberately unedited and pinned by `cksum` in
   `tests/protocol.sh`. Published release notes record what was said at the time;
   the correction is stated in `docs/releases/0.5.2.md` so both remain readable.

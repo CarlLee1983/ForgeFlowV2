@@ -58,7 +58,7 @@ suggests a semantic architecture check that does not exist.
 * migration: no
 * commit: yes
 * push: yes
-* deploy: no
+* deploy: yes
 
 ## Architecture
 

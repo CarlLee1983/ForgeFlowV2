@@ -1,7 +1,8 @@
 # ADR-003: ForgeFlow does not analyze architecture
 
-* Status: proposed
+* Status: accepted
 * Date: 2026-09-07
+* Accepted: 2026-09-07
 
 ## Context
 
@@ -78,7 +79,7 @@ and stays PARTIAL. That is the intended outcome, not a defect to engineer
 around.
 
 Because this is a scope boundary rather than a missing feature, a future request
-to "implement the four checks" is a request to change this decision, and should
+to implement these five checks is a request to change this decision, and should
 be answered by revisiting this record rather than by writing a checker.
 
 ## Falsified if
