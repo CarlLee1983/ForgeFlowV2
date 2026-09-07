@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: FF-224
+  current_story: none
   next_story: pending
   completed_stories:
     - FF-201
@@ -34,7 +34,8 @@ workflow:
     - FF-221
     - FF-222
     - FF-223
-  status: review
+    - FF-224
+  status: done
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
@@ -67,11 +68,19 @@ verification:
 * Full `make verify` passed on this tree, as did
   `make verify-portability` under `/bin/sh` and `/bin/dash`. Human Review has
   not seen FF-224 yet.
-* Carl authorized commit on 2026-09-07. The Story's `## Authority` was updated
-  from `commit: no` to `commit: yes` and `verification.md` records `commit`
-  under `## Authority Used`, so the granted and used authority agree rather than
-  the operation being performed outside the declaration. `push` and `deploy`
-  remain `no`, and no release is authorized.
+* Carl accepted FF-224 on 2026-09-07 after reviewing the four judgment calls and
+  the deliberate baseline replacement, and authorized push and a pull request.
+  The Story's `## Authority` was raised from `commit: no` to `commit: yes` and
+  then `push: no` to `push: yes` as each authorization was given, and
+  `verification.md` records both under `## Authority Used`, so granted and used
+  authority agree rather than an operation being performed outside the
+  declaration. `deploy` remains `no`.
+* Disclosure on FF-224's DONE record: Carl's acceptance is the Human Review half
+  of REVIEW -> DONE. The merge-policy half is outstanding at the time of
+  writing — the pull request is open and unmerged, and `VERSION` is already
+  `0.5.0` with `docs/releases/0.5.0.md` written while no `v0.5.0` tag or GitHub
+  Release exists. Recording DONE ahead of the merge is Carl's decision, noted
+  here so the state is not mistaken for a completed merge.
 * FF-223 is DONE. Carl accepted it on 2026-09-07 and confirmed that acceptance
   again on 2026-09-07 after the merge-policy question was raised, which is the
   Human Review decision the lifecycle requires. PR #14 merged at
