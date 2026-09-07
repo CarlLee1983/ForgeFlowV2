@@ -74,7 +74,7 @@ verification:
 * FF-226 is IMPLEMENTED and awaiting Human Review, on branch
   `ff-226-architecture-analysis-non-goal`. `./scripts/verification-check --result` reports
   `VERIFICATION_PASS`, 7 of 7 criteria traced. Authority used is `plan`, `modify`,
-  and `commit`; `push` and `deploy` remain `no`.
+  `commit`, and `push`; `deploy` remains `no`.
 * FF-226 states that the five source-analysis checks are a scope boundary rather
   than deferred work, gives them one vocabulary and one complete list, renames
   the architectural sense of contract drift to `public interface drift` to end a

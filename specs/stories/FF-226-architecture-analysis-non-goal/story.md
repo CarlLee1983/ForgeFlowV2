@@ -57,7 +57,7 @@ suggests a semantic architecture check that does not exist.
 * add_dependency: no
 * migration: no
 * commit: yes
-* push: no
+* push: yes
 * deploy: no
 
 ## Architecture
