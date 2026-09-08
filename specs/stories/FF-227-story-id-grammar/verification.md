@@ -27,6 +27,7 @@ profile is `lint static unit integration` plus `architecture`.
 * plan
 * modify
 * commit
+* push
 
 ## Residual Risks
 

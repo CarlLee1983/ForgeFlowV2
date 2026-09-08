@@ -48,7 +48,7 @@ inconsistency that any upgrade path would otherwise have to carry forward.
 * add_dependency: no
 * migration: no
 * commit: yes
-* push: no
+* push: yes
 * deploy: no
 
 ## Architecture

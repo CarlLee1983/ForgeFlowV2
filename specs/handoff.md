@@ -75,8 +75,10 @@ verification:
   on 2026-09-08 and directed implementation; that approval was recorded as
   `ready_for_implementation` in commit `5a8562d` before any code changed,
   following this branch's convention of recording authority before the
-  operation. Authority used is `plan`, `modify`, and `commit`; `push` and
-  `deploy` remain `no`.
+  operation. Carl authorized `push` and a pull request on 2026-09-08, recorded
+  here and in the Story's `## Authority` before the branch was pushed. Authority
+  used is `plan`, `modify`, `commit`, and `push`; `deploy` remains `no` and no
+  release has been prepared.
 * `./scripts/verification-check --result specs/stories/FF-227-story-id-grammar`
   reports `VERIFICATION_PASS` with 7 of 7 criteria traced and all five required
   checks passing. Root `make verify` exits 0 on this tree, as do
@@ -130,7 +132,8 @@ verification:
   says what the implementation does.
 * No release has been prepared or published. `make release-check` will report
   that the expected tag does not resolve to HEAD, which is the normal
-  pre-release state. Selection of the next Story is pending and is not implied
+  pre-release state. Publishing `0.6.0` needs a separate `deploy` authority and
+  the release runbook. Selection of the next Story is pending and is not implied
   by ordering.
 * FF-227 exists because a read-only survey on 2026-09-07 found that
   `scripts/story-check` and `scripts/handoff-check` disagree about what a Story
