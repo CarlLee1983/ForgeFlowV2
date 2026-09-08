@@ -395,6 +395,26 @@ the_story_id_form_is_unchanged() {
   assert_story_id_rejected 'FF-01x' 8
 }
 
+multi_segment_story_ids_are_recordable() {
+  new_handoff subsystem-id
+  edit_handoff 's/current_story: TST-005/current_story: DBCLI-PLAT-001/'
+  edit_handoff 's/next_story: TST-006/next_story: DBCLI-PLAT-002/'
+  edit_handoff 's/    - TST-004/    - DBCLI-PLAT-013/'
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 0
+  assert_output_contains 'Result: HANDOFF_CONTRACT_OK'
+  assert_output_contains 'current Story: DBCLI-PLAT-001'
+  assert_output_contains 'next Story: DBCLI-PLAT-002'
+  assert_output_excludes 'is not a Story ID'
+
+  # The three positions carry three distinct IDs because completed Story IDs
+  # may not overlap the current or next Story. The criterion is that a
+  # multi-segment ID is recordable in every position, not that one ID occupies
+  # all three at once.
+  assert_story_id_accepted 'DBCLI-PLAT-001' 9
+  assert_story_id_accepted 'FF-CORE-A1-042' 10
+}
+
 assert_commit_accepted() {
   new_handoff "sha-ok-$2"
   edit_handoff "s/commit: [0-9a-f]*/commit: $1/"
@@ -485,6 +505,7 @@ run_case 'AC-010' root_verify_validates_repository_handoff
 run_case 'FF212-AC-001' the_verdict_does_not_depend_on_external_utilities
 run_case 'FF212-AC-009' contradictions_and_usage_errors_survive_an_empty_path
 run_case 'FF212-AC-004' the_story_id_form_is_unchanged
+run_case 'FF227-AC-001' multi_segment_story_ids_are_recordable
 run_case 'FF212-AC-005' the_baseline_commit_form_is_unchanged
 run_case 'FF212-AC-006' duplicate_detection_is_unchanged
 run_case 'FF212-AC-012' handoff_check_uses_no_external_utilities

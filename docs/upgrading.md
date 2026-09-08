@@ -140,6 +140,11 @@ repository:
   Copy `templates/story/verification.md` and `templates/decision.md` by hand
   when the repository wants recorded verification results or decision records;
   neither is a managed file;
+* when upgrading to 0.6.0 or later, run `./scripts/story-check` once. It now
+  validates the Story ID a directory names, so a Story whose ID never conformed
+  fails where it previously passed. Slugs need no change: the ID stops before
+  the slug begins. [The 0.6.0 release notes](releases/0.6.0.md) state the
+  grammar and the repair;
 * when upgrading to 0.4.1 or later, optionally copy the four baseline files from
   `guidance/` and reconcile them with repository/team decisions; do not replace
   existing decisions or practices wholesale.

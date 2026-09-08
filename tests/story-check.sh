@@ -49,6 +49,21 @@ new_story() {
   forgeflow_story_security=$2
   forgeflow_story_baseline=$3
 
+  write_story_fixture
+}
+
+# Writes a valid, unclassified-safe Story into a directory named exactly as the
+# caller asked, so a Story ID can be the subject under test.
+new_story_named() {
+  forgeflow_story_dir="$forgeflow_test_dir/corpus/$1"
+  forgeflow_story_security=no
+  forgeflow_story_baseline=no
+
+  mkdir -p "$forgeflow_test_dir/corpus"
+  write_story_fixture
+}
+
+write_story_fixture() {
   rm -rf "$forgeflow_story_dir"
   mkdir -p "$forgeflow_story_dir"
 
@@ -330,6 +345,7 @@ forgeflow_repo=$(
   pwd
 )
 forgeflow_story_check="$forgeflow_repo/scripts/story-check"
+forgeflow_handoff_check="$forgeflow_repo/scripts/handoff-check"
 forgeflow_valid_row='| `request.sql` | `password=hunter2` | redact | `artifact.summary` | `tests/story-check.sh` |'
 
 complete_security_story_passes() {
@@ -1047,6 +1063,197 @@ optional_guidance_preserves_story_contract_compatibility() {
     fail 'Story contract does not document the intentional Guidance validation limit'
 }
 
+# One shared corpus. Both checkers are fed the same Story IDs and the case
+# fails when they disagree, which is the property that keeps one grammar from
+# growing two implementations again.
+#
+# Every entry is a bare ID with no slug, because that is the domain the two
+# checkers actually share: handoff-check judges an ID, story-check judges a
+# directory name, and the two agree only once the slug is removed. Directory
+# names with slugs are FF227-AC-004's subject, not this one.
+forgeflow_id_corpus='FF-001 A-1 DBCLI-004 FF2-30 DBCLI-PLAT-001 FF-CORE-A1-042 ff-001 FF001 FF- -1 FF-1a 1F-1 FF-1-2 FF-01x FF-plat-001 FF--1'
+
+forgeflow_story_grammar='does not name a Story ID'
+forgeflow_corpus_completed_id='TST-004'
+forgeflow_handoff_check_under_test=
+
+# One shared corpus, fed to both checkers. The two do not judge the same thing:
+# handoff-check judges a Story ID, story-check judges a directory name and
+# reports the ID it read. The property that has to hold is that the two never
+# disagree about what is recordable — every ID story-check accepts is one
+# handoff-check accepts, and every ID handoff-check accepts is one story-check
+# accepts as a bare directory name. That is what keeps one grammar from growing
+# two implementations again.
+forgeflow_id_corpus='FF-001 A-1 DBCLI-004 FF2-30 DBCLI-PLAT-001 FF-CORE-A1-042 ff-001 FF001 FF- -1 FF-1a 1F-1 FF-1-2 FF-01x FF-plat-001 FF--1'
+
+story_verdict_for_id() {
+  new_story_named "$1"
+  run_story_check "$forgeflow_story_dir"
+
+  forgeflow_extracted_id=
+
+  if [ "$forgeflow_command_status" -eq 0 ]; then
+    forgeflow_story_verdict=accept
+    forgeflow_extracted_id=$(
+      sed -n 's/^INFO  .*: Story ID \(.*\)$/\1/p' "$forgeflow_command_output"
+    )
+    [ -n "$forgeflow_extracted_id" ] ||
+      fail "story-check accepted $1 without reporting the Story ID it read"
+  else
+    forgeflow_story_verdict=reject
+  fi
+}
+
+handoff_verdict_for_id() {
+  forgeflow_corpus_handoff="$forgeflow_test_dir/$forgeflow_case_id-corpus.md"
+
+  cat >"$forgeflow_corpus_handoff" <<FORGEFLOW_CORPUS
+# ForgeFlow Handoff
+
+## Lifecycle
+
+\`\`\`yaml
+workflow:
+  current_story: $1
+  next_story: pending
+  completed_stories:
+    - $forgeflow_corpus_completed_id
+  status: ready_for_implementation
+
+baseline:
+  repository: example/repository
+  branch: main
+  commit: 0123456789abcdef0123456789abcdef01234567
+  dirty_worktree: false
+  story_owned_paths: []
+  known_unrelated_paths: []
+
+verification:
+  last_command: make verify
+  result: pass
+\`\`\`
+FORGEFLOW_CORPUS
+
+  if "$forgeflow_handoff_check_under_test" "$forgeflow_corpus_handoff" \
+    >/dev/null 2>&1; then
+    forgeflow_handoff_verdict=accept
+  else
+    forgeflow_handoff_verdict=reject
+  fi
+}
+
+# Sets forgeflow_corpus_disagreement when the two checkers disagree about what
+# is recordable, in either direction.
+compare_one_id() {
+  forgeflow_corpus_disagreement=
+
+  story_verdict_for_id "$1"
+  forgeflow_directory_verdict=$forgeflow_story_verdict
+  forgeflow_directory_id=$forgeflow_extracted_id
+
+  handoff_verdict_for_id "$1"
+
+  if [ "$forgeflow_handoff_verdict" = accept ]; then
+    if [ "$forgeflow_directory_verdict" != accept ]; then
+      forgeflow_corpus_disagreement="$1: handoff-check accepts the ID, story-check rejects the directory"
+      return
+    fi
+
+    if [ "$forgeflow_directory_id" != "$1" ]; then
+      forgeflow_corpus_disagreement="$1: handoff-check accepts the ID, story-check reads the directory as $forgeflow_directory_id"
+      return
+    fi
+  fi
+
+  if [ "$forgeflow_directory_verdict" = accept ]; then
+    handoff_verdict_for_id "$forgeflow_directory_id"
+
+    if [ "$forgeflow_handoff_verdict" != accept ]; then
+      forgeflow_corpus_disagreement="$1: story-check reads it as $forgeflow_directory_id, which handoff-check rejects"
+    fi
+  fi
+}
+
+compare_whole_corpus() {
+  forgeflow_corpus_disagreement=
+
+  # Pathname expansion is off for the split: a corpus entry is a literal ID.
+  set -f
+  for forgeflow_corpus_id in $forgeflow_id_corpus
+  do
+    if [ "$forgeflow_corpus_id" = "$forgeflow_corpus_completed_id" ]; then
+      set +f
+      fail "corpus entry $forgeflow_corpus_id collides with the fixture completed Story and would be rejected for uniqueness, not grammar"
+    fi
+
+    compare_one_id "$forgeflow_corpus_id"
+    [ -z "$forgeflow_corpus_disagreement" ] || break
+  done
+  set +f
+}
+
+story_ids_are_validated_where_a_story_is_written() {
+  # A conforming ID passes, and the slug is never absorbed into it: the ID
+  # stops as soon as it is complete, so an uppercase or all-digit first slug
+  # segment is still a slug.
+  for forgeflow_good_name in 'DBCLI-PLAT-001-x' 'FF-232-API-limits' 'FF-115-3-way-merge' 'FF-1-2-x'
+  do
+    new_story_named "$forgeflow_good_name"
+    assert_same_story_verdict_without_utilities "$forgeflow_story_dir"
+    assert_status 0
+    assert_output_contains 'Result: STORY_CONTRACT_OK'
+    assert_output_excludes 'does not name a Story ID'
+  done
+
+  # FF-1-2-x names FF-1 with the slug 2-x. FF-1-2 is not a Story ID and is
+  # still rejected everywhere it is one, which FF212-AC-004 pins.
+  new_story_named 'FF-1-2-x'
+  run_story_check "$forgeflow_story_dir"
+  assert_output_contains 'Story ID FF-1'
+  assert_output_excludes 'Story ID FF-1-2'
+
+  for forgeflow_bad_id in 'ff-001-x' 'FF001-x' '1F-1a'
+  do
+    new_story_named "$forgeflow_bad_id"
+    assert_same_story_verdict_without_utilities "$forgeflow_story_dir"
+    assert_status 1
+    assert_output_contains "does not name a Story ID: $forgeflow_bad_id"
+    assert_output_contains 'each middle segment has an uppercase letter'
+    assert_output_contains 'Result: STORY_CONTRACT_INCOMPLETE'
+  done
+}
+
+the_two_checkers_agree_on_the_shared_corpus() {
+  forgeflow_handoff_check_under_test=$forgeflow_handoff_check
+
+  compare_whole_corpus
+  [ -z "$forgeflow_corpus_disagreement" ] ||
+    fail "the checkers disagree on $forgeflow_corpus_disagreement"
+
+  # A passing comparison is only evidence when it can fail, and the failure it
+  # has to catch is one copy of the grammar being edited and the other not.
+  # Model that: perturb handoff-check's middle-segment rule in a temporary copy
+  # so it accepts the ID FF-1-2, and confirm the same loop reports the drift.
+  forgeflow_drifted_check="$forgeflow_test_dir/$forgeflow_case_id-drifted-handoff-check"
+  sed 's/^      \*\["\$forgeflow_upper"\]\*) ;;$/      *) ;;/' \
+    "$forgeflow_handoff_check" >"$forgeflow_drifted_check"
+  chmod +x "$forgeflow_drifted_check"
+  if cmp -s "$forgeflow_handoff_check" "$forgeflow_drifted_check"; then
+    fail 'the drift seed did not change handoff-check; the grammar moved'
+  fi
+
+  forgeflow_handoff_check_under_test=$forgeflow_drifted_check
+  compare_whole_corpus
+  forgeflow_handoff_check_under_test=$forgeflow_handoff_check
+
+  case "$forgeflow_corpus_disagreement" in
+    'FF-1-2: '*) ;;
+    '') fail 'the shared-corpus comparison did not report a seeded grammar drift' ;;
+    *) fail "the seeded drift was reported as $forgeflow_corpus_disagreement, not as FF-1-2" ;;
+  esac
+}
+
+
 run_case 'FF218-AC-001' readiness_is_opt_in
 run_case 'FF218-AC-002' readiness_requires_goal_scope_and_acceptance
 run_case 'FF218-AC-003' readiness_checks_ac_content_and_uniqueness
@@ -1054,6 +1261,9 @@ run_case 'FF218-AC-004' readiness_ignores_fenced_content
 run_case 'FF218-AC-005' readiness_placeholders_are_exact_not_language_scores
 run_case 'FF218-AC-006' readiness_is_read_only_deterministic_and_path_independent
 run_case 'FF218-AC-007' readiness_documentation_and_templates_match
+
+run_case 'FF227-AC-004' story_ids_are_validated_where_a_story_is_written
+run_case 'FF227-AC-005' the_two_checkers_agree_on_the_shared_corpus
 
 run_case 'FF222-AC-001' acceptance_evidence_rejects_invalid_maps
 run_case 'FF222-AC-002' acceptance_evidence_accepts_declared_methods

@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: none
+  current_story: FF-227
   next_story: pending
   completed_stories:
     - FF-201
@@ -37,17 +37,31 @@ workflow:
     - FF-224
     - FF-225
     - FF-226
-  status: done
+  status: review
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: ff-226-adr-acceptance
-  commit: dddb698c0a415e532f4c01e00e7a2b0adf02042b
+  branch: ff-227-story-id-grammar
+  commit: 5a8562d47306b49195589f41b04d5d38029614b1
   dirty_worktree: true
   story_owned_paths:
-    - specs/decisions/ADR-003-forgeflow-does-not-analyze-architecture.md
+    - VERSION
+    - docs/contract-checks.md
+    - docs/doctor.md
+    - docs/releases/0.6.0.md
+    - docs/upgrading.md
+    - protocol/handoff.md
+    - protocol/story.md
+    - protocol/versioning.md
+    - scripts/handoff-check
+    - scripts/story-check
     - specs/handoff.md
-    - specs/stories/FF-226-architecture-analysis-non-goal/verification.md
+    - specs/stories/FF-227-story-id-grammar/acceptance.md
+    - specs/stories/FF-227-story-id-grammar/verification.md
+    - tests/handoff-check.sh
+    - tests/human-review.sh
+    - tests/protocol.sh
+    - tests/story-check.sh
   known_unrelated_paths: []
 
 verification:
@@ -56,6 +70,94 @@ verification:
 ```
 
 ## Notes
+
+* FF-227 is **implemented and awaiting Human Review**. Carl approved the Story
+  on 2026-09-08 and directed implementation; that approval was recorded as
+  `ready_for_implementation` in commit `5a8562d` before any code changed,
+  following this branch's convention of recording authority before the
+  operation. Carl authorized `push` and a pull request on 2026-09-08, recorded
+  here and in the Story's `## Authority` before the branch was pushed, and then
+  authorized merging and publishing `0.6.0`, recorded the same way before either
+  operation. Authority used is `plan`, `modify`, `commit`, `push`, and
+  `deploy`.
+* `./scripts/verification-check --result specs/stories/FF-227-story-id-grammar`
+  reports `VERIFICATION_PASS` with 7 of 7 criteria traced and all five required
+  checks passing. Root `make verify` exits 0 on this tree, as do
+  `make verify-portability` under `/bin/sh` and under `/bin/dash`. That is
+  declared evidence only; Human Review still owns acceptance and the Story is
+  not DONE.
+* FF-227 gives ForgeFlow one Story ID grammar. `scripts/handoff-check` now
+  accepts a subsystem segment, so `DBCLI-PLAT-001` is recordable;
+  `scripts/story-check` now validates the Story ID its directory names, so a
+  non-conforming ID is reported when the Story is written rather than when the
+  handoff records it. The grammar is stated identically in `protocol/story.md`
+  and `protocol/handoff.md`, and `tests/story-check.sh` `FF227-AC-005` feeds one
+  shared corpus to both checkers and fails if they disagree. The pinned corpus
+  in `tests/handoff-check.sh` `FF212-AC-004` was not edited and keeps every
+  verdict, `FF-1-2` rejected included.
+* The change is **Breaking** and advances `VERSION` to `0.6.0`, with migration
+  guidance in `docs/releases/0.6.0.md` and `docs/upgrading.md`. The grammar
+  itself only widens; the Breaking part is that `story-check` newly validates
+  IDs. The 2026-09-07 survey found no non-conforming ID among the three
+  adopters, so the guidance names the check to run rather than a known repair
+  and does not present three repositories as a verified population.
+* AC-004 was **amended on 2026-09-08 with Carl's decision**. As approved it
+  required the directory `FF-1-2-x` to fail, which forces the Story ID to be the
+  longest leading run of uppercase-and-digit segments. An independent code
+  review found that rule absorbs a slug: `FF-232-API-limits` read as
+  `FF-232-API` and `FF-115-3-way-merge` as `FF-115-3`, and both failed although
+  `FF-232` and `FF-115` conform — a new class of false rejection inside a
+  Breaking release. `FF-1-2-x` is structurally identical to
+  `FF-115-3-way-merge`, so no rule rejects one and accepts the others. Carl
+  chose the shortest-valid-prefix rule: the ID stops as soon as it is complete,
+  so `FF-232-API-limits` names `FF-232` and `FF-1-2-x` names `FF-1` with the
+  slug `2-x`. The amendment and its reasoning are recorded in the Story's
+  `acceptance.md`. The ID grammar itself did not move: `FF-1-2` is still not a
+  Story ID anywhere one is required.
+* `scripts/story-check` now prints an `INFO` line naming the Story ID for every
+  Story it checks. That is what makes an ambiguously named directory visible
+  under the amended rule, and it is new output for every adopter.
+* Two further corrections to the approved Story text, both decided by Carl on
+  2026-09-08. AC-001's acceptance evidence named a single handoff carrying
+  `DBCLI-PLAT-001` as current, next, and completed, which the Handoff Contract's
+  own uniqueness rule forbids; the row now names three distinct `DBCLI-PLAT`
+  IDs, one per position, which is what the test builds. And the Scope and R3
+  statements described a middle segment only as one that "contains at least one
+  uppercase letter", while the checkers also restrict it to uppercase letters
+  and digits. Relaxing the checkers to the literal wording was tried and the
+  whole suite stayed green, so the restriction was a free choice rather than a
+  forced one; Carl kept it, because widening later is Additive and narrowing
+  later is Breaking, and because a middle segment accepting arbitrary characters
+  while the first and last segments do not is not one grammar. `FF-Plat-001` is
+  rejected as a result. No code changed for either correction, and the Story now
+  says what the implementation does.
+* Ordering note: the `deploy` authority record precedes publication, as it did
+  for FF-226 and unlike FF-224 and FF-225. Those Stories recorded it afterwards
+  because the authority commit would have moved `main` and left the tag naming a
+  commit CI had not verified. That constraint does not apply here either: this
+  record lives on the Story branch, so the tag will name the CI-verified merge
+  commit on `main`, not this one.
+* Publication evidence is not recorded yet. `0.6.0` is published under
+  `docs/releasing.md`, and the evidence belongs in a follow-up handoff record
+  once the remote tag, Release, and exact-SHA workflow have been queried.
+  Selection of the next Story is pending and is not implied by ordering.
+* FF-227 exists because a read-only survey on 2026-09-07 found that
+  `scripts/story-check` and `scripts/handoff-check` disagree about what a Story
+  ID is. `story-check` does not validate IDs at all; `handoff-check` requires
+  `PREFIX-DIGITS`. A Story whose ID carries a subsystem segment therefore passes
+  the Story Contract and can never appear in a conforming handoff. `Dbcli` holds
+  eight such Stories, `DBCLI-PLAT-001` through `DBCLI-PLAT-013`.
+* The same survey found the wider problem this Story deliberately does not
+  solve. All three adopters are stale — `Dbcli` at `0.3.2`, `loop-apidoc` at
+  `0.3.5`, `CMGMcp` at `0.3.6`, against ForgeFlow's `0.5.2` — and none has the
+  FF-225 activation integration installed. An upgrade trial on an isolated copy
+  of `Dbcli` produced `CONTRACT_DRIFT`: 23 Story-contract failures from the
+  `0.4.0` Breaking acceptance-evidence change, plus an unrecognized
+  `verification.detail` handoff key. That work is real, unaddressed, and out of
+  FF-227's scope.
+* The survey and the upgrade trial were read-only against the real repositories;
+  the trial ran on a copy in a temporary directory. No adopter repository was
+  modified.
 
 * The baseline above is the complete FF-225 implementation commit. This
   handoff-only follow-up records it and is the single remaining dirty path.

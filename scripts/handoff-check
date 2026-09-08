@@ -49,29 +49,51 @@ forgeflow_upper='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 forgeflow_digit='0123456789'
 forgeflow_hex='0123456789abcdef'
 
+# One Story ID grammar, shared with scripts/story-check: hyphen-separated
+# segments of uppercase letters and digits, where the first segment starts with
+# an uppercase letter, each middle segment has an uppercase letter, and the last
+# segment is digits. DBCLI-PLAT-001 conforms; FF-1-2 does not. Stated in
+# protocol/handoff.md and protocol/story.md.
 forgeflow_is_story_id() {
   case "$1" in
     *-*) ;;
     *) return 1 ;;
   esac
 
-  forgeflow_id_prefix=${1%%-*}
-  forgeflow_id_number=${1#*-}
+  forgeflow_id_first=${1%%-*}
+  forgeflow_id_last=${1##*-}
+  forgeflow_id_rest=${1#*-}
 
-  case "$forgeflow_id_prefix" in
+  case "$forgeflow_id_first" in
     ["$forgeflow_upper"]) ;;
     ["$forgeflow_upper"]*)
-      case "$forgeflow_id_prefix" in
+      case "$forgeflow_id_first" in
         *[!"$forgeflow_upper$forgeflow_digit"]*) return 1 ;;
       esac
       ;;
     *) return 1 ;;
   esac
 
-  case "$forgeflow_id_number" in
+  case "$forgeflow_id_last" in
     '') return 1 ;;
     *[!"$forgeflow_digit"]*) return 1 ;;
   esac
+
+  # Every segment between the first and the last is a subsystem name: uppercase
+  # letters and digits, and at least one uppercase letter so a bare number
+  # cannot pass as one.
+  while [ "$forgeflow_id_rest" != "$forgeflow_id_last" ]
+  do
+    forgeflow_id_middle=${forgeflow_id_rest%%-*}
+
+    case "$forgeflow_id_middle" in
+      *[!"$forgeflow_upper$forgeflow_digit"]*) return 1 ;;
+      *["$forgeflow_upper"]*) ;;
+      *) return 1 ;;
+    esac
+
+    forgeflow_id_rest=${forgeflow_id_rest#*-}
+  done
 
   return 0
 }

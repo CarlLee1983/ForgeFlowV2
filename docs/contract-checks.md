@@ -162,6 +162,12 @@ executes a recorded command, never re-runs a check, and never infers a result
 that was not written down: a required check that is simply absent is reported,
 not assumed.
 
+`scripts/story-check` also fails a Story whose directory does not name a
+conforming Story ID, reporting the directory and the grammar. The ID grammar is
+stated in [the Story Contract](../protocol/story.md) and [the Handoff
+Contract](../protocol/handoff.md), and both checkers enforce it: `tests/story-check.sh`
+`FF227-AC-005` feeds one shared corpus to both and fails if they disagree.
+
 `scripts/story-check` validates the declarations themselves. It reports an
 unknown or repeated authority operation, an authority set that grants `deploy`
 without `push`, `push` without `commit`, or `commit` without `modify`, an

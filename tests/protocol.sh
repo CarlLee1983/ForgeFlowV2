@@ -131,6 +131,7 @@ for forgeflow_required_file in \
   docs/doctor.md \
   docs/getting-started.md \
   docs/releases/0.5.2.md \
+  docs/releases/0.6.0.md \
   docs/releasing.md \
   examples/typescript/Makefile \
   examples/typescript/scripts/check-traceability.sh \
@@ -694,8 +695,62 @@ guidance_authority_and_version_boundaries_are_documented() {
     fail 'concepts omits agent-runtime boundary'
 }
 
+forgeflow_story_id_grammar='hyphen-separated segments of uppercase letters and digits'
+
+one_story_id_grammar_is_stated_where_a_story_is_named() {
+  # AC-002: the two documents state the same grammar and neither names a
+  # constraint the other omits.
+  for forgeflow_grammar_document in protocol/story.md protocol/handoff.md
+  do
+    for forgeflow_grammar_term in \
+      "$forgeflow_story_id_grammar" \
+      'the first segment starts with an uppercase letter' \
+      'each middle segment has an uppercase letter' \
+      'the last segment is digits' \
+      '`DBCLI-PLAT-001`' \
+      '`FF-1-2`'
+    do
+      grep -Fq -- "$forgeflow_grammar_term" \
+        "$forgeflow_repo/$forgeflow_grammar_document" ||
+        fail "$forgeflow_grammar_document omits the Story ID grammar: $forgeflow_grammar_term"
+    done
+  done
+
+  if grep -Fq 'uppercase letters or digits, a hyphen, and digits' \
+    "$forgeflow_repo/protocol/handoff.md"; then
+    fail 'protocol/handoff.md still states the superseded narrower grammar'
+  fi
+
+  grep -Fq 'both checkers' "$forgeflow_repo/docs/contract-checks.md" ||
+    fail 'docs/contract-checks.md does not say the two checkers share the grammar'
+}
+
+the_story_id_grammar_is_breaking_for_0_6_0() {
+  grep -Fqx '0.6.0' "$forgeflow_repo/VERSION" ||
+    fail 'VERSION is not 0.6.0'
+
+  grep -Fq 'FF-227 one Story ID grammar is **Breaking** for `0.6.0`' \
+    "$forgeflow_repo/protocol/versioning.md" ||
+    fail 'versioning omits the FF-227 Breaking classification'
+
+  for forgeflow_migration_term in \
+    './scripts/story-check' \
+    'Rename that Story' \
+    '../../protocol/versioning.md'
+  do
+    grep -Fq -- "$forgeflow_migration_term" \
+      "$forgeflow_repo/docs/releases/0.6.0.md" ||
+      fail "docs/releases/0.6.0.md omits migration guidance: $forgeflow_migration_term"
+  done
+
+  grep -Fq 'when upgrading to 0.6.0' "$forgeflow_repo/docs/upgrading.md" ||
+    fail 'docs/upgrading.md omits the 0.6.0 migration step'
+}
+
 run_case 'FF223-AC-001' guidance_baseline_artifacts_are_selective_and_advisory
 run_case 'FF223-AC-005' guidance_contract_and_agent_flow_are_documented
 run_case 'FF223-AC-008' guidance_authority_and_version_boundaries_are_documented
+run_case 'FF227-AC-002' one_story_id_grammar_is_stated_where_a_story_is_named
+run_case 'FF227-AC-006' the_story_id_grammar_is_breaking_for_0_6_0
 
 printf 'protocol tests passed\n'
