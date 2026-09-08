@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: none
+  current_story: FF-227
   next_story: pending
   completed_stories:
     - FF-201
@@ -37,17 +37,17 @@ workflow:
     - FF-224
     - FF-225
     - FF-226
-  status: done
+  status: draft
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: ff-226-adr-acceptance
-  commit: dddb698c0a415e532f4c01e00e7a2b0adf02042b
+  branch: ff-227-story-id-grammar
+  commit: 4d3b5ce6c3f59d27779094e6a9d0b129583216ba
   dirty_worktree: true
   story_owned_paths:
-    - specs/decisions/ADR-003-forgeflow-does-not-analyze-architecture.md
     - specs/handoff.md
-    - specs/stories/FF-226-architecture-analysis-non-goal/verification.md
+    - specs/stories/FF-227-story-id-grammar/acceptance.md
+    - specs/stories/FF-227-story-id-grammar/story.md
   known_unrelated_paths: []
 
 verification:
@@ -56,6 +56,28 @@ verification:
 ```
 
 ## Notes
+
+* FF-227 is a **draft awaiting approval**, not approved work. The Story text is
+  committed so it can be reviewed as a diff; committing a draft is not approving
+  it, and implementation has not started. Authority is `plan`, `modify`, and
+  `commit` only.
+* FF-227 exists because a read-only survey on 2026-09-07 found that
+  `scripts/story-check` and `scripts/handoff-check` disagree about what a Story
+  ID is. `story-check` does not validate IDs at all; `handoff-check` requires
+  `PREFIX-DIGITS`. A Story whose ID carries a subsystem segment therefore passes
+  the Story Contract and can never appear in a conforming handoff. `Dbcli` holds
+  eight such Stories, `DBCLI-PLAT-001` through `DBCLI-PLAT-013`.
+* The same survey found the wider problem this Story deliberately does not
+  solve. All three adopters are stale — `Dbcli` at `0.3.2`, `loop-apidoc` at
+  `0.3.5`, `CMGMcp` at `0.3.6`, against ForgeFlow's `0.5.2` — and none has the
+  FF-225 activation integration installed. An upgrade trial on an isolated copy
+  of `Dbcli` produced `CONTRACT_DRIFT`: 23 Story-contract failures from the
+  `0.4.0` Breaking acceptance-evidence change, plus an unrecognized
+  `verification.detail` handoff key. That work is real, unaddressed, and out of
+  FF-227's scope.
+* The survey and the upgrade trial were read-only against the real repositories;
+  the trial ran on a copy in a temporary directory. No adopter repository was
+  modified.
 
 * The baseline above is the complete FF-225 implementation commit. This
   handoff-only follow-up records it and is the single remaining dirty path.
