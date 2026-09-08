@@ -76,9 +76,10 @@ verification:
   `ready_for_implementation` in commit `5a8562d` before any code changed,
   following this branch's convention of recording authority before the
   operation. Carl authorized `push` and a pull request on 2026-09-08, recorded
-  here and in the Story's `## Authority` before the branch was pushed. Authority
-  used is `plan`, `modify`, `commit`, and `push`; `deploy` remains `no` and no
-  release has been prepared.
+  here and in the Story's `## Authority` before the branch was pushed, and then
+  authorized merging and publishing `0.6.0`, recorded the same way before either
+  operation. Authority used is `plan`, `modify`, `commit`, `push`, and
+  `deploy`.
 * `./scripts/verification-check --result specs/stories/FF-227-story-id-grammar`
   reports `VERIFICATION_PASS` with 7 of 7 criteria traced and all five required
   checks passing. Root `make verify` exits 0 on this tree, as do
@@ -130,11 +131,16 @@ verification:
   while the first and last segments do not is not one grammar. `FF-Plat-001` is
   rejected as a result. No code changed for either correction, and the Story now
   says what the implementation does.
-* No release has been prepared or published. `make release-check` will report
-  that the expected tag does not resolve to HEAD, which is the normal
-  pre-release state. Publishing `0.6.0` needs a separate `deploy` authority and
-  the release runbook. Selection of the next Story is pending and is not implied
-  by ordering.
+* Ordering note: the `deploy` authority record precedes publication, as it did
+  for FF-226 and unlike FF-224 and FF-225. Those Stories recorded it afterwards
+  because the authority commit would have moved `main` and left the tag naming a
+  commit CI had not verified. That constraint does not apply here either: this
+  record lives on the Story branch, so the tag will name the CI-verified merge
+  commit on `main`, not this one.
+* Publication evidence is not recorded yet. `0.6.0` is published under
+  `docs/releasing.md`, and the evidence belongs in a follow-up handoff record
+  once the remote tag, Release, and exact-SHA workflow have been queried.
+  Selection of the next Story is pending and is not implied by ordering.
 * FF-227 exists because a read-only survey on 2026-09-07 found that
   `scripts/story-check` and `scripts/handoff-check` disagree about what a Story
   ID is. `story-check` does not validate IDs at all; `handoff-check` requires

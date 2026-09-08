@@ -49,7 +49,7 @@ inconsistency that any upgrade path would otherwise have to carry forward.
 * migration: no
 * commit: yes
 * push: yes
-* deploy: no
+* deploy: yes
 
 ## Architecture
 
