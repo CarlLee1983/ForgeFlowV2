@@ -114,11 +114,20 @@ verification:
 * `scripts/story-check` now prints an `INFO` line naming the Story ID for every
   Story it checks. That is what makes an ambiguously named directory visible
   under the amended rule, and it is new output for every adopter.
-* One thing in the approved Story text is still recorded as a residual risk
-  rather than edited. AC-001's acceptance evidence names a single handoff
-  carrying `DBCLI-PLAT-001` as current, next, and completed, which the Handoff
-  Contract's own uniqueness rule forbids; the test uses three distinct
-  `DBCLI-PLAT` IDs, one per position. That is Carl's to confirm or correct.
+* Two further corrections to the approved Story text, both decided by Carl on
+  2026-09-08. AC-001's acceptance evidence named a single handoff carrying
+  `DBCLI-PLAT-001` as current, next, and completed, which the Handoff Contract's
+  own uniqueness rule forbids; the row now names three distinct `DBCLI-PLAT`
+  IDs, one per position, which is what the test builds. And the Scope and R3
+  statements described a middle segment only as one that "contains at least one
+  uppercase letter", while the checkers also restrict it to uppercase letters
+  and digits. Relaxing the checkers to the literal wording was tried and the
+  whole suite stayed green, so the restriction was a free choice rather than a
+  forced one; Carl kept it, because widening later is Additive and narrowing
+  later is Breaking, and because a middle segment accepting arbitrary characters
+  while the first and last segments do not is not one grammar. `FF-Plat-001` is
+  rejected as a result. No code changed for either correction, and the Story now
+  says what the implementation does.
 * No release has been prepared or published. `make release-check` will report
   that the expected tag does not resolve to HEAD, which is the normal
   pre-release state. Selection of the next Story is pending and is not implied

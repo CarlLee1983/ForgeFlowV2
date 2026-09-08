@@ -2,7 +2,7 @@
 
 ## Happy Path
 
-* [x] AC-001: `scripts/handoff-check` accepts a multi-segment Story ID whose middle segments each contain an uppercase letter, so the eight `DBCLI-PLAT-*` forms the survey found are recordable.
+* [x] AC-001: `scripts/handoff-check` accepts a multi-segment Story ID whose middle segments are uppercase letters and digits and each contain an uppercase letter, so the eight `DBCLI-PLAT-*` forms the survey found are recordable.
 * [x] AC-002: `protocol/story.md` and `protocol/handoff.md` state the same grammar, and neither states a constraint the other omits.
 
 ## Business Rules
@@ -23,7 +23,7 @@
 
 | AC | Method | Evidence | Fixture / precondition | Expected observation |
 | --- | --- | --- | --- | --- |
-| `AC-001` | test | `tests/handoff-check.sh FF227-AC-001` | `a temporary handoff naming DBCLI-PLAT-001 as current, next, and completed` | `HANDOFF_CONTRACT_OK; no "is not a Story ID" diagnostic` |
+| `AC-001` | test | `tests/handoff-check.sh FF227-AC-001` | `a temporary handoff naming DBCLI-PLAT-001 as current, DBCLI-PLAT-002 as next, and DBCLI-PLAT-013 as completed` | `HANDOFF_CONTRACT_OK; no "is not a Story ID" diagnostic` |
 | `AC-002` | test | `tests/protocol.sh` | `protocol/story.md and protocol/handoff.md` | `both state the grammar; neither omits a constraint the other names` |
 | `AC-003` | test | `tests/handoff-check.sh FF212-AC-004` | `the existing pinned corpus, unchanged` | `four accepted and eight rejected exactly as before, FF-1-2 among the rejected` |
 | `AC-004` | test | `tests/story-check.sh FF227-AC-004` | `temporary Story directories named DBCLI-PLAT-001-x, FF-232-API-limits, FF-115-3-way-merge, FF-1-2-x, ff-001-x, FF001-x and 1F-1a, each with valid contents` | `each directory naming a conforming ID passes, with FF-1-2-x reading as FF-1; each remaining directory fails naming the directory and the grammar; identical verdicts under an empty PATH` |
@@ -49,7 +49,27 @@ the grammar beyond its purpose: `FF-1-2` has no subsystem segment and stays
 rejected, and the existing corpus is evidence that nothing else moved. Do not
 edit `FF212-AC-004`; if it needs editing, the grammar is wrong.
 
-**Amendment, 2026-09-08.** AC-004 originally required the directory `FF-1-2-x`
+**Amendments, 2026-09-08.** Three corrections, each decided by Carl after the
+implementation and review exposed a problem in the approved text.
+
+AC-001's fixture originally named one handoff carrying `DBCLI-PLAT-001` as
+current, next, and completed. That is not constructible: the Handoff Contract
+forbids a completed Story ID from overlapping the current or next Story, so the
+row asked for a fixture another part of the same protocol rejects. The intent
+is that a multi-segment ID is recordable in every position, which the fixture
+now states with three distinct `DBCLI-PLAT` IDs, one per position.
+
+AC-001 and the Scope and R3 statements in `story.md` described a middle segment
+as one that "contains at least one uppercase letter", with no other constraint.
+The grammar the checkers implement also restricts a middle segment to uppercase
+letters and digits, like every other segment. Relaxing the checkers to the
+literal wording was tried and the whole suite stayed green, so the restriction
+was a free choice rather than a forced one; Carl kept it, because the direction
+is asymmetric — widening later is Additive and narrowing later is Breaking —
+and because a middle segment accepting arbitrary characters while the first and
+last segments do not is not one grammar. `FF-Plat-001` is therefore rejected.
+
+AC-004 originally required the directory `FF-1-2-x`
 to fail. Implementation and review showed that requirement forces the ID to be
 the longest leading run of uppercase-and-digit segments, which absorbs a slug:
 `FF-232-API-limits` reads as `FF-232-API` and `FF-115-3-way-merge` reads as

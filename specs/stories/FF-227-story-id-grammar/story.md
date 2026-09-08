@@ -72,8 +72,9 @@ inconsistency that any upgrade path would otherwise have to carry forward.
 ### In Scope
 
 * One Story ID grammar: a first segment starting with an uppercase letter and
-  continuing with uppercase letters or digits, optional middle segments that
-  each contain at least one uppercase letter, and a final segment of digits.
+  continuing with uppercase letters or digits, optional middle segments of
+  uppercase letters and digits that each contain at least one uppercase letter,
+  and a final segment of digits.
 * Stating that grammar in `protocol/story.md`, where a Story is named, as well
   as in `protocol/handoff.md`, where it is currently the only statement.
 * Loosening `scripts/handoff-check` to accept the middle segments.
@@ -119,8 +120,11 @@ inconsistency that any upgrade path would otherwise have to carry forward.
   it, and neither states a constraint the other omits.
 * R2: Every Story ID accepted under the previous grammar is still accepted. The
   change is a loosening; the existing pinned corpus keeps every verdict it has.
-* R3: A middle segment contains at least one uppercase letter. `DBCLI-PLAT-001`
-  conforms; `FF-1-2` does not, and stays rejected as it is today.
+* R3: A middle segment is uppercase letters and digits and contains at least one
+  uppercase letter. `DBCLI-PLAT-001` conforms; `FF-1-2` does not, and stays
+  rejected as it is today, and neither does `FF-Plat-001`. Every segment of an
+  ID draws on the same character set; the uppercase letter is what stops a bare
+  number from passing as a subsystem name.
 * R4: `scripts/story-check` fails a Story whose ID does not conform, so a
   non-conforming ID is reported when the Story is written rather than when it is
   recorded. This is the Breaking part of the change: a Story that passed before
