@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: FF-227
+  current_story: none
   next_story: pending
   completed_stories:
     - FF-201
@@ -37,31 +37,16 @@ workflow:
     - FF-224
     - FF-225
     - FF-226
-  status: review
+    - FF-227
+  status: done
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: ff-227-story-id-grammar
-  commit: 5a8562d47306b49195589f41b04d5d38029614b1
+  branch: ff-227-release-record
+  commit: 51ab1f20defffc9477c02989989dcda244df791e
   dirty_worktree: true
   story_owned_paths:
-    - VERSION
-    - docs/contract-checks.md
-    - docs/doctor.md
-    - docs/releases/0.6.0.md
-    - docs/upgrading.md
-    - protocol/handoff.md
-    - protocol/story.md
-    - protocol/versioning.md
-    - scripts/handoff-check
-    - scripts/story-check
     - specs/handoff.md
-    - specs/stories/FF-227-story-id-grammar/acceptance.md
-    - specs/stories/FF-227-story-id-grammar/verification.md
-    - tests/handoff-check.sh
-    - tests/human-review.sh
-    - tests/protocol.sh
-    - tests/story-check.sh
   known_unrelated_paths: []
 
 verification:
@@ -137,10 +122,25 @@ verification:
   commit CI had not verified. That constraint does not apply here either: this
   record lives on the Story branch, so the tag will name the CI-verified merge
   commit on `main`, not this one.
-* Publication evidence is not recorded yet. `0.6.0` is published under
-  `docs/releasing.md`, and the evidence belongs in a follow-up handoff record
-  once the remote tag, Release, and exact-SHA workflow have been queried.
-  Selection of the next Story is pending and is not implied by ordering.
+* FF-227 is **DONE and published as `0.6.0`**. Carl reviewed the work, directed
+  the merge, and authorized publication on 2026-09-08. PR #21 was merged with
+  `--admin`, which bypasses `main`'s one-approving-review requirement; that is
+  how PRs #17, #19, and #20 also landed, and Carl's direction to merge is the
+  Human Review the lifecycle requires.
+* Publication evidence observed on 2026-09-08: PR #21 merged as
+  `51ab1f20defffc9477c02989989dcda244df791e`, which is `main`; exact-SHA
+  workflow 34185677376 completed successfully with a matching `headSha`; the
+  remote annotated tag `b62669114b6a54edca4e25a7ea1fff3f7381060e` peels to that
+  commit; and the GitHub Release `v0.6.0` is neither draft nor prerelease:
+  https://github.com/CarlLee1983/ForgeFlowV2/releases/tag/v0.6.0. Remote state
+  is time-sensitive; query it at decision time rather than trusting this record.
+* Selection of the next Story is pending and is not implied by ordering. The
+  adopter-migration problem is still the largest open lead and still has no
+  Story: all three adopters sit at `0.3.x`, and an upgrade trial on an isolated
+  copy of `Dbcli` produced `CONTRACT_DRIFT` with 23 Story-contract failures from
+  the `0.4.0` acceptance-evidence change. `0.6.0` removes one obstacle on that
+  path — the eight `DBCLI-PLAT-*` IDs are now recordable — and does not address
+  the rest.
 * FF-227 exists because a read-only survey on 2026-09-07 found that
   `scripts/story-check` and `scripts/handoff-check` disagree about what a Story
   ID is. `story-check` does not validate IDs at all; `handoff-check` requires
