@@ -53,8 +53,15 @@ verification:
 | `verification.last_command` | The last authoritative verification command |
 | `verification.result` | `pass`, `fail`, or `not_run` |
 
-A Story ID is uppercase letters or digits, a hyphen, and digits, such as
-`FF-209`. An empty list is written as `[]`.
+A Story ID is hyphen-separated segments of uppercase letters and digits:
+the first segment starts with an uppercase letter,
+each middle segment has an uppercase letter,
+and the last segment is digits.
+`FF-209` and `DBCLI-PLAT-001` conform; `FF-1-2` does not, because a bare
+number is not a subsystem name. `scripts/story-check` and
+`scripts/handoff-check` enforce this same grammar.
+
+An empty list is written as `[]`.
 
 ## Rules
 

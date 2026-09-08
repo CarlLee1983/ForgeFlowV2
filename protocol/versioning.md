@@ -280,6 +280,21 @@ interface drift` to end a collision with Doctor's unrelated `CONTRACT_DRIFT`
 result. `ADR-003` records the decision. No command form, result name, exit
 status, or verdict changes, and no adopter migration is required.
 
+## FF-227 one Story ID grammar
+
+FF-227 one Story ID grammar is **Breaking** for `0.6.0`. `scripts/story-check`
+and `scripts/handoff-check` disagreed about what a Story ID is: `story-check`
+did not validate IDs at all, and `handoff-check` required a prefix, a hyphen,
+and digits. A Story ID carrying a subsystem segment, such as `DBCLI-PLAT-001`,
+therefore passed the Story Contract and could never appear in a conforming
+handoff.
+
+The grammar itself is only loosened, so no ID that was valid before becomes
+invalid. The Breaking part is that `scripts/story-check` now validates Story
+IDs: a repository holding a Story whose directory never named a conforming ID
+sees a new failure where it previously saw a pass. Migration guidance is in
+[the 0.6.0 release notes](../docs/releases/0.6.0.md).
+
 ## Repository release readiness
 
 ForgeFlow maintainers can run root `make release-check` on a clean committed

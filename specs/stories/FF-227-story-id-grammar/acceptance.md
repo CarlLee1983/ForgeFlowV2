@@ -2,22 +2,22 @@
 
 ## Happy Path
 
-* [ ] AC-001: `scripts/handoff-check` accepts a multi-segment Story ID whose middle segments each contain an uppercase letter, so the eight `DBCLI-PLAT-*` forms the survey found are recordable.
-* [ ] AC-002: `protocol/story.md` and `protocol/handoff.md` state the same grammar, and neither states a constraint the other omits.
+* [x] AC-001: `scripts/handoff-check` accepts a multi-segment Story ID whose middle segments each contain an uppercase letter, so the eight `DBCLI-PLAT-*` forms the survey found are recordable.
+* [x] AC-002: `protocol/story.md` and `protocol/handoff.md` state the same grammar, and neither states a constraint the other omits.
 
 ## Business Rules
 
-* [ ] AC-003: Every Story ID accepted under the previous grammar is still accepted, and every ID rejected under it that does not gain a valid middle segment is still rejected. The `FF212-AC-004` corpus keeps every verdict it has, including `FF-1-2` rejected.
-* [ ] AC-005: One shared corpus is fed to both checkers and they reach the same verdict for every entry; a disagreement fails the build.
+* [x] AC-003: Every Story ID accepted under the previous grammar is still accepted, and every ID rejected under it that does not gain a valid middle segment is still rejected. The `FF212-AC-004` corpus keeps every verdict it has, including `FF-1-2` rejected.
+* [x] AC-005: One shared corpus is fed to both checkers and they reach the same verdict for every entry; a disagreement fails the build.
 
 ## Failure Cases
 
-* [ ] AC-004: `scripts/story-check` fails a Story whose directory names a non-conforming ID, reporting the ID and the grammar, and it does so with shell builtins alone under an empty `PATH`.
+* [x] AC-004: `scripts/story-check` fails a Story whose directory names a non-conforming ID, reporting the ID and the grammar, and it does so with shell builtins alone under an empty `PATH`.
 
 ## Regression Requirements
 
-* [ ] AC-006: `VERSION` is `0.6.0`, `protocol/versioning.md` classifies the change as Breaking, and `docs/releases/0.6.0.md` carries migration guidance naming the check an adopter runs and the change a non-conforming repository must make.
-* [ ] AC-007: Full `make verify` passes, and `make verify-portability` passes under `/bin/sh` and under `/bin/dash`.
+* [x] AC-006: `VERSION` is `0.6.0`, `protocol/versioning.md` classifies the change as Breaking, and `docs/releases/0.6.0.md` carries migration guidance naming the check an adopter runs and the change a non-conforming repository must make.
+* [x] AC-007: Full `make verify` passes, and `make verify-portability` passes under `/bin/sh` and under `/bin/dash`.
 
 ## Acceptance Evidence
 

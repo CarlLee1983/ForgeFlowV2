@@ -1258,6 +1258,95 @@ forgeflow_check_governance() {
   fi
 }
 
+# One Story ID grammar, shared with scripts/handoff-check: hyphen-separated
+# segments of uppercase letters and digits, where the first segment starts with
+# an uppercase letter, each middle segment has an uppercase letter, and the last
+# segment is digits. DBCLI-PLAT-001 conforms; FF-1-2 does not. Stated in
+# protocol/story.md and protocol/handoff.md.
+forgeflow_is_story_id() {
+  case "$1" in
+    *-*) ;;
+    *) return 1 ;;
+  esac
+
+  forgeflow_id_first=${1%%-*}
+  forgeflow_id_last=${1##*-}
+  forgeflow_id_rest=${1#*-}
+
+  case "$forgeflow_id_first" in
+    ["$forgeflow_upper"]) ;;
+    ["$forgeflow_upper"]*)
+      case "$forgeflow_id_first" in
+        *[!"$forgeflow_upper$forgeflow_digit"]*) return 1 ;;
+      esac
+      ;;
+    *) return 1 ;;
+  esac
+
+  case "$forgeflow_id_last" in
+    '') return 1 ;;
+    *[!"$forgeflow_digit"]*) return 1 ;;
+  esac
+
+  while [ "$forgeflow_id_rest" != "$forgeflow_id_last" ]
+  do
+    forgeflow_id_middle=${forgeflow_id_rest%%-*}
+
+    case "$forgeflow_id_middle" in
+      *[!"$forgeflow_upper$forgeflow_digit"]*) return 1 ;;
+      *["$forgeflow_upper"]*) ;;
+      *) return 1 ;;
+    esac
+
+    forgeflow_id_rest=${forgeflow_id_rest#*-}
+  done
+
+  return 0
+}
+
+# A Story directory is a Story ID followed by an optional readable slug. The ID
+# is the leading run of segments made only of uppercase letters and digits; the
+# first segment carrying anything else begins the slug. FF-227-story-id-grammar
+# reads as FF-227, and FF-1-2-x reads as FF-1-2 rather than as FF-1 with a slug.
+forgeflow_check_story_id() {
+  forgeflow_story_name=$1
+
+  while :; do
+    case "$forgeflow_story_name" in
+      */) forgeflow_story_name=${forgeflow_story_name%/} ;;
+      *) break ;;
+    esac
+  done
+
+  forgeflow_story_name=${forgeflow_story_name##*/}
+
+  forgeflow_story_id=
+  forgeflow_name_rest=$forgeflow_story_name
+
+  while :; do
+    forgeflow_name_segment=${forgeflow_name_rest%%-*}
+
+    case "$forgeflow_name_segment" in
+      '') break ;;
+      *[!"$forgeflow_upper$forgeflow_digit"]*) break ;;
+    esac
+
+    if [ -z "$forgeflow_story_id" ]; then
+      forgeflow_story_id=$forgeflow_name_segment
+    else
+      forgeflow_story_id="$forgeflow_story_id-$forgeflow_name_segment"
+    fi
+
+    case "$forgeflow_name_rest" in
+      *-*) forgeflow_name_rest=${forgeflow_name_rest#*-} ;;
+      *) break ;;
+    esac
+  done
+
+  forgeflow_is_story_id "$forgeflow_story_id" ||
+    forgeflow_story_fail "Story directory does not name a Story ID: $forgeflow_story_name (read as $forgeflow_story_id; the ID is the leading run of segments made only of uppercase letters and digits, so a slug segment written that way is read as part of the ID; hyphen-separated segments of uppercase letters and digits, where the first segment starts with an uppercase letter, each middle segment has an uppercase letter, and the last segment is digits)"
+}
+
 forgeflow_check_story() {
   forgeflow_story_directory=$1
   forgeflow_story_label=$forgeflow_story_directory
@@ -1284,6 +1373,8 @@ forgeflow_check_story() {
       return
     fi
   done
+
+  forgeflow_check_story_id "$forgeflow_story_directory"
 
   if [ "$forgeflow_ready" -eq 1 ]; then
     forgeflow_check_readiness
@@ -1383,6 +1474,8 @@ forgeflow_check_story() {
   fi
 }
 
+forgeflow_upper='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+forgeflow_digit='0123456789'
 forgeflow_cr=$(printf '\r')
 forgeflow_tab=$(printf '\t')
 forgeflow_unit_separator=$(printf '\036')

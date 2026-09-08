@@ -18,6 +18,27 @@ specs/stories/<story-id>/
 Use a stable, unique Story ID followed by an optional readable slug, for example
 `ORD-123-refund-order`.
 
+A Story ID is hyphen-separated segments of uppercase letters and digits:
+the first segment starts with an uppercase letter,
+each middle segment has an uppercase letter,
+and the last segment is digits.
+`FF-209` and `DBCLI-PLAT-001` conform; `FF-1-2` does not, because a bare
+number is not a subsystem name. `scripts/story-check` and
+`scripts/handoff-check` enforce this same grammar.
+
+The directory name is the Story ID followed by an optional slug. The ID is the
+leading run of segments made only of uppercase letters and digits; the first
+segment carrying anything else begins the slug, so `FF-227-story-id-grammar`
+names `FF-227` and `FF-1-2-x` names `FF-1-2` rather than `FF-1`.
+
+A slug segment therefore has to carry something other than uppercase letters
+and digits, or it is read as part of the ID: `FF-232-oauth-limits` names
+`FF-232`, but `FF-232-API-limits` reads as `FF-232-API` and
+`FF-115-3-way-merge` reads as `FF-115-3`, and both fail. Write such a slug as
+`api-limits` or `three-way-merge`. `scripts/story-check` fails a Story whose
+directory does not name a conforming ID, so the problem is reported when the
+Story is written rather than when the handoff records it.
+
 `story.md` and `acceptance.md` are required once a Story
 enters READY. `task.md` is optional progress metadata and never
 overrides product requirements.

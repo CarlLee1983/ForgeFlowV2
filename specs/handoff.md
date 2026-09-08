@@ -37,17 +37,31 @@ workflow:
     - FF-224
     - FF-225
     - FF-226
-  status: ready_for_implementation
+  status: review
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
   branch: ff-227-story-id-grammar
-  commit: 4d3b5ce6c3f59d27779094e6a9d0b129583216ba
+  commit: 5a8562d47306b49195589f41b04d5d38029614b1
   dirty_worktree: true
   story_owned_paths:
+    - VERSION
+    - docs/contract-checks.md
+    - docs/doctor.md
+    - docs/releases/0.6.0.md
+    - docs/upgrading.md
+    - protocol/handoff.md
+    - protocol/story.md
+    - protocol/versioning.md
+    - scripts/handoff-check
+    - scripts/story-check
     - specs/handoff.md
     - specs/stories/FF-227-story-id-grammar/acceptance.md
-    - specs/stories/FF-227-story-id-grammar/story.md
+    - specs/stories/FF-227-story-id-grammar/verification.md
+    - tests/handoff-check.sh
+    - tests/human-review.sh
+    - tests/protocol.sh
+    - tests/story-check.sh
   known_unrelated_paths: []
 
 verification:
@@ -57,11 +71,46 @@ verification:
 
 ## Notes
 
-* FF-227 is **approved**. Carl approved the Story on 2026-09-08 and directed
-  implementation, so the lifecycle status moves from `draft` to
-  `ready_for_implementation`. This record is written before the work starts,
-  not after it. Authority stays `plan`, `modify`, and `commit`; `push` and
+* FF-227 is **implemented and awaiting Human Review**. Carl approved the Story
+  on 2026-09-08 and directed implementation; that approval was recorded as
+  `ready_for_implementation` in commit `5a8562d` before any code changed,
+  following this branch's convention of recording authority before the
+  operation. Authority used is `plan`, `modify`, and `commit`; `push` and
   `deploy` remain `no`.
+* `./scripts/verification-check --result specs/stories/FF-227-story-id-grammar`
+  reports `VERIFICATION_PASS` with 7 of 7 criteria traced and all five required
+  checks passing. Root `make verify` exits 0 on this tree, as do
+  `make verify-portability` under `/bin/sh` and under `/bin/dash`. That is
+  declared evidence only; Human Review still owns acceptance and the Story is
+  not DONE.
+* FF-227 gives ForgeFlow one Story ID grammar. `scripts/handoff-check` now
+  accepts a subsystem segment, so `DBCLI-PLAT-001` is recordable;
+  `scripts/story-check` now validates the Story ID its directory names, so a
+  non-conforming ID is reported when the Story is written rather than when the
+  handoff records it. The grammar is stated identically in `protocol/story.md`
+  and `protocol/handoff.md`, and `tests/story-check.sh` `FF227-AC-005` feeds one
+  shared corpus to both checkers and fails if they disagree. The pinned corpus
+  in `tests/handoff-check.sh` `FF212-AC-004` was not edited and keeps every
+  verdict, `FF-1-2` rejected included.
+* The change is **Breaking** and advances `VERSION` to `0.6.0`, with migration
+  guidance in `docs/releases/0.6.0.md` and `docs/upgrading.md`. The grammar
+  itself only widens; the Breaking part is that `story-check` newly validates
+  IDs. The 2026-09-07 survey found no non-conforming ID among the three
+  adopters, so the guidance names the check to run rather than a known repair
+  and does not present three repositories as a verified population.
+* Two things in the approved Story text did not survive contact with the
+  implementation and are recorded as residual risks rather than edited away.
+  The Scope sentence describes a middle segment as one that "contains at least
+  one uppercase letter"; the implementation is stricter, because `story-check`
+  must tell an ID from a slug in one directory name and `FF-1-2-x` has to fail.
+  And AC-001's acceptance evidence names a single handoff carrying
+  `DBCLI-PLAT-001` as current, next, and completed, which the Handoff Contract's
+  own uniqueness rule forbids; the test uses three distinct `DBCLI-PLAT` IDs,
+  one per position. Both are Carl's to confirm or correct.
+* No release has been prepared or published. `make release-check` will report
+  that the expected tag does not resolve to HEAD, which is the normal
+  pre-release state. Selection of the next Story is pending and is not implied
+  by ordering.
 * FF-227 exists because a read-only survey on 2026-09-07 found that
   `scripts/story-check` and `scripts/handoff-check` disagree about what a Story
   ID is. `story-check` does not validate IDs at all; `handoff-check` requires
