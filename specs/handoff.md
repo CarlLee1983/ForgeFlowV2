@@ -37,7 +37,7 @@ workflow:
     - FF-224
     - FF-225
     - FF-226
-  status: draft
+  status: ready_for_implementation
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
@@ -57,10 +57,11 @@ verification:
 
 ## Notes
 
-* FF-227 is a **draft awaiting approval**, not approved work. The Story text is
-  committed so it can be reviewed as a diff; committing a draft is not approving
-  it, and implementation has not started. Authority is `plan`, `modify`, and
-  `commit` only.
+* FF-227 is **approved**. Carl approved the Story on 2026-09-08 and directed
+  implementation, so the lifecycle status moves from `draft` to
+  `ready_for_implementation`. This record is written before the work starts,
+  not after it. Authority stays `plan`, `modify`, and `commit`; `push` and
+  `deploy` remain `no`.
 * FF-227 exists because a read-only survey on 2026-09-07 found that
   `scripts/story-check` and `scripts/handoff-check` disagree about what a Story
   ID is. `story-check` does not validate IDs at all; `handoff-check` requires
