@@ -78,7 +78,9 @@ inconsistency that any upgrade path would otherwise have to carry forward.
   as in `protocol/handoff.md`, where it is currently the only statement.
 * Loosening `scripts/handoff-check` to accept the middle segments.
 * Adding Story ID validation to `scripts/story-check`, which fails a Story whose
-  ID does not conform.
+  ID does not conform. A directory name is a Story ID followed by an optional
+  slug, and the ID is the shortest leading run of segments that is itself a
+  Story ID, so a slug is never read as part of it.
 * A shared ID corpus that both checkers are tested against, asserting that they
   agree rather than that each is separately correct.
 * A Breaking version advance to `0.6.0` with migration guidance.

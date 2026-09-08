@@ -735,7 +735,7 @@ the_story_id_grammar_is_breaking_for_0_6_0() {
 
   for forgeflow_migration_term in \
     './scripts/story-check' \
-    'rename' \
+    'Rename that Story' \
     '../../protocol/versioning.md'
   do
     grep -Fq -- "$forgeflow_migration_term" \

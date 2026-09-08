@@ -12,7 +12,7 @@
 
 ## Failure Cases
 
-* [x] AC-004: `scripts/story-check` fails a Story whose directory names a non-conforming ID, reporting the ID and the grammar, and it does so with shell builtins alone under an empty `PATH`.
+* [x] AC-004: `scripts/story-check` fails a Story whose directory names no conforming ID, reporting the directory and the grammar, and it does so with shell builtins alone under an empty `PATH`. The ID is the shortest leading run of segments that is itself a Story ID, so a slug is never absorbed into it.
 
 ## Regression Requirements
 
@@ -26,8 +26,8 @@
 | `AC-001` | test | `tests/handoff-check.sh FF227-AC-001` | `a temporary handoff naming DBCLI-PLAT-001 as current, next, and completed` | `HANDOFF_CONTRACT_OK; no "is not a Story ID" diagnostic` |
 | `AC-002` | test | `tests/protocol.sh` | `protocol/story.md and protocol/handoff.md` | `both state the grammar; neither omits a constraint the other names` |
 | `AC-003` | test | `tests/handoff-check.sh FF212-AC-004` | `the existing pinned corpus, unchanged` | `four accepted and eight rejected exactly as before, FF-1-2 among the rejected` |
-| `AC-004` | test | `tests/story-check.sh FF227-AC-004` | `temporary Story directories named DBCLI-PLAT-001-x, FF-1-2-x, ff-001-x and FF001-x, each with valid contents` | `conforming ID passes; each non-conforming ID fails naming the ID and the grammar; identical verdicts under an empty PATH` |
-| `AC-005` | test | `tests/story-check.sh FF227-AC-005` | `the shared corpus, each entry built as both a Story directory and a handoff` | `both checkers agree on every entry; a seeded disagreement fails` |
+| `AC-004` | test | `tests/story-check.sh FF227-AC-004` | `temporary Story directories named DBCLI-PLAT-001-x, FF-232-API-limits, FF-115-3-way-merge, FF-1-2-x, ff-001-x, FF001-x and 1F-1a, each with valid contents` | `each directory naming a conforming ID passes, with FF-1-2-x reading as FF-1; each remaining directory fails naming the directory and the grammar; identical verdicts under an empty PATH` |
+| `AC-005` | test | `tests/story-check.sh FF227-AC-005` | `the shared corpus, each entry built as both a Story directory and a handoff` | `every ID story-check reads is one handoff-check accepts, and every ID handoff-check accepts is one story-check reads unchanged; a seeded grammar drift fails` |
 | `AC-006` | test | `tests/protocol.sh and tests/human-review.sh` | `VERSION, protocol/versioning.md, docs/releases/0.6.0.md` | `0.6.0 recorded and classified Breaking with migration guidance present` |
 | `AC-007` | command | `make verify` | `complete implementation checkout` | `exit 0` |
 
@@ -48,6 +48,18 @@ AC-003 is a guard against over-correction. The loosening must not quietly widen
 the grammar beyond its purpose: `FF-1-2` has no subsystem segment and stays
 rejected, and the existing corpus is evidence that nothing else moved. Do not
 edit `FF212-AC-004`; if it needs editing, the grammar is wrong.
+
+**Amendment, 2026-09-08.** AC-004 originally required the directory `FF-1-2-x`
+to fail. Implementation and review showed that requirement forces the ID to be
+the longest leading run of uppercase-and-digit segments, which absorbs a slug:
+`FF-232-API-limits` reads as `FF-232-API` and `FF-115-3-way-merge` reads as
+`FF-115-3`, and both fail although `FF-232` and `FF-115` conform. `FF-1-2-x` is
+structurally identical to `FF-115-3-way-merge`, so no rule rejects one and
+accepts the others. Carl chose to drop `FF-1-2-x` from the rejected fixtures
+and take the shortest-valid-prefix rule, which has no false rejections;
+`FF-1-2-x` now names `FF-1` with the slug `2-x`. The ID grammar is untouched:
+`FF-1-2` is still not a Story ID anywhere it is one, which `FF212-AC-004`
+continues to pin.
 
 AC-004 must hold under an empty `PATH`, like the other checker guarantees. A new
 validation that reaches for `grep` would break the builtin-only property that

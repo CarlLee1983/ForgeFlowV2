@@ -1305,9 +1305,10 @@ forgeflow_is_story_id() {
 }
 
 # A Story directory is a Story ID followed by an optional readable slug. The ID
-# is the leading run of segments made only of uppercase letters and digits; the
-# first segment carrying anything else begins the slug. FF-227-story-id-grammar
-# reads as FF-227, and FF-1-2-x reads as FF-1-2 rather than as FF-1 with a slug.
+# is the shortest leading run of segments that is itself a valid Story ID, so
+# FF-227-story-id-grammar names FF-227 and FF-232-API-limits names FF-232. A
+# slug is never absorbed into the ID, because the ID stops as soon as it is
+# complete.
 forgeflow_check_story_id() {
   forgeflow_story_name=$1
 
@@ -1322,19 +1323,22 @@ forgeflow_check_story_id() {
 
   forgeflow_story_id=
   forgeflow_name_rest=$forgeflow_story_name
+  forgeflow_name_prefix=
+  forgeflow_name_started=0
 
   while :; do
     forgeflow_name_segment=${forgeflow_name_rest%%-*}
 
-    case "$forgeflow_name_segment" in
-      '') break ;;
-      *[!"$forgeflow_upper$forgeflow_digit"]*) break ;;
-    esac
-
-    if [ -z "$forgeflow_story_id" ]; then
-      forgeflow_story_id=$forgeflow_name_segment
+    if [ "$forgeflow_name_started" -eq 0 ]; then
+      forgeflow_name_prefix=$forgeflow_name_segment
+      forgeflow_name_started=1
     else
-      forgeflow_story_id="$forgeflow_story_id-$forgeflow_name_segment"
+      forgeflow_name_prefix="$forgeflow_name_prefix-$forgeflow_name_segment"
+    fi
+
+    if forgeflow_is_story_id "$forgeflow_name_prefix"; then
+      forgeflow_story_id=$forgeflow_name_prefix
+      break
     fi
 
     case "$forgeflow_name_rest" in
@@ -1343,8 +1347,12 @@ forgeflow_check_story_id() {
     esac
   done
 
-  forgeflow_is_story_id "$forgeflow_story_id" ||
-    forgeflow_story_fail "Story directory does not name a Story ID: $forgeflow_story_name (read as $forgeflow_story_id; the ID is the leading run of segments made only of uppercase letters and digits, so a slug segment written that way is read as part of the ID; hyphen-separated segments of uppercase letters and digits, where the first segment starts with an uppercase letter, each middle segment has an uppercase letter, and the last segment is digits)"
+  if [ -z "$forgeflow_story_id" ]; then
+    forgeflow_story_fail "Story directory does not name a Story ID: $forgeflow_story_name (no leading run of its hyphen-separated segments is one; a Story ID is segments of uppercase letters and digits, where the first segment starts with an uppercase letter, each middle segment has an uppercase letter, and the last segment is digits)"
+    return
+  fi
+
+  forgeflow_report 'INFO' "Story ID $forgeflow_story_id"
 }
 
 forgeflow_check_story() {

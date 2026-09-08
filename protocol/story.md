@@ -27,17 +27,14 @@ number is not a subsystem name. `scripts/story-check` and
 `scripts/handoff-check` enforce this same grammar.
 
 The directory name is the Story ID followed by an optional slug. The ID is the
-leading run of segments made only of uppercase letters and digits; the first
-segment carrying anything else begins the slug, so `FF-227-story-id-grammar`
-names `FF-227` and `FF-1-2-x` names `FF-1-2` rather than `FF-1`.
-
-A slug segment therefore has to carry something other than uppercase letters
-and digits, or it is read as part of the ID: `FF-232-oauth-limits` names
-`FF-232`, but `FF-232-API-limits` reads as `FF-232-API` and
-`FF-115-3-way-merge` reads as `FF-115-3`, and both fail. Write such a slug as
-`api-limits` or `three-way-merge`. `scripts/story-check` fails a Story whose
-directory does not name a conforming ID, so the problem is reported when the
-Story is written rather than when the handoff records it.
+shortest leading run of segments that is itself a Story ID, so
+`FF-227-story-id-grammar` names `FF-227` and `FF-232-API-limits` names
+`FF-232`. A slug is never read as part of the ID, because the ID stops as soon
+as it is complete; `FF-1-2-x` therefore names `FF-1` with the slug `2-x`, and
+`FF-1-2` is still not a Story ID anywhere one is required.
+`scripts/story-check` fails a Story whose directory names no conforming ID, so
+the problem is reported when the Story is written rather than when the handoff
+records it, and it reports the ID it read for every Story it checks.
 
 `story.md` and `acceptance.md` are required once a Story
 enters READY. `task.md` is optional progress metadata and never

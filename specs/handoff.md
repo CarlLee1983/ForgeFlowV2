@@ -98,15 +98,27 @@ verification:
   IDs. The 2026-09-07 survey found no non-conforming ID among the three
   adopters, so the guidance names the check to run rather than a known repair
   and does not present three repositories as a verified population.
-* Two things in the approved Story text did not survive contact with the
-  implementation and are recorded as residual risks rather than edited away.
-  The Scope sentence describes a middle segment as one that "contains at least
-  one uppercase letter"; the implementation is stricter, because `story-check`
-  must tell an ID from a slug in one directory name and `FF-1-2-x` has to fail.
-  And AC-001's acceptance evidence names a single handoff carrying
-  `DBCLI-PLAT-001` as current, next, and completed, which the Handoff Contract's
-  own uniqueness rule forbids; the test uses three distinct `DBCLI-PLAT` IDs,
-  one per position. Both are Carl's to confirm or correct.
+* AC-004 was **amended on 2026-09-08 with Carl's decision**. As approved it
+  required the directory `FF-1-2-x` to fail, which forces the Story ID to be the
+  longest leading run of uppercase-and-digit segments. An independent code
+  review found that rule absorbs a slug: `FF-232-API-limits` read as
+  `FF-232-API` and `FF-115-3-way-merge` as `FF-115-3`, and both failed although
+  `FF-232` and `FF-115` conform — a new class of false rejection inside a
+  Breaking release. `FF-1-2-x` is structurally identical to
+  `FF-115-3-way-merge`, so no rule rejects one and accepts the others. Carl
+  chose the shortest-valid-prefix rule: the ID stops as soon as it is complete,
+  so `FF-232-API-limits` names `FF-232` and `FF-1-2-x` names `FF-1` with the
+  slug `2-x`. The amendment and its reasoning are recorded in the Story's
+  `acceptance.md`. The ID grammar itself did not move: `FF-1-2` is still not a
+  Story ID anywhere one is required.
+* `scripts/story-check` now prints an `INFO` line naming the Story ID for every
+  Story it checks. That is what makes an ambiguously named directory visible
+  under the amended rule, and it is new output for every adopter.
+* One thing in the approved Story text is still recorded as a residual risk
+  rather than edited. AC-001's acceptance evidence names a single handoff
+  carrying `DBCLI-PLAT-001` as current, next, and completed, which the Handoff
+  Contract's own uniqueness rule forbids; the test uses three distinct
+  `DBCLI-PLAT` IDs, one per position. That is Carl's to confirm or correct.
 * No release has been prepared or published. `make release-check` will report
   that the expected tag does not resolve to HEAD, which is the normal
   pre-release state. Selection of the next Story is pending and is not implied
