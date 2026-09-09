@@ -42,7 +42,7 @@ workflow:
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: main
+  branch: fix/issue-23-configurable-decision-root
   commit: 51ab1f20defffc9477c02989989dcda244df791e
   dirty_worktree: true
   story_owned_paths:

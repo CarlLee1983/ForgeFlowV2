@@ -26,6 +26,7 @@ declares medium risk and medium architecture impact, so its profile requires
 * plan
 * modify
 * commit
+* push
 
 ## Residual Risks
 
