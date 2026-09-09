@@ -328,7 +328,7 @@ forgeflow_risk_bullet() {
         forgeflow_unquote "$forgeflow_bullet_value"
         forgeflow_reasons="$forgeflow_reasons$forgeflow_unquoted "
       else
-        forgeflow_plan_fail 'risk reason must name one exact backticked signal'
+        forgeflow_plan_fail 'risk reason must name one same-line backticked signal'
       fi
       ;;
     *)

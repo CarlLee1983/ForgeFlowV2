@@ -78,7 +78,7 @@ Once the required structure is confirmed, static mode composes the two
 four more lines:
 
 ```text
-Adopted version: 0.6.0
+Adopted version: 0.7.0
 Story contract: STORY_CONTRACT_OK
 Handoff: HANDOFF_CONTRACT_OK
 Guidance: GUIDANCE_BASELINE_OK
