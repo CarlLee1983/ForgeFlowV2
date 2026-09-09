@@ -41,7 +41,7 @@ retirement. ForgeFlow does not require a Story to address all of them.
 
 ## Architecture decisions
 
-A decision record lives beside the Story collection:
+A decision record defaults to a directory beside the Story collection:
 
 ```text
 specs/
@@ -50,8 +50,18 @@ specs/
 └── stories/
 ```
 
-A record lives at `specs/decisions/ADR-<digits>-<slug>.md`, resolved relative to
-the Story collection so an example repository keeps its own decisions.
+A record normally lives at `specs/decisions/ADR-<digits>-<slug>.md`, resolved
+relative to the Story collection so an example repository keeps its own
+decisions. A repository that already has an ADR collection may set
+`FORGEFLOW_DECISIONS_ROOT` to its directory for a `scripts/story-check`
+invocation; for example, from its repository root:
+
+```sh
+FORGEFLOW_DECISIONS_ROOT=docs/adr ./scripts/story-check
+```
+
+The value is used as supplied and is the only decision root for that
+invocation. An unset or empty value keeps the default `specs/decisions/` root.
 The file name is `ADR-<digits>` optionally followed by `-<slug>`, and the record
 declares its status once:
 

@@ -106,6 +106,10 @@ leaves whether the boundary is the right boundary to Human Review.
 **Risk** does not widen scope. A high-risk Story implements the same smallest
 coherent change; it proves more about it.
 
+A `Reason:` is one non-empty same-line backticked signal, for example
+`versioned-surface`; it is not a prose paragraph or a value closed on another
+line.
+
 **Evidence** does not prove itself. `VERIFICATION_PASS` means the declared
 evidence is complete, not that it is convincing.
 

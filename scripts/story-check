@@ -953,7 +953,7 @@ forgeflow_risk_bullet() {
         forgeflow_gov_unquote "$forgeflow_gov_value"
         forgeflow_reasons="$forgeflow_reasons$forgeflow_gov_unquoted "
       else
-        forgeflow_story_fail 'risk reason must name one exact backticked signal'
+        forgeflow_story_fail 'risk reason must name one same-line backticked signal'
       fi
       ;;
     *)
@@ -1388,7 +1388,11 @@ forgeflow_check_story() {
     forgeflow_check_readiness
   fi
 
-  forgeflow_decisions_root="$forgeflow_story_directory/../../decisions"
+  if [ -n "${FORGEFLOW_DECISIONS_ROOT:-}" ]; then
+    forgeflow_decisions_root=$FORGEFLOW_DECISIONS_ROOT
+  else
+    forgeflow_decisions_root="$forgeflow_story_directory/../../decisions"
+  fi
   forgeflow_check_governance
 
   forgeflow_read_declaration \

@@ -44,6 +44,22 @@ run_story_check() {
   run_command "$forgeflow_story_check" "$@"
 }
 
+run_story_check_with_decisions_root() {
+  forgeflow_configured_decisions_root=$1
+  shift
+  forgeflow_command_output="$forgeflow_test_dir/$forgeflow_case_id.output"
+
+  if (
+    FORGEFLOW_DECISIONS_ROOT=$forgeflow_configured_decisions_root
+    export FORGEFLOW_DECISIONS_ROOT
+    "$forgeflow_story_check" "$@"
+  ) >"$forgeflow_command_output" 2>&1; then
+    forgeflow_command_status=0
+  else
+    forgeflow_command_status=$?
+  fi
+}
+
 run_case() {
   forgeflow_case_id=$1
   forgeflow_case_function=$2
@@ -119,10 +135,18 @@ add_classification() {
 }
 
 write_decision() {
-  cat >"$forgeflow_decisions_root/$1.md" <<FORGEFLOW_DECISION
-# $1: Fixture decision
+  write_decision_in "$forgeflow_decisions_root" "$@"
+}
 
-* Status: $2
+write_decision_in() {
+  forgeflow_decision_root=$1
+  forgeflow_decision_id=$2
+  forgeflow_decision_status=$3
+
+  cat >"$forgeflow_decision_root/$forgeflow_decision_id.md" <<FORGEFLOW_DECISION
+# $forgeflow_decision_id: Fixture decision
+
+* Status: $forgeflow_decision_status
 
 ## Decision
 
@@ -324,6 +348,46 @@ architecture_metadata_must_resolve() {
   assert_output_contains 'architecture declares an unknown label: Layer'
 }
 
+# --- FF228-AC-001 -----------------------------------------------------------
+
+configured_decision_root_is_explicit_and_isolated() {
+  forgeflow_external_decisions_root="$forgeflow_test_dir/docs/adr"
+  mkdir -p "$forgeflow_external_decisions_root"
+  write_decision_in "$forgeflow_external_decisions_root" ADR-907 accepted
+
+  new_story external-decision
+  add_section '## Architecture' '* Impact: medium' '* Decision: `ADR-907`'
+
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'referenced decision record does not exist: ADR-907'
+
+  run_story_check_with_decisions_root '' "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'referenced decision record does not exist: ADR-907'
+
+  run_story_check_with_decisions_root "$forgeflow_external_decisions_root" \
+    "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Result: STORY_CONTRACT_OK'
+
+  write_decision ADR-908 accepted
+  new_story configured-root-has-no-fallback
+  add_section '## Architecture' '* Impact: medium' '* Decision: `ADR-908`'
+  run_story_check_with_decisions_root "$forgeflow_external_decisions_root" \
+    "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'referenced decision record does not exist: ADR-908'
+
+  write_decision_in "$forgeflow_external_decisions_root" \
+    ADR-909-existing-slug accepted
+  new_story external-slugged-decision
+  add_section '## Architecture' '* Impact: medium' '* Decision: `ADR-909`'
+  run_story_check_with_decisions_root "$forgeflow_external_decisions_root" \
+    "$forgeflow_story_dir"
+  assert_status 0
+}
+
 # --- AC-006 -----------------------------------------------------------------
 
 risk_declarations_stay_honest() {
@@ -355,6 +419,25 @@ risk_declarations_stay_honest() {
   run_story_check "$forgeflow_story_dir"
   assert_status 1
   assert_output_contains 'Risk level must be low, medium, or high'
+}
+
+# --- FF228-AC-002 -----------------------------------------------------------
+
+risk_reason_diagnostics_explain_the_literal_shape() {
+  new_story prose-risk-reason
+  add_section '## Risk' '* Reason: a prose explanation'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'risk reason must name one same-line backticked signal'
+  run_verification_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'risk reason must name one same-line backticked signal'
+
+  new_story line-spanning-risk-reason
+  add_section '## Risk' '* Reason: `versioned-' 'surface`'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'risk reason must name one same-line backticked signal'
 }
 
 # --- AC-007 -----------------------------------------------------------------
@@ -793,7 +876,9 @@ run_case 'FF224-AC-002' a_story_can_declare_its_execution_contract
 run_case 'FF224-AC-003' evidence_mode_never_authorizes_mutation
 run_case 'FF224-AC-004' authority_escalation_is_explicit
 run_case 'FF224-AC-005' architecture_metadata_must_resolve
+run_case 'FF228-AC-001' configured_decision_root_is_explicit_and_isolated
 run_case 'FF224-AC-006' risk_declarations_stay_honest
+run_case 'FF228-AC-002' risk_reason_diagnostics_explain_the_literal_shape
 run_case 'FF224-AC-007' the_profile_follows_risk_and_architecture_impact
 run_case 'FF224-AC-008' an_unproven_result_is_partial_not_pass
 run_case 'FF224-AC-009' used_authority_must_have_been_granted

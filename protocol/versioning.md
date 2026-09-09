@@ -295,6 +295,18 @@ IDs: a repository holding a Story whose directory never named a conforming ID
 sees a new failure where it previously saw a pass. Migration guidance is in
 [the 0.6.0 release notes](../docs/releases/0.6.0.md).
 
+## FF-228 configurable decision root
+
+FF-228 configurable decision root is **Additive** for `0.7.0`.
+`FORGEFLOW_DECISIONS_ROOT` is optional: when it is unset or empty,
+`scripts/story-check` resolves `Decision:` records from the same
+`specs/decisions/` directory as before. A repository with an established ADR
+collection may explicitly select that directory for one Story-check invocation.
+The command form, result names, exit statuses, decision filename grammar,
+record-status rules, adoption marker, bootstrap, and Doctor behavior are
+unchanged. No migration is required; [the 0.7.0 release notes](../docs/releases/0.7.0.md)
+describe the opt-in configuration.
+
 ## Repository release readiness
 
 ForgeFlow maintainers can run root `make release-check` on a clean committed

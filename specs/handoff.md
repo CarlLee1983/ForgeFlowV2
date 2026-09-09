@@ -8,7 +8,7 @@ is context only.
 
 ```yaml
 workflow:
-  current_story: none
+  current_story: FF-228
   next_story: pending
   completed_stories:
     - FF-201
@@ -38,15 +38,29 @@ workflow:
     - FF-225
     - FF-226
     - FF-227
-  status: done
+  status: review
 
 baseline:
   repository: CarlLee1983/ForgeFlowV2
-  branch: ff-227-release-record
+  branch: main
   commit: 51ab1f20defffc9477c02989989dcda244df791e
   dirty_worktree: true
   story_owned_paths:
+    - VERSION
+    - docs/contract-checks.md
+    - docs/doctor.md
+    - docs/execution-governance.md
+    - docs/releases/0.7.0.md
+    - docs/upgrading.md
+    - protocol/architecture.md
+    - protocol/versioning.md
+    - scripts/story-check
     - specs/handoff.md
+    - specs/stories/FF-228-configurable-decision-root/
+    - templates/story/story.md
+    - tests/execution-governance.sh
+    - tests/human-review.sh
+    - tests/protocol.sh
   known_unrelated_paths: []
 
 verification:

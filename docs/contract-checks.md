@@ -24,6 +24,18 @@ and handoff verdicts into its own.
 With no argument, every directory under `specs/stories/` except `_template/` is
 checked relative to the current directory.
 
+Decision records normally resolve from `specs/decisions/`. A repository with an
+existing ADR collection can select it for one invocation without moving records:
+
+```sh
+FORGEFLOW_DECISIONS_ROOT=docs/adr ./scripts/story-check
+```
+
+The non-empty environment value is used as supplied and is the only decision
+root for that invocation. When it is unset or empty, the default remains the
+directory beside the Story collection. This setting affects `story-check` only;
+it does not change the adoption marker, bootstrap, or Doctor.
+
 The check enforces the [Story Contract](../protocol/story.md):
 
 * every Story declares `Security sensitive` and `Baseline conformance` exactly
@@ -175,6 +187,10 @@ without `push`, `push` without `commit`, or `commit` without `modify`, an
 `medium` or `high` with no decision or contract, a referenced decision that does
 not exist or is not usable, an owner naming an undeclared boundary, and a
 recognized high-risk signal filed below `high`.
+
+Each `Reason:` declaration needs one non-empty same-line backticked signal, for
+example `versioned-surface`. A prose reason or a closing backtick on a later
+line is malformed and reports that shape.
 
 ## Handoff contract check
 

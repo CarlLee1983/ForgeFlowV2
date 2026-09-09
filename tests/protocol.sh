@@ -132,6 +132,7 @@ for forgeflow_required_file in \
   docs/getting-started.md \
   docs/releases/0.5.2.md \
   docs/releases/0.6.0.md \
+  docs/releases/0.7.0.md \
   docs/releasing.md \
   examples/typescript/Makefile \
   examples/typescript/scripts/check-traceability.sh \
@@ -726,9 +727,6 @@ one_story_id_grammar_is_stated_where_a_story_is_named() {
 }
 
 the_story_id_grammar_is_breaking_for_0_6_0() {
-  grep -Fqx '0.6.0' "$forgeflow_repo/VERSION" ||
-    fail 'VERSION is not 0.6.0'
-
   grep -Fq 'FF-227 one Story ID grammar is **Breaking** for `0.6.0`' \
     "$forgeflow_repo/protocol/versioning.md" ||
     fail 'versioning omits the FF-227 Breaking classification'
@@ -747,10 +745,36 @@ the_story_id_grammar_is_breaking_for_0_6_0() {
     fail 'docs/upgrading.md omits the 0.6.0 migration step'
 }
 
+configurable_decision_root_is_additive_for_0_7_0() {
+  grep -Fqx '0.7.0' "$forgeflow_repo/VERSION" ||
+    fail 'VERSION is not 0.7.0'
+
+  grep -Fq 'FF-228 configurable decision root is **Additive** for `0.7.0`' \
+    "$forgeflow_repo/protocol/versioning.md" ||
+    fail 'versioning omits the FF-228 Additive classification'
+
+  for forgeflow_configuration_document in \
+    protocol/architecture.md \
+    templates/story/story.md \
+    docs/contract-checks.md \
+    docs/upgrading.md \
+    docs/releases/0.7.0.md
+  do
+    grep -Fq 'FORGEFLOW_DECISIONS_ROOT' \
+      "$forgeflow_repo/$forgeflow_configuration_document" ||
+      fail "$forgeflow_configuration_document omits the decision-root override"
+  done
+
+  grep -Fq 'same-line backticked signal' \
+    "$forgeflow_repo/templates/story/story.md" ||
+    fail 'Story template omits the risk-reason shape'
+}
+
 run_case 'FF223-AC-001' guidance_baseline_artifacts_are_selective_and_advisory
 run_case 'FF223-AC-005' guidance_contract_and_agent_flow_are_documented
 run_case 'FF223-AC-008' guidance_authority_and_version_boundaries_are_documented
 run_case 'FF227-AC-002' one_story_id_grammar_is_stated_where_a_story_is_named
 run_case 'FF227-AC-006' the_story_id_grammar_is_breaking_for_0_6_0
+run_case 'FF228-AC-005' configurable_decision_root_is_additive_for_0_7_0
 
 printf 'protocol tests passed\n'

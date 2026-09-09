@@ -145,6 +145,11 @@ repository:
   fails where it previously passed. Slugs need no change: the ID stops before
   the slug begins. [The 0.6.0 release notes](releases/0.6.0.md) state the
   grammar and the repair;
+* when upgrading to 0.7.0 or later, keep an existing ADR collection where it
+  is. When a Story declares `Decision:`, run `scripts/story-check` with
+  `FORGEFLOW_DECISIONS_ROOT` set to that collection, for example
+  `FORGEFLOW_DECISIONS_ROOT=docs/adr ./scripts/story-check`. Leaving it unset
+  or empty preserves the default `specs/decisions/` root; and
 * when upgrading to 0.4.1 or later, optionally copy the four baseline files from
   `guidance/` and reconcile them with repository/team decisions; do not replace
   existing decisions or practices wholesale.
