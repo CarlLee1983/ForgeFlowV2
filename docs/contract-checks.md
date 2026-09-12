@@ -48,8 +48,28 @@ The check enforces the [Story Contract](../protocol/story.md):
   locations, and verification, and states the expected result as `preserve`,
   `redact`, `reject`, or `omit`;
 * `Baseline conformance: yes` requires `## Superseded Behavior` in `story.md`,
-  naming each superseded test or behavior exactly; and
-* a section that contradicts its declaration fails in both directions.
+  naming each superseded test or behavior exactly;
+* each optional, unique `Signal` under `## Risk` is one of
+  `error-projection`, `concurrency`, `bounded-capacity`, or
+  `retention-overflow`, and activates only its corresponding risk-contract
+  section and required fields; and
+* a Classification-gated section that contradicts its `yes` or `no`
+  declaration fails in both directions.
+
+The conditional risk contracts are:
+
+| Signal | Section | Required field labels |
+| --- | --- | --- |
+| `error-projection` | `## Error Projection` | `Source failure`, `Public projection`, `Detail policy`, `Evidence AC` |
+| `concurrency` | `## Concurrency` | `Contended resource`, `Linearization point`, `Conflict outcome`, `Evidence AC` |
+| `bounded-capacity` | `## Capacity` | `Bounded resource`, `Limit`, `Saturation behavior`, `Failure projection`, `Evidence AC` |
+| `retention-overflow` | `## Retention and Overflow` | `Retained resource`, `Retention bound`, `Overflow policy`, `Recovery / observability`, `Evidence AC` |
+
+Each activated section appears exactly once. Each required label appears
+exactly once with a non-empty same-line backticked value. A Story that declares
+no Signal needs none of these sections and keeps its previous verdict. The
+checker does not infer Signals from prose such as “queue”, “parallel”, or
+“database”; omission of an applicable risk remains Human Review judgment.
 
 A quoted payload may contain markup, so `<script>alert(1)</script>` is an exact
 value; only a whole-cell placeholder or an empty quotation is rejected. A pipe
@@ -111,12 +131,25 @@ need no migration. This opt-in mode adds these exact minimum-content rules:
   `<fixture / precondition>`, and `<expected observation>`. Technical values
   such as `<T>` remain valid when backticked.
 * All these readers use the fence rules above; examples do not supply content.
+* Every declared Risk Signal's required fields are concrete rather than one of
+  the finite placeholders below. `Evidence AC` is exactly `AC-<digits>`, names
+  a checkbox AC in the same `acceptance.md`, and that AC has a row in the
+  existing Acceptance Evidence table. No second risk-evidence map is required.
 
 The finite placeholder list is: empty text, bare `*` or `-`, `TBD`, `tbd`,
 `TODO`, `todo`, `N/A`, `n/a`, `...`, `<goal>`, `<scope>`,
 `<acceptance criterion>`, and `Describe the user or business outcome.`
 Matching is exact after trimming and optional bullet removal; `<T>`, Chinese
 requirements, and technical strings are not rejected by language or scoring.
+
+Risk-contract values use the same blank, bare bullet, `TBD`, `TODO`, `N/A`, and
+`...` tokens, plus these field-shaped placeholders: `<value>`,
+`<source failure>`, `<public projection>`, `<detail policy>`,
+`<contended resource>`, `<linearization point>`, `<conflict outcome>`,
+`<bounded resource>`, `<limit>`, `<saturation behavior>`,
+`<failure projection>`, `<retained resource>`, `<retention bound>`,
+`<overflow policy>`, `<recovery / observability>`, and `<evidence ac>`.
+Matching is exact after the required outer backticks are removed.
 
 For example, an actual criterion outside a fence can be:
 
@@ -188,6 +221,13 @@ without `push`, `push` without `commit`, or `commit` without `modify`, an
 not exist or is not usable, an owner naming an undeclared boundary, and a
 recognized high-risk signal filed below `high`.
 
+Both governance checkers accept the four standard `Signal` declarations and
+reject unknown or duplicate values. A Signal is not a `Reason` and does not
+change the resolved risk level or verification profile. Risk-contract sections,
+their concrete readiness content, and their Evidence AC links belong to
+`story-check`; `verification-check` only keeps the shared Risk declaration
+grammar consistent while resolving the execution profile.
+
 Each `Reason:` declaration needs one non-empty same-line backticked signal, for
 example `versioned-surface`. A prose reason or a closing backtick on a later
 line is malformed and reports that shape.
@@ -199,27 +239,43 @@ line is malformed and reports that shape.
 ```
 
 The handoff file defaults to `specs/handoff.md`. The check enforces the
-[Handoff Contract](../protocol/handoff.md): exactly one lifecycle block, exactly
-one current Story or `none`, exactly one next Story or `pending`, separately
-recorded completed Story IDs, a full baseline commit SHA, dirty-worktree path
-attribution with at least one Story-owned path, and the last authoritative
-verification command and result.
-Contradictory statements — the same Story as current and next, a current or next
-Story also recorded as completed, an active status with no current Story, or a
-`review` or `done` status whose last verification did not pass — are rejected
-rather than repaired.
+[Handoff Evidence Contract](../protocol/handoff.md): exactly one evidence block,
+one `handoff` section, one `verification` section, and one value for each of
+`story`, `recorded_at`, `repository`, `revision`, `command`, and `result`.
+Story IDs use the shared grammar, recording time uses UTC seconds in
+`YYYY-MM-DDTHH:MM:SSZ` form, revision is a full lowercase commit SHA, and result
+is `pass`, `fail`, or `not_run`.
+
+Unknown or repeated fields are rejected. Legacy `workflow` and `baseline`
+sections are rejected rather than retained as a compatibility state database.
+Current or next work, lifecycle status, completed work, Gates, review state,
+and completion state belong to the external control plane when one is present.
+ForgeFlow does not require such a control plane and does not infer current state
+from handoff prose.
+
+The supported YAML subset is intentionally line-oriented and lexical. Each
+field is one single-line value introduced by exactly one ASCII space after
+the field's `:`; Story ID, time, revision, and result use their documented
+exact grammars. Repository and command are unquoted, non-null
+string-like plain scalars. YAML null, boolean, numeric, and special
+floating-point forms; flow collections; quoted scalars; tags; anchors; aliases;
+block scalars; and inline comments are rejected for those generic fields rather
+than misread as text. Embedded YAML line breaks (CR, NEL, line separator, or
+paragraph separator) are rejected on every source line before Markdown fences,
+comments, or fields are interpreted; line-ending carriage returns in CRLF input
+are normalized. Prose outside the block and whole-line comments inside it are
+ignored.
 
 | Result | Exit | Meaning |
 | --- | --- | --- |
-| `HANDOFF_CONTRACT_OK` | `0` | The lifecycle block is complete and self-consistent. |
-| `HANDOFF_CONTRACT_INCOMPLETE` | `1` | A statement is missing, malformed, or contradictory. |
+| `HANDOFF_CONTRACT_OK` | `0` | The point-in-time evidence block is structurally complete. |
+| `HANDOFF_CONTRACT_INCOMPLETE` | `1` | A section or field is missing, repeated, unknown, or malformed. |
 | `ERROR` | `2` | Invalid invocation, or a missing, unreadable, or symlinked handoff. |
 
-`verification.result` records what the last run claimed. The checker does not
-re-run it and does not prove that the recorded command ran. Human Review checks
-that the PASS is genuine and fresh for the implementation under review. A
-stale `pass` is a review concern, not a checker failure. Prose outside the
-block, and comments inside it, are ignored.
+`verification.result` records what was observed at the stated time and
+revision. The checker does not re-run it, prove the revision exists, establish
+clock truth, or prove the record was never edited. Immutability comes from the
+record semantics and VCS history.
 
 ## Composed by Doctor
 

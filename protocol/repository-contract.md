@@ -4,19 +4,14 @@ A repository adopts ForgeFlow by exposing stable places for intent, agent
 guidance, and deterministic verification. The contract is independent of
 language, framework, AI vendor, and CI provider.
 
-## Required surface
+## Required entrypoints
 
-An adopting repository provides:
+An adopting repository provides exactly these core entrypoints:
 
 ```text
 AGENTS.md
 Makefile                  # exposes: make verify
-specs/
-└── stories/
-    └── <story-id>/
-        ├── story.md
-        ├── acceptance.md
-        └── task.md        # optional
+specs/stories/
 ```
 
 - `AGENTS.md` tells coding agents to follow the Story, preserve scope,
@@ -24,27 +19,40 @@ specs/
 - `specs/stories/` stores approved intent and acceptance criteria.
 - `make verify` runs every automated check required before human review.
 
-The [bootstrap script](../scripts/bootstrap) installs the agent guide, Story
-templates, optional Guidance baseline, and a `specs/.forgeflow-adoption` marker recording the copied
-protocol snapshot. Each repository still owns its Makefile and
-technology-specific setup.
+These entrypoints are the adoption contract. They are not an inventory of
+every file ForgeFlow may install, discover, or document. Each repository owns
+its Makefile and technology-specific setup.
+
+## Structural invariants
+
+`specs/stories/` is the Story contract root. Each ready Story lives at
+`specs/stories/<story-id>/`, contains `story.md` and `acceptance.md`, and may
+contain additional Story-owned artifacts. `task.md` is optional human context,
+not a required Story file. These structural invariants do not replace the
+content rules of the [Story Contract](story.md).
+
+The [bootstrap script](../scripts/bootstrap) uses an internal installation
+manifest to copy its guide, starter Story template, optional Guidance starter,
+and `specs/.forgeflow-adoption` marker. That source-to-destination list is an
+installer implementation detail, not a repository conformance contract.
 
 ## Optional engineering guidance
 
-Fresh bootstrap installs `guidance/ENTRY.md`, `PRINCIPLES.md`, `DECISIONS.md`,
-and `PRACTICES.md`. The directory becomes repository/team-owned knowledge: an
-upgrade never reads or writes it, while explicit `--force` replaces its four
-baseline files. An absent directory is legacy-compatible. If a directory is
-present, Doctor reports whether its four baseline files are complete without
-judging relevance or quality.
+Fresh bootstrap installs a four-document opinionated starter layout:
+`guidance/ENTRY.md`, `PRINCIPLES.md`, `DECISIONS.md`, and `PRACTICES.md`. The
+directory becomes repository/team-owned knowledge: an upgrade never reads or
+writes it, while explicit `--force` replaces the starter files. Guidance is an
+optional capability. Its detected contract is centered on a readable,
+non-blank `guidance/ENTRY.md`; the remaining starter documents are neither a
+protocol-required inventory nor a restriction on repository customization.
 
 ## Optional Repository Doctor
 
 [Repository Doctor](../docs/doctor.md) is an optional ForgeFlow command for
 inspecting an adoption. In its default static mode, it requires only a readable
 non-blank `AGENTS.md`, readable `specs/stories/`, and readable non-blank
-`Makefile`; when present, it also scans the optional Guidance baseline. It does
-not run `make`, target code, network
+`Makefile`; detected optional capabilities are checked at their own entrypoint.
+It does not run `make`, target code, network
 operations, dependency installation, or Git mutations. It does not require a
 first Story, `_template/`, `task.md`, Skills, or CI configuration.
 
@@ -77,6 +85,14 @@ For implementation work:
 Guidance is advisory unless a repository makes a rule executable. When these
 sources conflict, stop at the smallest unresolved intent decision
 instead of silently changing requirements or bypassing verification.
+
+## Optional extensions
+
+Guidance, immutable Handoff evidence, Skills, CI configuration, the adoption
+marker, templates, and repository-specific extensions are optional
+capabilities. Their absence does not make core adoption incomplete. A detected
+capability is validated only where ForgeFlow defines its entrypoint contract;
+new optional capabilities must not implicitly expand the required entrypoints.
 
 ## Portability boundary
 

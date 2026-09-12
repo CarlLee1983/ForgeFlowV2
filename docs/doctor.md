@@ -37,21 +37,27 @@ specs/stories/        # readable directory
 Makefile              # readable and non-blank regular file
 ```
 
-`specs/stories/_template/`, a Story's `task.md`, Skills, and CI configuration
-are optional, and `specs/stories/` may be empty immediately after bootstrap.
-Bootstrap can install the guide and Story template, but each repository still
-owns its `Makefile` and its verification implementation. Bootstrap success
-means only that its managed files were installed; it is not Doctor success or
-verification success.
+`specs/stories/_template/`, a Story's `task.md`, Guidance, Handoff evidence,
+Skills, and CI configuration are optional capabilities, and `specs/stories/`
+may be empty immediately after bootstrap. A ready Story is structurally a
+directory under that root with `story.md` and `acceptance.md`; it may contain
+additional artifacts. Its content remains subject to the Story Contract.
+Bootstrap can install the guide and Story template, but
+each repository still owns its `Makefile` and verification implementation.
+Bootstrap success means only that its managed files were installed; it is not
+Doctor success or verification success.
 
 Guidance is optional. Static mode does not follow `guidance/` symlinks. An
-absent directory reports `Guidance: OPTIONAL_LEGACY`, even when an adoption
-marker records a newer version. A present directory reports
-`GUIDANCE_BASELINE_OK` only when its four baseline files are readable,
-non-blank regular files; missing or blank files report `GUIDANCE_INCOMPLETE` as
-non-blocking contract drift. A symlinked, unreadable, or unsearchable Guidance
-path reports `ERROR` and exit `2`. Static mode never evaluates reference
-relevance or guidance quality, and `--run-verify` output remains unchanged.
+absent directory reports `Guidance: NOT_PRESENT`, even when an adoption marker
+records a newer version. A present directory is a detected capability and
+reports `GUIDANCE_CONTRACT_OK` when its readable, non-blank regular
+`guidance/ENTRY.md` exists. The bootstrap `PRINCIPLES.md`, `DECISIONS.md`, and
+`PRACTICES.md` files are a starter layout, not an immutable Guidance inventory;
+repositories may omit, replace, or add supporting documents. A missing or
+blank entrypoint reports `GUIDANCE_CONTRACT_INCOMPLETE` as non-blocking contract
+drift. An unsafe, unreadable, or unsearchable Guidance path reports `ERROR` and
+exit `2`. Static mode never evaluates reference relevance or guidance quality,
+and `--run-verify` output remains unchanged.
 
 Doctor resolves a requested repository-root symlink to its physical directory.
 It does not follow a symlink at a required path inside that root: `AGENTS.md`,
@@ -75,29 +81,37 @@ target syntax remain `UNCONFIRMED`; an unconfirmed result never proves that
 
 Once the required structure is confirmed, static mode composes the two
 [contract checks](contract-checks.md) against the same repository and reports
-four more lines:
+optional capability detection alongside them:
 
 ```text
-Adopted version: 0.7.0
+Adopted version: 0.9.0
 Story contract: STORY_CONTRACT_OK
 Handoff: HANDOFF_CONTRACT_OK
-Guidance: GUIDANCE_BASELINE_OK
+Guidance: GUIDANCE_CONTRACT_OK
+Skills: NOT_PRESENT
+CI capability: NOT_PRESENT
 ```
 
 `Adopted version:` is the `version` field of the FF-210 adoption marker
 `specs/.forgeflow-adoption`, or `UNKNOWN` when the repository has no marker.
 `Story contract:` runs `scripts/story-check` over every directory under
 `specs/stories/` except `_template/`, and is `NO_STORIES` when there are none.
-`Handoff:` runs `scripts/handoff-check` on `specs/handoff.md`, and is
-`NOT_PRESENT` when that file does not exist.
+`Handoff:` runs `scripts/handoff-check` on the optional immutable evidence
+record at `specs/handoff.md`, and is `NOT_PRESENT` when that file does not
+exist. Doctor validates its structure only; the record is not current lifecycle
+state and Doctor does not query or require a control plane.
 
-`Guidance:` is `OPTIONAL_LEGACY` when absent, `GUIDANCE_BASELINE_OK` for the
-four-file baseline, or `GUIDANCE_INCOMPLETE` when a present baseline is partial
-or blank. It does not parse optional Story references.
+`Guidance:` is `NOT_PRESENT` when absent, `GUIDANCE_CONTRACT_OK` when its
+entrypoint is valid, or `GUIDANCE_CONTRACT_INCOMPLETE` when a present capability
+lacks a usable entrypoint. `Skills:` and `CI capability:` are detection-only optional
+capabilities: `DETECTED` and `NOT_PRESENT` are observations, not requirements
+or claims that their implementation passed. Skills detection recognizes either
+repository-local `skills/` or Codex activation's `.agents/skills/`; CI detection
+recognizes `.github/`. Doctor does not parse optional Story references.
 
 Four signals are drift: an adopted version different from this checkout's
 `VERSION`, `STORY_CONTRACT_INCOMPLETE`, `HANDOFF_CONTRACT_INCOMPLETE`, and
-`GUIDANCE_INCOMPLETE`. Any
+`GUIDANCE_CONTRACT_INCOMPLETE`. Any
 of them prints a `WARN` line and makes the result `CONTRACT_DRIFT` instead of
 `STRUCTURE_OK`. **Drift does not change the exit status**, which stays `0`:
 static mode reports what it found and never becomes a gate. A missing marker,
@@ -114,11 +128,11 @@ says so rather than blaming the target repository. Run Doctor from a checkout
 rather than through a symlink placed on `PATH`.
 
 When the required structure itself is incomplete, the checks do not run and all
-four lines report `NOT_CHECKED`. The four lines occupy the same position, just
+six lines report `NOT_CHECKED`. The capability lines occupy the same position, just
 above the `Result:` block, in every outcome.
 
 Contract results are a static-mode capability. `--run-verify` output is
-otherwise unchanged: a structure failure reports the same four `NOT_CHECKED`
+otherwise unchanged: a structure failure reports the same six `NOT_CHECKED`
 lines in either mode, and a run that reaches verification reports none.
 
 ## Explicit local verification
@@ -161,9 +175,9 @@ In all Doctor outcomes, CI and merge policy remain `NOT_CHECKED`.
 
 | Evidence | What it means | What it does not mean |
 | --- | --- | --- |
-| Bootstrap success | The managed guide, Guidance baseline, and Story-template files were installed. | The adopter-owned gate exists or adoption is complete. |
+| Bootstrap success | The bootstrap-managed guide, Guidance starter, marker, and Story-template files were installed. | The adopter-owned gate exists or adoption is complete. |
 | `STRUCTURE_OK` | Doctor could confirm the three required structural paths, and found no contract drift. | `make verify`, CI, or human review passed. |
-| `CONTRACT_DRIFT` | The structure is complete, but Stories, handoff, version, or a present Guidance baseline drift. | The repository is broken, or that the drift blocks anything; the exit status is still `0`. |
+| `CONTRACT_DRIFT` | The structure is complete, but Stories, handoff evidence, version, or a detected Guidance entrypoint drift. | The repository is broken, or that the drift blocks anything; the exit status is still `0`. |
 | `VERIFIED_LOCAL` | The repository-configured automated gate returned zero in that local execution. | CI passed, the tests are sufficient, or the change may merge. |
 | Human review | A person evaluates requirements, design, and test sufficiency. | Repository merge policy has automatically been satisfied. |
 | Merge decision | The repository's own policy permits the reviewed change to merge. | Doctor made or automated that decision. |

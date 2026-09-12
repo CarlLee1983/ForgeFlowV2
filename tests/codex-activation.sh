@@ -331,12 +331,15 @@ legacy_compatibility() {
   "$source_dir/scripts/bootstrap" --upgrade "$target" >/dev/null
   cmp -s "$test_dir/legacy-agents" "$target/AGENTS.md" || fail 'legacy upgrade touched AGENTS'
   [ ! -d "$target/.agents" ] || fail 'legacy upgrade installed skill'
-  # Doctor's verdict is observed either side of the install, not inferred.
+  # Activation is an optional capability: Doctor's core verdict stays OK while
+  # its capability observation changes from absent to detected.
   run 0 "$source_dir/scripts/doctor" "$target"
-  cp "$test_dir/output" "$test_dir/doctor-before"
+  contains 'Skills: NOT_PRESENT'
+  contains 'Result: STRUCTURE_OK'
   run 0 "$activate" --apply "$target"
   run 0 "$source_dir/scripts/doctor" "$target"
-  cmp -s "$test_dir/doctor-before" "$test_dir/output" || fail 'activation changed Doctor verdict'
+  contains 'Skills: DETECTED'
+  contains 'Result: STRUCTURE_OK'
   cp "$target/AGENTS.md" "$test_dir/opted-agents"
   "$source_dir/scripts/bootstrap" --upgrade "$target" >/dev/null
   cmp -s "$test_dir/opted-agents" "$target/AGENTS.md" || fail 'legacy upgrade rewrote activation'

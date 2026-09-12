@@ -322,6 +322,8 @@ forgeflow_adopted_version='UNKNOWN'
 forgeflow_story_contract='NOT_CHECKED'
 forgeflow_handoff_contract='NOT_CHECKED'
 forgeflow_guidance='NOT_CHECKED'
+forgeflow_skills='NOT_CHECKED'
+forgeflow_ci='NOT_CHECKED'
 forgeflow_contract_drift=0
 forgeflow_contract_error=0
 forgeflow_static_result='STRUCTURE_OK'
@@ -455,7 +457,7 @@ check_handoff_contract() {
 
 check_guidance() {
   forgeflow_guidance_path="$forgeflow_target/guidance"
-  forgeflow_guidance='OPTIONAL_LEGACY'
+  forgeflow_guidance='NOT_PRESENT'
 
   if [ -L "$forgeflow_guidance_path" ]; then
     printf 'ERROR Guidance path is a symlink and cannot be safely read: guidance/\n'
@@ -464,7 +466,7 @@ check_guidance() {
     return 0
   fi
   if [ ! -e "$forgeflow_guidance_path" ]; then
-    printf 'INFO  Guidance is absent; optional and legacy-compatible\n'
+    printf 'INFO  Guidance capability is not present\n'
     return 0
   fi
   if [ ! -d "$forgeflow_guidance_path" ]; then
@@ -480,42 +482,46 @@ check_guidance() {
     return 0
   fi
 
-  forgeflow_guidance='GUIDANCE_BASELINE_OK'
-  for forgeflow_guidance_file in ENTRY.md PRINCIPLES.md DECISIONS.md PRACTICES.md
-  do
-    forgeflow_guidance_file_path="$forgeflow_guidance_path/$forgeflow_guidance_file"
-    if [ -L "$forgeflow_guidance_file_path" ]; then
-      printf 'ERROR Guidance file is a symlink and cannot be safely read: guidance/%s\n' \
-        "$forgeflow_guidance_file"
-      forgeflow_guidance='ERROR'
-      forgeflow_contract_error=1
-    elif [ ! -e "$forgeflow_guidance_file_path" ]; then
-      printf 'WARN  Guidance baseline is incomplete: guidance/%s\n' \
-        "$forgeflow_guidance_file"
-      [ "$forgeflow_guidance" = 'ERROR' ] ||
-        forgeflow_guidance='GUIDANCE_INCOMPLETE'
-      forgeflow_contract_drift=1
-    elif [ ! -f "$forgeflow_guidance_file_path" ]; then
-      printf 'ERROR Guidance file is not a regular file: guidance/%s\n' \
-        "$forgeflow_guidance_file"
-      forgeflow_guidance='ERROR'
-      forgeflow_contract_error=1
-    elif [ ! -r "$forgeflow_guidance_file_path" ]; then
-      printf 'ERROR Guidance file cannot be safely read: guidance/%s\n' \
-        "$forgeflow_guidance_file"
-      forgeflow_guidance='ERROR'
-      forgeflow_contract_error=1
-    elif ! file_has_non_whitespace "$forgeflow_guidance_file_path"; then
-      printf 'WARN  Guidance baseline is incomplete: guidance/%s\n' \
-        "$forgeflow_guidance_file"
-      [ "$forgeflow_guidance" = 'ERROR' ] ||
-        forgeflow_guidance='GUIDANCE_INCOMPLETE'
-      forgeflow_contract_drift=1
-    fi
-  done
+  forgeflow_guidance_file_path="$forgeflow_guidance_path/ENTRY.md"
+  if [ -L "$forgeflow_guidance_file_path" ]; then
+    printf 'ERROR Guidance entrypoint is a symlink and cannot be safely read: guidance/ENTRY.md\n'
+    forgeflow_guidance='ERROR'
+    forgeflow_contract_error=1
+  elif [ ! -e "$forgeflow_guidance_file_path" ]; then
+    printf 'WARN  Guidance capability is incomplete: guidance/ENTRY.md\n'
+    forgeflow_guidance='GUIDANCE_CONTRACT_INCOMPLETE'
+    forgeflow_contract_drift=1
+  elif [ ! -f "$forgeflow_guidance_file_path" ]; then
+    printf 'ERROR Guidance entrypoint is not a regular file: guidance/ENTRY.md\n'
+    forgeflow_guidance='ERROR'
+    forgeflow_contract_error=1
+  elif [ ! -r "$forgeflow_guidance_file_path" ]; then
+    printf 'ERROR Guidance entrypoint cannot be safely read: guidance/ENTRY.md\n'
+    forgeflow_guidance='ERROR'
+    forgeflow_contract_error=1
+  elif ! file_has_non_whitespace "$forgeflow_guidance_file_path"; then
+    printf 'WARN  Guidance capability is incomplete: guidance/ENTRY.md\n'
+    forgeflow_guidance='GUIDANCE_CONTRACT_INCOMPLETE'
+    forgeflow_contract_drift=1
+  else
+    forgeflow_guidance='GUIDANCE_CONTRACT_OK'
+    printf 'PASS  Guidance entrypoint: guidance/ENTRY.md\n'
+  fi
+}
 
-  if [ "$forgeflow_guidance" = 'GUIDANCE_BASELINE_OK' ]; then
-    printf 'PASS  Guidance baseline: guidance/\n'
+detect_optional_capabilities() {
+  if [ -e "$forgeflow_target/skills" ] || [ -L "$forgeflow_target/skills" ] ||
+    [ -e "$forgeflow_target/.agents/skills" ] ||
+    [ -L "$forgeflow_target/.agents/skills" ]; then
+    forgeflow_skills='DETECTED'
+  else
+    forgeflow_skills='NOT_PRESENT'
+  fi
+
+  if [ -e "$forgeflow_target/.github" ] || [ -L "$forgeflow_target/.github" ]; then
+    forgeflow_ci='DETECTED'
+  else
+    forgeflow_ci='NOT_PRESENT'
   fi
 }
 
@@ -628,13 +634,15 @@ if [ "$forgeflow_makefile_readable" -eq 1 ]; then
   fi
 fi
 
-printf 'INFO  Skill installation is optional\n\n'
+printf '\n'
 
 if [ "$forgeflow_structure_error" -eq 1 ]; then
   printf 'Adopted version: %s\n' "$forgeflow_adopted_version"
   printf 'Story contract: %s\n' "$forgeflow_story_contract"
   printf 'Handoff: %s\n' "$forgeflow_handoff_contract"
   printf 'Guidance: %s\n\n' "$forgeflow_guidance"
+  printf 'Skills: %s\n' "$forgeflow_skills"
+  printf 'CI capability: %s\n\n' "$forgeflow_ci"
   printf 'Result: ERROR\n'
   printf 'Verification: NOT_RUN\n'
   printf 'CI: NOT_CHECKED\n'
@@ -662,6 +670,8 @@ if [ "$forgeflow_structure_incomplete" -eq 1 ]; then
   printf 'Story contract: %s\n' "$forgeflow_story_contract"
   printf 'Handoff: %s\n' "$forgeflow_handoff_contract"
   printf 'Guidance: %s\n\n' "$forgeflow_guidance"
+  printf 'Skills: %s\n' "$forgeflow_skills"
+  printf 'CI capability: %s\n\n' "$forgeflow_ci"
   printf 'Result: STRUCTURE_INCOMPLETE\n'
   printf 'Verification: NOT_RUN\n'
   printf 'CI: NOT_CHECKED\n'
@@ -706,6 +716,8 @@ if [ "$forgeflow_run_verify" -eq 0 ]; then
     printf 'Story contract: NOT_CHECKED\n'
     printf 'Handoff: NOT_CHECKED\n'
     printf 'Guidance: NOT_CHECKED\n\n'
+    printf 'Skills: NOT_CHECKED\n'
+    printf 'CI capability: NOT_CHECKED\n\n'
     printf 'Result: ERROR\n'
     printf 'Verification: NOT_RUN\n'
     printf 'CI: NOT_CHECKED\n'
@@ -721,11 +733,14 @@ if [ "$forgeflow_run_verify" -eq 0 ]; then
   check_story_contract
   check_handoff_contract
   check_guidance
+  detect_optional_capabilities
 
   printf 'Adopted version: %s\n' "$forgeflow_adopted_version"
   printf 'Story contract: %s\n' "$forgeflow_story_contract"
   printf 'Handoff: %s\n' "$forgeflow_handoff_contract"
-  printf 'Guidance: %s\n\n' "$forgeflow_guidance"
+  printf 'Guidance: %s\n' "$forgeflow_guidance"
+  printf 'Skills: %s\n' "$forgeflow_skills"
+  printf 'CI capability: %s\n\n' "$forgeflow_ci"
 
   if [ "$forgeflow_contract_error" -eq 1 ]; then
     printf 'Result: ERROR\n'

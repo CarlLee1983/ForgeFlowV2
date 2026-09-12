@@ -26,7 +26,7 @@ reduce ambiguity and make failure diagnosis local.
 
 See [the Story Contract](../protocol/story.md).
 
-## Intent != Guidance != Verification != Approval
+## Intent != Guidance != Verification != Current State != Approval
 
 These boundaries are intentionally separate:
 
@@ -35,6 +35,7 @@ These boundaries are intentionally separate:
 | Story | Defines the approved product outcome. | It is the product-intent authority. |
 | Guidance | Captures reusable engineering judgment. | It is selective and advisory, never hidden ACs. |
 | Verification | Produces deterministic mechanical evidence through `make verify`. | PASS does not prove design quality. |
+| Control plane | Tracks current work, lifecycle, blockers, next action, review, verification-current, and completion state. | It does not redefine Story intent or verification semantics. |
 | Human Review | Evaluates product, design, and architecture fit. | It is the final judgment. |
 
 Agents read an approved Story first, then load only relevant guidance. Specific,
@@ -42,6 +43,11 @@ explicitly approved repository context takes precedence over generic principles.
 An unresolved conflict belongs in Human Review, not in an automatic override.
 ForgeFlow does not use a runtime, memory service, RAG, or semantic judge to make
 that judgment.
+
+The control plane is optional. ForgePilot is one example; direct human
+coordination is sufficient when no control plane exists. ForgeFlow stores
+approved contracts and immutable evidence, never a second current-state
+projection that must be synchronized with either one.
 
 ## Deterministic completion
 
@@ -105,5 +111,7 @@ canonical.
 
 ## Conceptual lifecycle
 
-The shared state vocabulary makes handoffs understandable without requiring
-state persistence or orchestration. See [the Story Lifecycle](../protocol/lifecycle.md).
+The shared state vocabulary defines transition semantics without requiring
+ForgeFlow repository state or orchestration. See
+[the Story Lifecycle](../protocol/lifecycle.md). A handoff may record what was
+observed at one time and revision, but it never supplies the current state.

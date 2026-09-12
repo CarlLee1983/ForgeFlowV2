@@ -255,6 +255,9 @@ case "$forgeflow_version" in
     ;;
 esac
 
+# This source-to-destination manifest belongs solely to installation. It must
+# never be read as the repository conformance contract; see
+# protocol/repository-contract.md for the required entrypoints.
 forgeflow_managed_files='templates/AGENTS.md AGENTS.md
 templates/story/story.md specs/stories/_template/story.md
 templates/story/acceptance.md specs/stories/_template/acceptance.md

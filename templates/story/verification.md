@@ -1,8 +1,9 @@
 # Verification Result: <ID>
 
-Optional. Record what verification actually did, so a completed Story carries
-evidence rather than a claim. `scripts/verification-check --result` reads this
-file; it never runs a command recorded here.
+Optional. Record what verification actually did, so verified work carries
+evidence rather than a claim. This is immutable evidence, not current
+verification or completion state. `scripts/verification-check --result` reads
+this file; it never runs a command recorded here.
 
 ## Checks
 

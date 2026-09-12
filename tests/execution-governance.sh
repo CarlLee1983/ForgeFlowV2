@@ -442,6 +442,58 @@ risk_reason_diagnostics_explain_the_literal_shape() {
 
 # --- AC-007 -----------------------------------------------------------------
 
+# --- P0-002 AC-008 ----------------------------------------------------------
+
+risk_signals_are_opt_in_and_do_not_change_the_profile() {
+  for forgeflow_signal in \
+    error-projection concurrency bounded-capacity retention-overflow
+  do
+    new_story "standard-signal-$forgeflow_signal"
+    add_section '## Risk' '* Level: medium' '* Reason: `shared-write-path`' \
+      "* Signal: \`$forgeflow_signal\`"
+    run_verification_check "$forgeflow_story_dir"
+    assert_status 0
+    assert_output_contains 'Risk level: medium'
+    assert_output_contains 'Required checks: lint static unit integration'
+    assert_output_contains 'Result: VERIFICATION_PLAN_OK'
+  done
+
+  new_story duplicate-signal
+  add_section '## Risk' '* Signal: `concurrency`' '* Signal: `concurrency`'
+  run_verification_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'risk signal declared more than once: concurrency'
+  assert_output_contains 'Result: VERIFICATION_PLAN_INCOMPLETE'
+
+  new_story unknown-signal
+  add_section '## Risk' '* Signal: `unbounded-retry`'
+  run_verification_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'risk signal is unknown: unbounded-retry'
+  assert_output_contains 'Result: VERIFICATION_PLAN_INCOMPLETE'
+
+  new_story fenced-signal
+  add_section '## Risk' '```markdown' '* Signal: `concurrency`' '```'
+  run_verification_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Result: VERIFICATION_PLAN_OK'
+
+  new_story signal-empty-path
+  add_section '## Risk' '* Level: medium' '* Reason: `shared-write-path`' \
+    '* Signal: `concurrency`'
+  forgeflow_empty_path="$forgeflow_test_dir/$forgeflow_case_id-empty-path"
+  mkdir -p "$forgeflow_empty_path"
+  forgeflow_command_output="$forgeflow_test_dir/$forgeflow_case_id.no-path"
+  if PATH="$forgeflow_empty_path" "$forgeflow_verification_check" \
+    "$forgeflow_story_dir" >"$forgeflow_command_output" 2>&1; then
+    forgeflow_command_status=0
+  else
+    forgeflow_command_status=$?
+  fi
+  assert_status 0
+  assert_output_contains 'Result: VERIFICATION_PLAN_OK'
+}
+
 the_profile_follows_risk_and_architecture_impact() {
   new_story profile-low
   run_verification_check "$forgeflow_story_dir"
@@ -879,6 +931,7 @@ run_case 'FF224-AC-005' architecture_metadata_must_resolve
 run_case 'FF228-AC-001' configured_decision_root_is_explicit_and_isolated
 run_case 'FF224-AC-006' risk_declarations_stay_honest
 run_case 'FF228-AC-002' risk_reason_diagnostics_explain_the_literal_shape
+run_case 'P0002-AC-008' risk_signals_are_opt_in_and_do_not_change_the_profile
 run_case 'FF224-AC-007' the_profile_follows_risk_and_architecture_impact
 run_case 'FF224-AC-008' an_unproven_result_is_partial_not_pass
 run_case 'FF224-AC-009' used_authority_must_have_been_granted

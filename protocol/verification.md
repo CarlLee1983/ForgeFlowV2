@@ -34,7 +34,8 @@ not the tools behind it. It does not require a language, framework, formatter,
 linter, type checker, architecture checker, test runner, CI provider, or an
 additional Make target. Project-specific commands and setup remain in
 repository tooling and documentation rather than in the ForgeFlow protocol.
-`make verify` remains the only authoritative completion gate.
+`make verify` remains the one canonical verification command and the
+deterministic authority for its point-in-time PASS or FAIL result.
 
 ## Optional Doctor invocation
 
@@ -58,6 +59,12 @@ change. It is evidence for the implementation that the complete command
 checked. A later source, test, configuration, or other behavior-affecting
 change invalidates that PASS for review and requires another complete
 `make verify`. FAIL cannot be reclassified by an agent.
+
+This result is evidence, not persisted current state. When a control plane is
+present, it owns whether verification is currently running, stale, blocked, or
+accepted in the workflow and whether work is currently complete. ForgeFlow
+defines the verification semantics and may preserve immutable evidence without
+maintaining a synchronized status field.
 
 Doctor's `STRUCTURE_OK` result is only a static structure result, while
 `VERIFIED_LOCAL` is local automated evidence. Neither checks CI or merge policy

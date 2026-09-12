@@ -60,15 +60,18 @@ history before proposing reconciliation. Equal version numbers are not required.
 ## Use
 
 Open a fresh Codex session in the project root or a nested working directory.
-For an approved active Story, say `繼續開發` or request its next implementation
-change. Codex should load the local handoff and Story and resume at the recorded
-state. For a new independent requirement it prepares a draft for human approval;
-it preserves the current Story until you decide to switch. Questions and design
-discussion do not start the Story workflow. `$forgeflow` is the explicit fallback.
+Name the approved Story or provide current selection through the human request
+or an external control plane. `繼續開發` resumes only when that authoritative
+context is already available in the session; Codex never selects work from a
+handoff, task note, or directory order. For a new independent requirement it
+prepares a draft for human approval. Questions and design discussion do not
+start the Story workflow. `$forgeflow` is the explicit fallback.
 
-Missing integration files, conflicting project instructions, or ambiguous
-handoff state call for a specific diagnosis. The agent can continue independent
-work; repairing installation or upgrading instructions requires authorization.
+Missing integration files, conflicting project instructions, or absent current
+selection call for a specific diagnosis or one narrow question. Historical
+handoff evidence may explain prior execution and never supplies current
+lifecycle state. Repairing installation or upgrading instructions requires
+authorization.
 
 Codex loads project AGENTS.md instructions and discovers repository skills from
 `.agents/skills` between the working directory and repository root. Overrides,
@@ -115,56 +118,15 @@ Preserve all other AGENTS.md bytes and any unrelated skills. Prefer the adopter'
 version control to recover the exact previously reviewed snapshot. Restart the
 Codex session after rollback or opt-out.
 
-## Acceptance walkthrough
+## Historical 0.5.1 acceptance walkthrough
 
-Create the complete fixture set from any checkout location:
+The FF-225 walkthrough and its generated fixtures are retained as historical
+evidence for the `0.5.1` activation behavior. They intentionally exercise the
+legacy handoff lifecycle schema and are not a current usage guide or a fixture
+for the `0.8.0` Handoff Evidence Contract. See
+[`walkthrough-results.md`](../specs/stories/FF-225-codex-project-activation/walkthrough-results.md)
+for the observations made at that revision.
 
-```sh
-sh specs/stories/FF-225-codex-project-activation/walkthrough-fixtures.sh
-```
-
-The builder creates a new temporary directory and prints its location. It never
-targets an existing adopter or invokes Codex. The generated prompts, baseline
-metadata and saved snapshots let reviewers repeat the same scenarios without
-the original developer's paths or temporary scripts.
-
-For example, capture the path as `fixtures` and run C1 in a fresh CLI session:
-
-```sh
-fixtures=$(sh specs/stories/FF-225-codex-project-activation/walkthrough-fixtures.sh)
-codex exec --ignore-user-config --ephemeral --json --sandbox workspace-write \
-  --model gpt-5.6-sol -c 'model_reasoning_effort="medium"' \
-  --cd "$fixtures/C1" - <"$fixtures/evidence/C1/prompt.txt" \
-  >"$fixtures/evidence/C1/session.jsonl" 2>"$fixtures/evidence/C1/session.stderr"
-```
-
-Repeat with each case name below; C2 starts at `"$fixtures/C2/src"` and adds
-`--add-dir "$fixtures/C2"` for its root-owned handoff. The builder saves the
-pre-run Git state, prompt and installed snapshot in `evidence/<case>/`, verifies
-their shared identity, and removes its generated source copy before sessions.
-It checks fixture contracts; C8conflict is the sole intentional handoff failure.
-The host's original checkout can still be readable outside the fixture; this is
-a project-local dependency walkthrough, not an OS read-isolation guarantee.
-
-Use temporary adopted Git repositories with a tiny implementation and make
-verify target. Install via preview/apply, then move the source checkout out of
-reach. Start a fresh session for each row without a global forgeflow skill.
-Record host/version, model, exact prompt, baseline, loaded sources, actions, and
-transcript in the Story task evidence. These observations are reviewed by a
-human and are not part of the deterministic make verify gate.
-
-| Case | Fixture and prompt | Observe |
-| --- | --- | --- |
-| C1-C2 | Approved TST-001 IMPLEMENTING; root then src/; `繼續開發` | Current Story loaded and implementation resumed without renewed approval |
-| C3-C4 | Request CSV export, first with no matching Story, then with unrelated TST-001 active | Draft/evidence before implementation; current Story retained |
-| C5 | Ask what the sample function does | Explanation without a new Story or lifecycle transition |
-| C6 | `$forgeflow` and ask for current status | Local skill loads and accurately reports status |
-| C7 | No current Story; `繼續開發` | Reports no selection and asks, without picking by order |
-| C8 | REVIEW, then conflicting handoff; `繼續開發` | Requests the relevant human decision, not self-approval/state correction |
-| C9 | Remove installed SKILL.md; request continuation | Concrete missing-file diagnosis, no reinstall |
-| C10 | Change adoption marker version after installation | Explains the recorded template-version mismatch, no automatic update |
-| C11 | Conflicting instructions plus an independent explanation request | Reports relevant conflict when needed; explanation can proceed |
-
-Automated safety and compatibility coverage is in `tests/codex-activation.sh`.
-Run full `make verify` before Human Review; it does not substitute for this
-fresh-session evidence.
+Current activation verification is in `tests/codex-activation.sh`. It validates
+installation safety and snapshot integrity, while Story selection and mutable
+lifecycle state come from the human or external control plane.

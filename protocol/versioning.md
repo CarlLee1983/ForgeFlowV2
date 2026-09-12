@@ -307,6 +307,85 @@ record-status rules, adoption marker, bootstrap, and Doctor behavior are
 unchanged. No migration is required; [the 0.7.0 release notes](../docs/releases/0.7.0.md)
 describe the opt-in configuration.
 
+## P0-001 remove mutable lifecycle state
+
+P0-001 is **Breaking** for `0.8.0`. A handoff that satisfied `0.7.0` by
+persisting `workflow.current_story`, `workflow.next_story`,
+`workflow.completed_stories`, `workflow.status`, mutable worktree state, and
+the last verification claim no longer satisfies the Handoff Evidence Contract.
+The replacement is one immutable point-in-time record anchored to a Story, UTC
+time, repository, exact commit revision, verification command, and observed
+result.
+
+This hard cut is required to leave one current-state authority. Accepting both
+schemas would keep ForgeFlow's lifecycle database valid beside an external
+control plane. Command forms, result names, and exit statuses remain unchanged,
+but existing valid handoff files must change, which meets the Breaking
+definition above.
+
+Migration for `0.8.0`:
+
+1. Move current work, lifecycle status, blockers or Gates, next action, review,
+   verification-current, and completion state to the team's external control
+   plane or direct human coordination. ForgePilot is one example and is not
+   required by ForgeFlow.
+2. Remove the legacy `workflow` and `baseline` projections. If historical
+   execution context is worth preserving, replace the file with one record
+   containing `handoff.story`, `handoff.recorded_at`, `handoff.repository`,
+   `handoff.revision`, `verification.command`, and `verification.result`.
+   Rename `last_command` to `command`; use the exact committed revision rather
+   than attaching dirty-worktree evidence to HEAD.
+3. Reconcile repository-owned `AGENTS.md` and installed ForgeFlow skills so they
+   select work only from explicit human or control-plane context and treat a
+   handoff as historical evidence.
+4. Run `./scripts/handoff-check`, Repository Doctor if used, and `make verify`.
+
+Rollback requires restoring the `0.7.0` protocol, template, checker, and agent
+guidance together. A `0.8.0` record cannot reconstruct current, next, or
+completed work; obtain that state from the control plane or human rather than
+inferring it from historical evidence.
+
+P0-002 risk-driven Story readiness is **Additive** for `0.8.0`: the four
+standard `Signal` declarations are optional and conditional. A Story that names
+none of them requires no new section and keeps both its default Story-contract
+and opt-in readiness verdicts. A Story that opts in must add only the matching
+Error Projection, Concurrency, Capacity, or Retention and Overflow contract and
+link it to an existing Acceptance Criterion and Acceptance Evidence row.
+
+No migration is required. `Signal` does not replace Risk `Level` or `Reason`,
+does not alter the resolved verification profile, and introduces no inference
+from Story prose. Command forms, result names, exit statuses, Doctor defaults,
+and `make verify` semantics remain unchanged. Rollback removes the optional
+Signal declarations and corresponding sections together with the `0.8.0`
+checker, protocol, template, and documentation.
+
+## P1-003 structural contract simplification
+
+P1-003 is **Breaking** for `0.9.0`. It clarifies and enforces the existing
+minimal adoption boundary: `AGENTS.md`, a `Makefile` exposing `make verify`,
+and `specs/stories/` are required entrypoints. A ready Story is described by
+the durable invariant of `story.md` plus `acceptance.md`, while `task.md` and
+additional Story-owned files remain optional. Bootstrap's source-to-destination
+installation manifest is deliberately not part of that contract.
+
+Existing repository adoptions remain valid, and a repository with no Guidance,
+Handoff, Skills, or CI remains structurally complete. A repository that keeps
+Guidance can customize the starter layout; Doctor validates only the detected
+capability's `guidance/ENTRY.md` entrypoint.
+
+Migration for `0.9.0` affects only consumers that parse Doctor's documented
+`Guidance:` status values. Replace `OPTIONAL_LEGACY` and
+`GUIDANCE_BASELINE_OK` with `NOT_PRESENT` and `GUIDANCE_CONTRACT_OK`
+respectively. `GUIDANCE_INCOMPLETE` now depends on why the former baseline was
+incomplete: a missing or blank `guidance/ENTRY.md` becomes
+`GUIDANCE_CONTRACT_INCOMPLETE`, while a missing or blank starter document other
+than `ENTRY.md` becomes `GUIDANCE_CONTRACT_OK`. An unsafe `ENTRY.md` remains
+`ERROR`; a legacy `ERROR` caused only by a symlinked, wrong-type, or unreadable
+non-entry starter document becomes `GUIDANCE_CONTRACT_OK`. No repository file,
+Bootstrap layout, Story, or Guidance migration is required.
+Rollback restores the `0.8.0` Doctor, protocol, templates, and documentation as
+a set; it does not require reconstructing a bootstrap file inventory.
+
 ## Repository release readiness
 
 ForgeFlow maintainers can run root `make release-check` on a clean committed

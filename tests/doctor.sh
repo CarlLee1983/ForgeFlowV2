@@ -168,22 +168,14 @@ add_valid_handoff() {
 # Handoff
 
 ```yaml
-workflow:
-  current_story: FF-001
-  next_story: pending
-  completed_stories: []
-  status: implementing
-
-baseline:
+handoff:
+  story: FF-001
+  recorded_at: 2026-09-12T02:30:00Z
   repository: example/repository
-  branch: main
-  commit: 0123456789abcdef0123456789abcdef01234567
-  dirty_worktree: false
-  story_owned_paths: []
-  known_unrelated_paths: []
+  revision: 0123456789abcdef0123456789abcdef01234567
 
 verification:
-  last_command: make verify
+  command: make verify
   result: not_run
 ```
 FORGEFLOW_HANDOFF
@@ -300,7 +292,9 @@ optional_adoption_files_are_not_required() {
   assert_status 0
   assert_output_contains 'Result: STRUCTURE_OK'
   assert_output_contains 'Verification: NOT_RUN'
-  assert_output_contains 'INFO  Skill installation is optional'
+  assert_output_contains 'Guidance: NOT_PRESENT'
+  assert_output_contains 'Skills: NOT_PRESENT'
+  assert_output_contains 'CI capability: NOT_PRESENT'
   assert_output_contains 'CI: NOT_CHECKED'
   assert_output_contains 'Merge policy: NOT_CHECKED'
   assert_output_excludes 'FAIL  '
@@ -877,7 +871,7 @@ incomplete_stories_are_drift_without_changing_the_exit_status() {
 an_incomplete_handoff_is_drift() {
   forgeflow_fixture="$forgeflow_test_dir/contract-handoff-drift"
   create_adopted_fixture "$forgeflow_fixture"
-  printf '# Handoff\n\nNo lifecycle block.\n' \
+  printf '# Handoff\n\nNo evidence block.\n' \
     >"$forgeflow_fixture/specs/handoff.md"
 
   run_doctor "$forgeflow_fixture"
@@ -1171,13 +1165,13 @@ a_marker_written_with_carriage_returns_is_not_drift() {
   assert_output_excludes 'differs from this checkout'
 }
 
-guidance_is_optional_but_present_baselines_are_safe_and_deterministic() {
+guidance_is_optional_and_uses_an_entrypoint_contract() {
   mkdir -p "$forgeflow_test_dir/empty-path-static"
   forgeflow_fixture="$forgeflow_test_dir/guidance-absent"
   create_adopted_fixture "$forgeflow_fixture"
   run_doctor "$forgeflow_fixture"
   assert_status 0
-  assert_output_contains 'Guidance: OPTIONAL_LEGACY'
+  assert_output_contains 'Guidance: NOT_PRESENT'
   assert_output_contains 'Result: STRUCTURE_OK'
 
   forgeflow_fixture="$forgeflow_test_dir/guidance-full"
@@ -1185,15 +1179,15 @@ guidance_is_optional_but_present_baselines_are_safe_and_deterministic() {
   cp -R "$forgeflow_repo/guidance" "$forgeflow_fixture/guidance"
   run_doctor_with_path "$forgeflow_test_dir/empty-path-static" "$forgeflow_fixture"
   assert_status 0
-  assert_output_contains 'Guidance: GUIDANCE_BASELINE_OK'
+  assert_output_contains 'Guidance: GUIDANCE_CONTRACT_OK'
   assert_output_contains 'Result: STRUCTURE_OK'
 
   : >"$forgeflow_fixture/guidance/PRACTICES.md"
   forgeflow_guidance_before=$(cksum "$forgeflow_fixture/guidance/PRACTICES.md")
   run_doctor_with_path "$forgeflow_test_dir/empty-path-static" "$forgeflow_fixture"
   assert_status 0
-  assert_output_contains 'Guidance: GUIDANCE_INCOMPLETE'
-  assert_output_contains 'Result: CONTRACT_DRIFT'
+  assert_output_contains 'Guidance: GUIDANCE_CONTRACT_OK'
+  assert_output_contains 'Result: STRUCTURE_OK'
   [ "$forgeflow_guidance_before" = "$(cksum "$forgeflow_fixture/guidance/PRACTICES.md")" ] ||
     fail 'Doctor changed blank Guidance contents'
 
@@ -1203,8 +1197,42 @@ guidance_is_optional_but_present_baselines_are_safe_and_deterministic() {
   rm "$forgeflow_fixture/guidance/DECISIONS.md"
   run_doctor "$forgeflow_fixture"
   assert_status 0
-  assert_output_contains 'Guidance: GUIDANCE_INCOMPLETE'
-  assert_output_contains 'Guidance baseline is incomplete: guidance/DECISIONS.md'
+  assert_output_contains 'Guidance: GUIDANCE_CONTRACT_OK'
+  assert_output_contains 'Result: STRUCTURE_OK'
+
+  forgeflow_fixture="$forgeflow_test_dir/guidance-nonentry-unsafe"
+  create_adopted_fixture "$forgeflow_fixture"
+  cp -R "$forgeflow_repo/guidance" "$forgeflow_fixture/guidance"
+  rm "$forgeflow_fixture/guidance/PRACTICES.md" \
+    "$forgeflow_fixture/guidance/DECISIONS.md"
+  ln -s "$forgeflow_test_dir/outside-guidance" \
+    "$forgeflow_fixture/guidance/PRACTICES.md"
+  mkdir "$forgeflow_fixture/guidance/DECISIONS.md"
+  chmod 000 "$forgeflow_fixture/guidance/PRINCIPLES.md"
+  run_doctor "$forgeflow_fixture"
+  chmod 600 "$forgeflow_fixture/guidance/PRINCIPLES.md"
+  assert_status 0
+  assert_output_contains 'Guidance: GUIDANCE_CONTRACT_OK'
+  assert_output_contains 'Result: STRUCTURE_OK'
+
+  forgeflow_fixture="$forgeflow_test_dir/guidance-entry-missing"
+  create_adopted_fixture "$forgeflow_fixture"
+  mkdir "$forgeflow_fixture/guidance"
+  printf 'custom practice\n' >"$forgeflow_fixture/guidance/PRACTICES.md"
+  run_doctor "$forgeflow_fixture"
+  assert_status 0
+  assert_output_contains 'Guidance: GUIDANCE_CONTRACT_INCOMPLETE'
+  assert_output_contains 'Guidance capability is incomplete: guidance/ENTRY.md'
+  assert_output_contains 'Result: CONTRACT_DRIFT'
+
+  forgeflow_fixture="$forgeflow_test_dir/guidance-entry-blank"
+  create_adopted_fixture "$forgeflow_fixture"
+  mkdir "$forgeflow_fixture/guidance"
+  : >"$forgeflow_fixture/guidance/ENTRY.md"
+  run_doctor "$forgeflow_fixture"
+  assert_status 0
+  assert_output_contains 'Guidance: GUIDANCE_CONTRACT_INCOMPLETE'
+  assert_output_contains 'Result: CONTRACT_DRIFT'
 
   forgeflow_fixture="$forgeflow_test_dir/guidance-wrong-type"
   create_adopted_fixture "$forgeflow_fixture"
@@ -1223,7 +1251,7 @@ guidance_is_optional_but_present_baselines_are_safe_and_deterministic() {
   run_doctor "$forgeflow_fixture"
   assert_status 2
   assert_output_contains 'Guidance: ERROR'
-  assert_output_contains 'Guidance file is not a regular file: guidance/ENTRY.md'
+  assert_output_contains 'Guidance entrypoint is not a regular file: guidance/ENTRY.md'
 
   forgeflow_fixture="$forgeflow_test_dir/guidance-link"
   create_adopted_fixture "$forgeflow_fixture"
@@ -1242,20 +1270,106 @@ guidance_is_optional_but_present_baselines_are_safe_and_deterministic() {
   run_doctor_with_path "$forgeflow_test_dir/empty-path-static" "$forgeflow_fixture"
   assert_status 2
   assert_output_contains 'Guidance: ERROR'
-  assert_output_contains 'Guidance file is a symlink and cannot be safely read: guidance/ENTRY.md'
-  assert_output_contains 'Guidance baseline is incomplete: guidance/PRACTICES.md'
+  assert_output_contains 'Guidance entrypoint is a symlink and cannot be safely read: guidance/ENTRY.md'
 
   forgeflow_fixture="$forgeflow_test_dir/guidance-unreadable"
   create_adopted_fixture "$forgeflow_fixture"
   cp -R "$forgeflow_repo/guidance" "$forgeflow_fixture/guidance"
-  rm "$forgeflow_fixture/guidance/PRACTICES.md"
   chmod 000 "$forgeflow_fixture/guidance/ENTRY.md"
   run_doctor "$forgeflow_fixture"
   chmod 600 "$forgeflow_fixture/guidance/ENTRY.md"
   assert_status 2
   assert_output_contains 'Guidance: ERROR'
-  assert_output_contains 'Guidance file cannot be safely read: guidance/ENTRY.md'
-  assert_output_contains 'Guidance baseline is incomplete: guidance/PRACTICES.md'
+  assert_output_contains 'Guidance entrypoint cannot be safely read: guidance/ENTRY.md'
+}
+
+optional_capability_detection_does_not_expand_core_structure() {
+  forgeflow_fixture="$forgeflow_test_dir/optional-capabilities"
+  create_complete_fixture "$forgeflow_fixture"
+  mkdir -p "$forgeflow_fixture/.agents/skills/forgeflow" \
+    "$forgeflow_fixture/.github/workflows"
+  printf 'repository skill\n' \
+    >"$forgeflow_fixture/.agents/skills/forgeflow/SKILL.md"
+  printf 'name: verify\n' >"$forgeflow_fixture/.github/workflows/verify.yml"
+
+  run_doctor "$forgeflow_fixture"
+
+  assert_status 0
+  assert_output_contains 'Guidance: NOT_PRESENT'
+  assert_output_contains 'Handoff: NOT_PRESENT'
+  assert_output_contains 'Skills: DETECTED'
+  assert_output_contains 'CI capability: DETECTED'
+  assert_output_contains 'Result: STRUCTURE_OK'
+}
+
+story_structure_allows_optional_and_owned_artifacts() {
+  forgeflow_fixture="$forgeflow_test_dir/story-structure"
+  create_complete_fixture "$forgeflow_fixture"
+  mkdir -p "$forgeflow_fixture/specs/stories/P1-001-example"
+  cat >"$forgeflow_fixture/specs/stories/P1-001-example/story.md" <<'FORGEFLOW_STORY'
+# Story: P1-001 Example
+
+## Classification
+
+* Security sensitive: no
+* Baseline conformance: no
+FORGEFLOW_STORY
+  printf '# Acceptance Criteria\n' \
+    >"$forgeflow_fixture/specs/stories/P1-001-example/acceptance.md"
+  printf 'architecture context\n' \
+    >"$forgeflow_fixture/specs/stories/P1-001-example/architecture.md"
+
+  run_doctor "$forgeflow_fixture"
+
+  assert_status 0
+  assert_output_contains 'Story contract: STORY_CONTRACT_OK'
+  assert_output_contains 'Result: STRUCTURE_OK'
+}
+
+core_and_unsafe_capability_failures_remain_distinct() {
+  forgeflow_fixture="$forgeflow_test_dir/p1003-missing-agents"
+  create_complete_fixture "$forgeflow_fixture"
+  rm "$forgeflow_fixture/AGENTS.md"
+
+  run_doctor "$forgeflow_fixture"
+
+  assert_status 1
+  assert_output_contains 'FAIL  Agent guide is missing: AGENTS.md'
+  assert_output_contains 'Result: STRUCTURE_INCOMPLETE'
+
+  forgeflow_fixture="$forgeflow_test_dir/p1003-missing-makefile"
+  create_complete_fixture "$forgeflow_fixture"
+  rm "$forgeflow_fixture/Makefile"
+
+  run_doctor "$forgeflow_fixture"
+
+  assert_status 1
+  assert_output_contains 'FAIL  Makefile is missing'
+  assert_output_contains 'Result: STRUCTURE_INCOMPLETE'
+
+  forgeflow_fixture="$forgeflow_test_dir/p1003-missing-stories"
+  mkdir "$forgeflow_fixture"
+  printf 'agent guide\n' >"$forgeflow_fixture/AGENTS.md"
+  printf 'verify:\n\t@:\n' >"$forgeflow_fixture/Makefile"
+
+  run_doctor "$forgeflow_fixture"
+
+  assert_status 1
+  assert_output_contains 'FAIL  Story directory is missing: specs/stories/'
+  assert_output_contains 'Result: STRUCTURE_INCOMPLETE'
+
+  forgeflow_fixture="$forgeflow_test_dir/p1003-unsafe-guidance"
+  create_complete_fixture "$forgeflow_fixture"
+  mkdir "$forgeflow_fixture/guidance"
+  printf 'outside\n' >"$forgeflow_test_dir/p1003-outside-guidance"
+  ln -s "$forgeflow_test_dir/p1003-outside-guidance" \
+    "$forgeflow_fixture/guidance/ENTRY.md"
+
+  run_doctor "$forgeflow_fixture"
+
+  assert_status 2
+  assert_output_contains 'Guidance: ERROR'
+  assert_output_contains 'Result: ERROR'
 }
 
 run_case 'FF211-AC-001' doctor_reports_a_conformant_adoption
@@ -1275,6 +1389,10 @@ run_case 'FF211-AC-014' static_mode_needs_no_external_utilities
 run_case 'FF212-AC-003' the_composed_verdict_needs_no_external_utilities
 run_case 'FF211-AC-015' an_incomplete_forgeflow_installation_is_an_error
 run_case 'FF211-AC-016' a_marker_written_with_carriage_returns_is_not_drift
-run_case 'FF223-AC-013' guidance_is_optional_but_present_baselines_are_safe_and_deterministic
+run_case 'P1003-AC-001' optional_adoption_files_are_not_required
+run_case 'P1003-AC-002' story_structure_allows_optional_and_owned_artifacts
+run_case 'P1003-AC-004' guidance_is_optional_and_uses_an_entrypoint_contract
+run_case 'P1003-AC-006' core_and_unsafe_capability_failures_remain_distinct
+run_case 'P1003-AC-007' optional_capability_detection_does_not_expand_core_structure
 
 printf 'doctor tests passed\n'

@@ -175,6 +175,44 @@ add_story_section() {
   done
 }
 
+add_risk_contract() {
+  forgeflow_contract_signal=$1
+  forgeflow_contract_evidence_ac=$2
+
+  case "$forgeflow_contract_signal" in
+    error-projection)
+      add_story_section '## Error Projection' \
+        '* Source failure: `upstream timeout`' \
+        '* Public projection: `payment_unavailable`' \
+        '* Detail policy: `do not expose upstream body`' \
+        "* Evidence AC: \`$forgeflow_contract_evidence_ac\`"
+      ;;
+    concurrency)
+      add_story_section '## Concurrency' \
+        '* Contended resource: `order status`' \
+        '* Linearization point: `conditional database update`' \
+        '* Conflict outcome: `return order_conflict`' \
+        "* Evidence AC: \`$forgeflow_contract_evidence_ac\`"
+      ;;
+    bounded-capacity)
+      add_story_section '## Capacity' \
+        '* Bounded resource: `pending request queue`' \
+        '* Limit: `1000 entries`' \
+        '* Saturation behavior: `reject new entry`' \
+        '* Failure projection: `queue_full`' \
+        "* Evidence AC: \`$forgeflow_contract_evidence_ac\`"
+      ;;
+    retention-overflow)
+      add_story_section '## Retention and Overflow' \
+        '* Retained resource: `verification history`' \
+        '* Retention bound: `latest 100 records`' \
+        '* Overflow policy: `drop oldest`' \
+        '* Recovery / observability: `old records are no longer queryable`' \
+        "* Evidence AC: \`$forgeflow_contract_evidence_ac\`"
+      ;;
+  esac
+}
+
 add_matrix() {
   {
     printf '\n## Security Fixture Matrix\n\n'
@@ -1063,6 +1101,259 @@ optional_guidance_preserves_story_contract_compatibility() {
     fail 'Story contract does not document the intentional Guidance validation limit'
 }
 
+risk_signals_are_opt_in() {
+  new_story no-risk-signal no no
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Result: STORY_CONTRACT_OK'
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Result: STORY_READINESS_OK'
+
+  add_story_section '## Concurrency' \
+    '* Historical prose that predates Risk Signals.'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 0
+}
+
+each_risk_contract_and_multiple_signals_pass() {
+  forgeflow_contract_ac_number=1
+  for forgeflow_contract_signal in \
+    error-projection concurrency bounded-capacity retention-overflow
+  do
+    new_story "valid-$forgeflow_contract_signal" no no
+    add_story_section '## Risk' \
+      '* Level: medium' \
+      '* Reason: `declared-contract`' \
+      "* Signal: \`$forgeflow_contract_signal\`"
+    add_risk_contract "$forgeflow_contract_signal" \
+      "AC-00$forgeflow_contract_ac_number"
+    run_story_check --ready "$forgeflow_story_dir"
+    assert_status 0
+    assert_output_contains 'Result: STORY_READINESS_OK'
+    forgeflow_contract_ac_number=$((forgeflow_contract_ac_number + 1))
+  done
+
+  new_story multiple-risk-signals no no
+  add_story_section '## Risk' \
+    '* Level: medium' \
+    '* Reason: `declared-contracts`' \
+    '* Signal: `error-projection`' \
+    '* Signal: `concurrency`' \
+    '* Signal: `bounded-capacity`' \
+    '* Signal: `retention-overflow`'
+  add_risk_contract error-projection AC-001
+  add_risk_contract concurrency AC-002
+  add_risk_contract bounded-capacity AC-003
+  add_risk_contract retention-overflow AC-004
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Result: STORY_READINESS_OK'
+}
+
+risk_signal_names_are_exact_unique_and_do_not_change_reason_rules() {
+  new_story duplicate-risk-signal no no
+  add_story_section '## Risk' \
+    '* Level: medium' \
+    '* Reason: `declared-contract`' \
+    '* Signal: `concurrency`' \
+    '* Signal: `concurrency`'
+  add_risk_contract concurrency AC-001
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'risk signal is declared more than once: concurrency'
+
+  new_story unknown-risk-signal no no
+  add_story_section '## Risk' \
+    '* Level: medium' \
+    '* Reason: `declared-contract`' \
+    '* Signal: `database`'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'risk signal is unknown: database'
+
+  new_story malformed-risk-signal no no
+  add_story_section '## Risk' \
+    '* Level: medium' \
+    '* Reason: `declared-contract`' \
+    '* Signal: concurrency'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'risk signal must name one same-line backticked value'
+
+  new_story existing-risk-reason no no
+  add_story_section '## Risk' \
+    '* Level: medium' \
+    '* Reason: `concurrency`'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'risk reason concurrency is a high-risk signal but the level is medium'
+
+  new_story signal-does-not-raise-level no no
+  add_story_section '## Risk' \
+    '* Level: medium' \
+    '* Reason: `shared-write-path`' \
+    '* Signal: `concurrency`'
+  add_risk_contract concurrency AC-001
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Result: STORY_CONTRACT_OK'
+}
+
+risk_signals_require_corresponding_contract_structure() {
+  for forgeflow_contract_signal in \
+    error-projection concurrency bounded-capacity retention-overflow
+  do
+    new_story "missing-$forgeflow_contract_signal-section" no no
+    add_story_section '## Risk' \
+      '* Level: medium' \
+      '* Reason: `declared-contract`' \
+      "* Signal: \`$forgeflow_contract_signal\`"
+    run_story_check "$forgeflow_story_dir"
+    assert_status 1
+    assert_output_contains "risk signal $forgeflow_contract_signal requires"
+  done
+
+  new_story missing-risk-contract-field no no
+  add_story_section '## Risk' \
+    '* Level: medium' \
+    '* Reason: `declared-contract`' \
+    '* Signal: `bounded-capacity`'
+  add_story_section '## Capacity' \
+    '* Bounded resource: `pending request queue`' \
+    '* Limit: `1000 entries`' \
+    '* Saturation behavior: `reject new entry`' \
+    '* Evidence AC: `AC-001`'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'Capacity must declare "Failure projection" exactly once'
+
+  new_story missing-risk-evidence-ac no no
+  add_story_section '## Risk' \
+    '* Level: medium' \
+    '* Reason: `declared-contract`' \
+    '* Signal: `concurrency`'
+  add_story_section '## Concurrency' \
+    '* Contended resource: `order status`' \
+    '* Linearization point: `conditional database update`' \
+    '* Conflict outcome: `return order_conflict`'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'Concurrency must declare "Evidence AC" exactly once'
+}
+
+risk_contract_readiness_requires_concrete_values_and_real_ac() {
+  new_story placeholder-risk-contract no no
+  add_story_section '## Risk' \
+    '* Level: medium' \
+    '* Reason: `declared-contract`' \
+    '* Signal: `error-projection`'
+  add_story_section '## Error Projection' \
+    '* Source failure: `<source failure>`' \
+    '* Public projection: `payment_unavailable`' \
+    '* Detail policy: `do not expose upstream body`' \
+    '* Evidence AC: `AC-001`'
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'Error Projection Source failure is a placeholder'
+
+  new_story malformed-risk-evidence-ac no no
+  add_story_section '## Risk' \
+    '* Level: medium' \
+    '* Reason: `declared-contract`' \
+    '* Signal: `concurrency`'
+  add_risk_contract concurrency AC-X
+  run_story_check "$forgeflow_story_dir"
+  assert_status 0
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'Concurrency Evidence AC must name one exact AC-<digits> ID'
+
+  new_story unknown-risk-evidence-ac no no
+  add_story_section '## Risk' \
+    '* Level: medium' \
+    '* Reason: `declared-contract`' \
+    '* Signal: `retention-overflow`'
+  add_risk_contract retention-overflow AC-999
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'Retention and Overflow Evidence AC names unknown AC ID: AC-999'
+}
+
+risk_evidence_ac_uses_existing_acceptance_evidence() {
+  new_story unmapped-risk-evidence no no
+  add_story_section '## Risk' \
+    '* Level: medium' \
+    '* Reason: `declared-contract`' \
+    '* Signal: `bounded-capacity`'
+  add_risk_contract bounded-capacity AC-004
+  sed '/| `AC-004` |/d' "$forgeflow_story_dir/acceptance.md" \
+    >"$forgeflow_story_dir/next.md"
+  mv "$forgeflow_story_dir/next.md" "$forgeflow_story_dir/acceptance.md"
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'Capacity Evidence AC has no Acceptance Evidence row: AC-004'
+}
+
+risk_contract_readers_ignore_fences_and_do_not_infer() {
+  new_story fenced-risk-contract no no
+  cat >>"$forgeflow_story_dir/story.md" <<'FORGEFLOW_FIXTURE'
+
+Queue work may run in parallel and use a database.
+
+```markdown
+## Risk
+
+* Signal: `concurrency`
+
+## Concurrency
+
+* Contended resource: `example`
+* Linearization point: `example`
+* Conflict outcome: `example`
+* Evidence AC: `AC-001`
+```
+FORGEFLOW_FIXTURE
+  run_story_check --ready "$forgeflow_story_dir"
+  assert_status 0
+
+  new_story fenced-contract-does-not-satisfy no no
+  add_story_section '## Risk' \
+    '* Level: medium' \
+    '* Reason: `declared-contract`' \
+    '* Signal: `concurrency`'
+  cat >>"$forgeflow_story_dir/story.md" <<'FORGEFLOW_FIXTURE'
+
+~~~markdown
+## Concurrency
+
+* Contended resource: `example`
+* Linearization point: `example`
+* Conflict outcome: `example`
+* Evidence AC: `AC-001`
+~~~
+FORGEFLOW_FIXTURE
+  run_story_check "$forgeflow_story_dir"
+  assert_status 1
+  assert_output_contains 'risk signal concurrency requires ## Concurrency'
+}
+
+risk_contracts_preserve_story_check_portability() {
+  new_story portable-risk-contract no no
+  add_story_section '## Risk' \
+    '* Level: medium' \
+    '* Reason: `shared-write-path`' \
+    '* Signal: `concurrency`'
+  add_risk_contract concurrency AC-001
+  assert_same_story_verdict_without_utilities --ready "$forgeflow_story_dir"
+  assert_status 0
+  assert_output_contains 'Result: STORY_READINESS_OK'
+}
+
 # One shared corpus. Both checkers are fed the same Story IDs and the case
 # fails when they disagree, which is the property that keeps one grammar from
 # growing two implementations again.
@@ -1074,16 +1365,12 @@ optional_guidance_preserves_story_contract_compatibility() {
 forgeflow_id_corpus='FF-001 A-1 DBCLI-004 FF2-30 DBCLI-PLAT-001 FF-CORE-A1-042 ff-001 FF001 FF- -1 FF-1a 1F-1 FF-1-2 FF-01x FF-plat-001 FF--1'
 
 forgeflow_story_grammar='does not name a Story ID'
-forgeflow_corpus_completed_id='TST-004'
 forgeflow_handoff_check_under_test=
 
 # One shared corpus, fed to both checkers. The two do not judge the same thing:
-# handoff-check judges a Story ID, story-check judges a directory name and
-# reports the ID it read. The property that has to hold is that the two never
-# disagree about what is recordable — every ID story-check accepts is one
-# handoff-check accepts, and every ID handoff-check accepts is one story-check
-# accepts as a bare directory name. That is what keeps one grammar from growing
-# two implementations again.
+# handoff-check judges the Story attached to immutable evidence, while
+# story-check judges a directory name and reports the ID it read. The property
+# that has to hold is that the two never disagree about what is recordable.
 forgeflow_id_corpus='FF-001 A-1 DBCLI-004 FF2-30 DBCLI-PLAT-001 FF-CORE-A1-042 ff-001 FF001 FF- -1 FF-1a 1F-1 FF-1-2 FF-01x FF-plat-001 FF--1'
 
 story_verdict_for_id() {
@@ -1108,28 +1395,19 @@ handoff_verdict_for_id() {
   forgeflow_corpus_handoff="$forgeflow_test_dir/$forgeflow_case_id-corpus.md"
 
   cat >"$forgeflow_corpus_handoff" <<FORGEFLOW_CORPUS
-# ForgeFlow Handoff
+# ForgeFlow Handoff Evidence
 
-## Lifecycle
+## Evidence
 
 \`\`\`yaml
-workflow:
-  current_story: $1
-  next_story: pending
-  completed_stories:
-    - $forgeflow_corpus_completed_id
-  status: ready_for_implementation
-
-baseline:
+handoff:
+  story: $1
+  recorded_at: 2026-09-12T02:30:00Z
   repository: example/repository
-  branch: main
-  commit: 0123456789abcdef0123456789abcdef01234567
-  dirty_worktree: false
-  story_owned_paths: []
-  known_unrelated_paths: []
+  revision: 0123456789abcdef0123456789abcdef01234567
 
 verification:
-  last_command: make verify
+  command: make verify
   result: pass
 \`\`\`
 FORGEFLOW_CORPUS
@@ -1181,11 +1459,6 @@ compare_whole_corpus() {
   set -f
   for forgeflow_corpus_id in $forgeflow_id_corpus
   do
-    if [ "$forgeflow_corpus_id" = "$forgeflow_corpus_completed_id" ]; then
-      set +f
-      fail "corpus entry $forgeflow_corpus_id collides with the fixture completed Story and would be rejected for uniqueness, not grammar"
-    fi
-
     compare_one_id "$forgeflow_corpus_id"
     [ -z "$forgeflow_corpus_disagreement" ] || break
   done
@@ -1271,6 +1544,15 @@ run_case 'FF222-AC-003' acceptance_evidence_preserves_portability
 run_case 'FF222-AC-004' acceptance_evidence_guidance_is_complete
 run_case 'FF222-AC-005' full_gate_is_the_acceptance_evidence_command
 run_case 'FF223-AC-005' optional_guidance_preserves_story_contract_compatibility
+
+run_case 'P0002-AC-001' risk_signals_are_opt_in
+run_case 'P0002-AC-002' each_risk_contract_and_multiple_signals_pass
+run_case 'P0002-AC-003' risk_signal_names_are_exact_unique_and_do_not_change_reason_rules
+run_case 'P0002-AC-004' risk_signals_require_corresponding_contract_structure
+run_case 'P0002-AC-005' risk_contract_readiness_requires_concrete_values_and_real_ac
+run_case 'P0002-AC-006' risk_evidence_ac_uses_existing_acceptance_evidence
+run_case 'P0002-AC-007' risk_contract_readers_ignore_fences_and_do_not_infer
+run_case 'P0002-AC-008' risk_contracts_preserve_story_check_portability
 
 run_case 'AC-001' complete_security_story_passes
 run_case 'AC-002' unclassified_story_needs_no_security_sections
