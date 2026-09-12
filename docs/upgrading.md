@@ -158,6 +158,20 @@ repository:
   repository-owned `AGENTS.md` and installed ForgeFlow skills manually; they
   must no longer select work from `specs/handoff.md`. Run
   `./scripts/handoff-check`, Doctor if used, and `make verify`; and
+* when upgrading to 0.9.0 or later, no repository file migration is required.
+  ForgeFlow now distinguishes the bootstrap starter layout from the adoption
+  contract: the required entrypoints remain `AGENTS.md`, `Makefile` exposing
+  `make verify`, and `specs/stories/`. Keep customized optional Guidance as it
+  is; Doctor validates `guidance/ENTRY.md` when the capability is present and
+  no longer treats the starter's other three documents as conformance files.
+  Consumers that parse Doctor output must map `OPTIONAL_LEGACY` to
+  `NOT_PRESENT` and `GUIDANCE_BASELINE_OK` to `GUIDANCE_CONTRACT_OK`. Split a
+  former `GUIDANCE_INCOMPLETE` by cause: a missing or blank `ENTRY.md` becomes
+  `GUIDANCE_CONTRACT_INCOMPLETE`, while a missing or blank non-entry starter
+  document becomes `GUIDANCE_CONTRACT_OK`; an unsafe `ENTRY.md` remains
+  `ERROR`. A legacy `ERROR` caused only by a symlinked, wrong-type, or
+  unreadable non-entry starter document becomes `GUIDANCE_CONTRACT_OK`;
+  and
 * when upgrading to 0.4.1 or later, optionally copy the four baseline files from
   `guidance/` and reconcile them with repository/team decisions; do not replace
   existing decisions or practices wholesale.
@@ -165,8 +179,9 @@ repository:
 This is a manual reconciliation step. A marker update proves only which managed
 Story-template snapshot bootstrap installed; it does not prove that the
 repository-owned guide or Guidance carries the same version. Doctor treats an
-absent `guidance/` directory as legacy-compatible; a present partial or blank
-baseline is reported as contract drift, and unsafe guidance paths are errors.
+absent `guidance/` directory as `NOT_PRESENT`; when Guidance is present it
+validates its `ENTRY.md` entrypoint. The remaining starter documents are owned
+and customizable repository context, and unsafe Guidance paths remain errors.
 
 ## Per-version migration steps
 

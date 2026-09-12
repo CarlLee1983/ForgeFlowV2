@@ -161,6 +161,7 @@ for forgeflow_required_file in \
   docs/releases/0.6.0.md \
   docs/releases/0.7.0.md \
   docs/releases/0.8.0.md \
+  docs/releases/0.9.0.md \
   docs/releasing.md \
   examples/typescript/Makefile \
   examples/typescript/scripts/check-traceability.sh \
@@ -181,7 +182,9 @@ for forgeflow_required_file in \
   specs/stories/FF-216-review-integrity-and-state-consistency/acceptance.md \
   specs/stories/FF-216-review-integrity-and-state-consistency/task.md \
   specs/stories/P0-001-remove-mutable-lifecycle-state/story.md \
-  specs/stories/P0-001-remove-mutable-lifecycle-state/acceptance.md
+  specs/stories/P0-001-remove-mutable-lifecycle-state/acceptance.md \
+  specs/stories/P1-003-structural-contract-simplification/story.md \
+  specs/stories/P1-003-structural-contract-simplification/acceptance.md
 do
   if [ ! -s "$forgeflow_repo/$forgeflow_required_file" ]; then
     fail "required artifact is missing or empty: $forgeflow_required_file"
@@ -814,8 +817,8 @@ configurable_decision_root_is_additive_for_0_7_0() {
 }
 
 mutable_lifecycle_state_is_removed_for_0_8_0() {
-  grep -Fqx '0.8.0' "$forgeflow_repo/VERSION" ||
-    fail 'VERSION is not 0.8.0'
+  grep -Fqx '0.9.0' "$forgeflow_repo/VERSION" ||
+    fail 'VERSION is not 0.9.0'
 
   for forgeflow_authority_document in \
     protocol/handoff.md \
@@ -910,6 +913,53 @@ risk_driven_readiness_is_additive_for_0_8_0() {
     fail 'contract-check docs omit the risk-inference boundary'
 }
 
+structural_contract_is_capability_based_for_0_9_0() {
+  grep -Fq 'P1-003 is **Breaking** for `0.9.0`' \
+    "$forgeflow_repo/protocol/versioning.md" ||
+    fail 'versioning omits the P1-003 Breaking classification'
+  grep -Fqx '0.9.0' "$forgeflow_repo/VERSION" ||
+    fail 'VERSION is not 0.9.0'
+
+  for forgeflow_contract_term in \
+    'AGENTS.md' 'Makefile' 'specs/stories/' 'story.md' 'acceptance.md' \
+    '`task.md` is optional' 'internal installation' 'not a repository conformance contract'
+  do
+    grep -Fq "$forgeflow_contract_term" \
+      "$forgeflow_repo/protocol/repository-contract.md" ||
+      fail "Repository Contract omits structural contract term: $forgeflow_contract_term"
+  done
+
+  for forgeflow_document in \
+    README.md \
+    docs/doctor.md \
+    docs/getting-started.md \
+    docs/upgrading.md \
+    docs/releases/0.9.0.md
+  do
+    grep -Fq 'optional' "$forgeflow_repo/$forgeflow_document" ||
+      fail "$forgeflow_document does not distinguish optional capabilities"
+  done
+
+  grep -Fq 'guidance/ENTRY.md' "$forgeflow_repo/scripts/doctor" ||
+    fail 'Doctor does not validate the Guidance entrypoint'
+  grep -Fq 'manifest belongs solely to installation' \
+    "$forgeflow_repo/scripts/bootstrap" ||
+    fail 'Bootstrap does not distinguish its manifest from conformance'
+
+  for forgeflow_guidance_migration_term in \
+    'OPTIONAL_LEGACY' \
+    'GUIDANCE_BASELINE_OK' \
+    'GUIDANCE_INCOMPLETE' \
+    'missing or blank `guidance/ENTRY.md`' \
+    'than `ENTRY.md` becomes `GUIDANCE_CONTRACT_OK`' \
+    'non-entry starter document becomes `GUIDANCE_CONTRACT_OK`'
+  do
+    grep -Fq "$forgeflow_guidance_migration_term" \
+      "$forgeflow_repo/protocol/versioning.md" ||
+      fail "versioning omits P1-003 Guidance migration term: $forgeflow_guidance_migration_term"
+  done
+}
+
 run_case 'FF223-AC-001' guidance_baseline_artifacts_are_selective_and_advisory
 run_case 'FF223-AC-005' guidance_contract_and_agent_flow_are_documented
 run_case 'FF223-AC-008' guidance_authority_and_version_boundaries_are_documented
@@ -922,5 +972,6 @@ run_case 'P0001-AC-004' mutable_lifecycle_state_is_removed_for_0_8_0
 run_case 'P0001-AC-005' mutable_lifecycle_state_is_removed_for_0_8_0
 run_case 'P0001-AC-007' mutable_lifecycle_state_is_removed_for_0_8_0
 run_case 'P0002-AC-009' risk_driven_readiness_is_additive_for_0_8_0
+run_case 'P1003-AC-008' structural_contract_is_capability_based_for_0_9_0
 
 printf 'protocol tests passed\n'

@@ -114,7 +114,7 @@ Run the bootstrap script with the repository directory:
 ./scripts/bootstrap /path/to/repository
 ```
 
-It installs:
+It installs an opinionated starter layout:
 
 ```text
 AGENTS.md
@@ -149,9 +149,13 @@ Preview the same static preflight without writing to the target:
 ./scripts/bootstrap --force --dry-run /path/to/repository
 ```
 
-A successful bootstrap means only that these managed protocol files were
-installed. It does not create the adopter-owned `Makefile`, run Doctor, execute
-`make verify`, perform human review, or authorize a merge.
+A successful bootstrap means only that these installer-managed files were
+installed. They are not ForgeFlow's repository conformance inventory: the
+required entrypoints are `AGENTS.md`, `Makefile` exposing `make verify`, and
+`specs/stories/`. Guidance, templates, handoff evidence, Skills, CI, and
+repository-specific extensions are optional capabilities. It does not create
+the adopter-owned `Makefile`, run Doctor, execute `make verify`, perform human
+review, or authorize a merge.
 
 Copy `specs/stories/_template` to a directory named for the Story, fill
 in the requirements, and ask an agent to implement that Story ID.
@@ -199,10 +203,11 @@ Repository Doctor can statically inspect an adoption without changing it:
 ```
 
 It requires only the `AGENTS.md`, `specs/stories/`, and `Makefile` surface. When
-`guidance/` is present, its optional four-file baseline is also scanned without
-making an absent directory invalid. Static success does not run `make verify`,
-check CI or merge policy, or replace human review. For a repository you trust, explicit execution mode
-runs its canonical gate once:
+`guidance/` is present, Doctor validates its `ENTRY.md` capability entrypoint;
+the bootstrap four-file starter remains repository-customizable. Guidance,
+Handoff evidence, Skills, and CI remain optional. Static success does not run
+`make verify`, check CI or merge policy, or replace human review. For a
+repository you trust, explicit execution mode runs its canonical gate once:
 
 ```sh
 ./scripts/doctor --run-verify /path/to/repository

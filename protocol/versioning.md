@@ -359,6 +359,33 @@ and `make verify` semantics remain unchanged. Rollback removes the optional
 Signal declarations and corresponding sections together with the `0.8.0`
 checker, protocol, template, and documentation.
 
+## P1-003 structural contract simplification
+
+P1-003 is **Breaking** for `0.9.0`. It clarifies and enforces the existing
+minimal adoption boundary: `AGENTS.md`, a `Makefile` exposing `make verify`,
+and `specs/stories/` are required entrypoints. A ready Story is described by
+the durable invariant of `story.md` plus `acceptance.md`, while `task.md` and
+additional Story-owned files remain optional. Bootstrap's source-to-destination
+installation manifest is deliberately not part of that contract.
+
+Existing repository adoptions remain valid, and a repository with no Guidance,
+Handoff, Skills, or CI remains structurally complete. A repository that keeps
+Guidance can customize the starter layout; Doctor validates only the detected
+capability's `guidance/ENTRY.md` entrypoint.
+
+Migration for `0.9.0` affects only consumers that parse Doctor's documented
+`Guidance:` status values. Replace `OPTIONAL_LEGACY` and
+`GUIDANCE_BASELINE_OK` with `NOT_PRESENT` and `GUIDANCE_CONTRACT_OK`
+respectively. `GUIDANCE_INCOMPLETE` now depends on why the former baseline was
+incomplete: a missing or blank `guidance/ENTRY.md` becomes
+`GUIDANCE_CONTRACT_INCOMPLETE`, while a missing or blank starter document other
+than `ENTRY.md` becomes `GUIDANCE_CONTRACT_OK`. An unsafe `ENTRY.md` remains
+`ERROR`; a legacy `ERROR` caused only by a symlinked, wrong-type, or unreadable
+non-entry starter document becomes `GUIDANCE_CONTRACT_OK`. No repository file,
+Bootstrap layout, Story, or Guidance migration is required.
+Rollback restores the `0.8.0` Doctor, protocol, templates, and documentation as
+a set; it does not require reconstructing a bootstrap file inventory.
+
 ## Repository release readiness
 
 ForgeFlow maintainers can run root `make release-check` on a clean committed

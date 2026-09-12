@@ -11,7 +11,7 @@ From a ForgeFlow checkout, run:
 ./scripts/bootstrap /path/to/repository
 ```
 
-This creates:
+This installs the opinionated starter layout:
 
 ```text
 AGENTS.md
@@ -61,10 +61,12 @@ directory and file symlinks and uses single-file atomic replacement plus
 atomic installation transaction or a sandbox for an actively hostile,
 concurrently mutated filesystem.
 
-Bootstrap success means only that the managed guide, optional Guidance baseline,
-and Story-template files were installed. Bootstrap intentionally does not create a repository-owned
-`Makefile`, call Doctor, run `make verify`, review the result, or authorize a
-merge.
+Bootstrap success means only that this installer-managed guide, optional
+Guidance starter, marker, and Story-template files were installed. It is not
+the adoption contract: a conforming repository needs only `AGENTS.md`, a
+`Makefile` exposing `make verify`, and `specs/stories/`. Bootstrap intentionally
+does not create the repository-owned `Makefile`, call Doctor, run `make verify`,
+review the result, or authorize a merge.
 
 ## 2. Inspect the adopted structure (optional)
 
@@ -80,9 +82,11 @@ command is expected to report the missing `Makefile` and exit `1`. Define the
 repository gate in the next step, then run Doctor again.
 
 It requires only a readable non-blank `AGENTS.md`, readable `specs/stories/`,
-and readable non-blank `Makefile`. Story templates, `task.md`, Skills, and CI
-are optional. A static success does not execute `make verify`, check CI or
-merge policy, or replace human review.
+and readable non-blank `Makefile`. A ready Story contains `story.md` and
+`acceptance.md`; `task.md` and additional Story-owned artifacts are optional.
+Guidance, Handoff evidence, Skills, and CI are optional capabilities. A static
+success does not execute `make verify`, check CI or merge policy, or replace
+human review.
 
 For a repository you trust, explicitly run its canonical gate once:
 

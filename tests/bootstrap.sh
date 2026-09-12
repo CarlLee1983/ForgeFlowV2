@@ -1303,6 +1303,26 @@ guidance_dry_run_refuses_unsafe_paths() {
   expect_exit_status 1 "$forgeflow_repo/scripts/bootstrap" --force --dry-run "$forgeflow_case_target"
 }
 
+bootstrap_inventory_is_not_the_adoption_contract() {
+  forgeflow_case_target="$forgeflow_test_dir/contract-not-manifest"
+  mkdir -p "$forgeflow_case_target"
+  "$forgeflow_repo/scripts/bootstrap" "$forgeflow_case_target" >/dev/null
+  rm -rf "$forgeflow_case_target/guidance" \
+    "$forgeflow_case_target/specs/stories/_template"
+  rm "$forgeflow_case_target/specs/.forgeflow-adoption"
+  printf 'verify:\n\t@:\n' >"$forgeflow_case_target/Makefile"
+
+  forgeflow_case_output=$(
+    "$forgeflow_repo/scripts/doctor" "$forgeflow_case_target"
+  )
+  printf '%s\n' "$forgeflow_case_output" |
+    grep -Fq 'Guidance: NOT_PRESENT' ||
+    fail 'Doctor treated removed bootstrap Guidance as required adoption inventory'
+  printf '%s\n' "$forgeflow_case_output" |
+    grep -Fq 'Result: STRUCTURE_OK' ||
+    fail 'Doctor treated removed bootstrap artifacts as required adoption inventory'
+}
+
 run_case 'FF219-AC-001' replacement_failures_restore_every_original
 run_case 'FF219-AC-002' preparation_failures_leave_originals_unchanged
 run_case 'FF219-AC-003' recovery_preserves_existing_and_absent_files
@@ -1311,6 +1331,7 @@ run_case 'FF219-AC-005' recovery_preserves_normal_and_dry_run_behavior
 run_case 'FF219-AC-006' recovery_guarantees_are_documented
 run_case 'FF223-AC-012-fresh' fresh_guidance_dry_run_is_non_destructive
 run_case 'FF223-AC-012-dry-run-safety' guidance_dry_run_refuses_unsafe_paths
-run_case 'FF223-AC-012-ownership' guidance_is_seeded_explicitly_and_preserved_on_upgrade
+run_case 'P1003-AC-003' bootstrap_inventory_is_not_the_adoption_contract
+run_case 'P1003-AC-005' guidance_is_seeded_explicitly_and_preserved_on_upgrade
 
 printf 'bootstrap tests passed\n'
