@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ForgeFlow Protocol: Technical Architecture &amp; Determinism</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* 空間深淺多維度層次系統 */
+      --l0-canvas: #07090C;
+      --l1-subfloor: #0D1016;
+      --l2-surface: #141820;
+      --l3-elevated: #1C222E;
+      --l4-overlay: #252D3D;
+
+      --border-subtle: rgba(255, 255, 255, 0.05);
+      --border-edge: rgba(255, 255, 255, 0.09);
+      --border-bright: rgba(255, 255, 255, 0.18);
+      --specular-line: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+
+      --shadow-ambient: 0 30px 60px -15px rgba(0, 0, 0, 0.7);
+      --shadow-drop: 0 16px 32px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--border-edge);
+      --shadow-deep: 0 25px 50px -12px rgba(0, 0, 0, 0.85), 0 0 0 1px var(--border-edge);
+
+      --text-pure: #FFFFFF;
+      --text-main: #E2E8F0;
+      --text-muted: #94A3B8;
+      --text-faint: #64748B;
+
+      --accent-cyan: #38BDF8;
+      --accent-cyan-glow: rgba(56, 189, 248, 0.18);
+      --accent-emerald: #10B981;
+      --accent-emerald-glow: rgba(16, 185, 129, 0.18);
+      --accent-amber: #F59E0B;
+      --accent-rose: #F43F5E;
+
+      --font-ui: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-serif: "Newsreader", Georgia, serif;
+      --font-mono: "Geist Mono", monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--l0-canvas);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      font-size: 16px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      
+      background-image: 
+        radial-gradient(ellipse 900px 500px at 50% -80px, rgba(30, 42, 60, 0.5) 0%, transparent 80%),
+        radial-gradient(circle 700px at 85% 60%, rgba(18, 25, 36, 0.4) 0%, transparent 70%);
+      background-attachment: fixed;
+    }
+
+    /* 頂部控制列 */
+    header.deck-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(13, 16, 22, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-edge);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+      padding: 0.85rem 3rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand-meta {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .brand-name {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: var(--text-pure);
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .status-beacon {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 12px var(--accent-cyan);
+    }
+
+    .brand-version {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-faint);
+      padding-left: 1.25rem;
+      border-left: 1px solid var(--border-subtle);
+    }
+
+    .deck-controls {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .deck-nav {
+      display: flex;
+      gap: 1.25rem;
+    }
+
+    .deck-nav a {
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    .deck-nav a:hover, .deck-nav a.active {
+      color: var(--text-pure);
+      background: var(--border-subtle);
+    }
+
+    /* 全螢幕切換按鈕 */
+    .present-btn {
+      background: linear-gradient(180deg, var(--l3-elevated) 0%, var(--l2-surface) 100%);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0.45rem 0.9rem;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: var(--specular-line), 0 4px 12px rgba(0, 0, 0, 0.4);
+      transition: all 0.2s ease;
+    }
+
+    .present-btn:hover {
+      background: var(--l3-elevated);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .present-btn kbd {
+      background: var(--l1-subfloor);
+      border: 1px solid var(--border-bright);
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    /* 幻燈片容器 */
+    section.slide-container {
+      min-height: calc(100vh - 60px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 4rem 3.5rem;
+      max-width: 1360px;
+      margin: 0 auto;
+      border-bottom: 1px solid var(--border-subtle);
+      position: relative;
+    }
+
+    .slide-index-tag {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: var(--accent-cyan);
+      margin-bottom: 1.25rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: var(--accent-cyan-glow);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      padding: 0.3rem 0.8rem;
+      border-radius: 4px;
+      width: fit-content;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    h1.deck-title {
+      font-size: 3.8rem;
+      font-weight: 600;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      color: var(--text-pure);
+      margin-bottom: 1.25rem;
+      text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    h2.slide-title {
+      font-size: 2.6rem;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      color: var(--text-pure);
+      margin-bottom: 0.85rem;
+      text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    p.deck-summary {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: 880px;
+      margin-bottom: 2.5rem;
+    }
+
+    .axiom-banner {
+      background: linear-gradient(180deg, var(--l3-elevated) 0%, var(--l2-surface) 100%);
+      border: 1px solid var(--border-bright);
+      border-left: 4px solid var(--accent-cyan);
+      box-shadow: var(--specular-line), var(--shadow-deep);
+      padding: 2.25rem 2.75rem;
+      border-radius: 8px;
+      margin: 2.25rem 0;
+      position: relative;
+    }
+
+    .axiom-banner p {
+      font-family: var(--font-serif);
+      font-size: 1.7rem;
+      font-style: italic;
+      color: var(--text-pure);
+      line-height: 1.45;
+    }
+
+    .engine-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow-deep);
+      margin: 2.25rem 0;
+      border: 1px solid var(--border-edge);
+    }
+
+    .engine-side {
+      padding: 3rem;
+      position: relative;
+    }
+
+    .engine-side:first-child {
+      background: var(--l1-subfloor);
+      border-right: 1px solid var(--border-edge);
+      box-shadow: inset 4px 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .engine-side:last-child {
+      background: linear-gradient(180deg, var(--l2-surface) 0%, var(--l1-subfloor) 100%);
+      box-shadow: var(--specular-line);
+    }
+
+    .side-header {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 1.5rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 4px;
+    }
+
+    .side-header.bad {
+      color: var(--accent-rose);
+      background: rgba(244, 63, 94, 0.12);
+      border: 1px solid rgba(244, 63, 94, 0.25);
+    }
+
+    .side-header.good {
+      color: var(--accent-emerald);
+      background: var(--accent-emerald-glow);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .engine-side h3 {
+      font-size: 1.6rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text-pure);
+      margin-bottom: 1rem;
+    }
+
+    .engine-side p {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+
+    .triad-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      margin: 2.25rem 0;
+    }
+
+    .triad-box {
+      background: linear-gradient(180deg, var(--l2-surface) 0%, var(--l1-subfloor) 100%);
+      border: 1px solid var(--border-edge);
+      border-radius: 8px;
+      padding: 2.25rem;
+      box-shadow: var(--specular-line), var(--shadow-drop);
+      position: relative;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .triad-box:hover {
+      border-color: var(--border-bright);
+      transform: translateY(-4px);
+      box-shadow: var(--specular-line), 0 25px 45px -10px rgba(0, 0, 0, 0.7);
+    }
+
+    .triad-badge {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      background: var(--accent-cyan-glow);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      padding: 0.25rem 0.65rem;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 1.25rem;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .triad-box h3 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: var(--text-pure);
+      margin-bottom: 0.75rem;
+    }
+
+    .triad-box p {
+      font-size: 0.98rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .tech-breakdown-card {
+      background: var(--l2-surface);
+      border: 1px solid var(--border-edge);
+      border-radius: 8px;
+      padding: 1.75rem 2rem;
+      margin: 1.5rem 0;
+      box-shadow: var(--specular-line), var(--shadow-drop);
+    }
+
+    .tech-pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+    }
+
+    .tech-pill {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      background: var(--l3-elevated);
+      color: var(--accent-cyan);
+      border: 1px solid var(--border-edge);
+    }
+
+    .tech-breakdown-card h4 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text-pure);
+      margin-bottom: 0.5rem;
+    }
+
+    .tech-breakdown-card p {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 0.5rem;
+    }
+
+    .grammar-deck-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin: 2rem 0;
+    }
+
+    .grammar-card {
+      background: var(--l2-surface);
+      border: 1px solid var(--border-edge);
+      border-radius: 8px;
+      padding: 1.75rem;
+      box-shadow: var(--specular-line), var(--shadow-drop);
+    }
+
+    .grammar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.85rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .grammar-title {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-pure);
+    }
+
+    .grammar-source-tag {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--accent-amber);
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      padding: 0.15rem 0.45rem;
+      border-radius: 3px;
+    }
+
+    .grammar-card p {
+      font-size: 0.92rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-bottom: 0.75rem;
+    }
+
+    .grammar-syntax-box {
+      background: var(--l1-subfloor);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 0.75rem 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--accent-cyan);
+      margin-bottom: 0.75rem;
+      overflow-x: auto;
+    }
+
+    .grammar-rule {
+      font-size: 0.85rem;
+      color: var(--text-faint);
+    }
+
+    .grammar-rule strong {
+      color: var(--accent-rose);
+      font-weight: 500;
+    }
+
+    .pipeline-flow {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin: 2rem 0;
+      position: relative;
+    }
+
+    .flow-step {
+      background: var(--l2-surface);
+      border: 1px solid var(--border-edge);
+      border-radius: 8px;
+      padding: 1.75rem 1.5rem;
+      box-shadow: var(--specular-line), var(--shadow-drop);
+      position: relative;
+    }
+
+    .flow-step-num {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      margin-bottom: 0.75rem;
+    }
+
+    .flow-step h4 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text-pure);
+      margin-bottom: 0.5rem;
+    }
+
+    .flow-step p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    .flow-badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 3px;
+      background: var(--l3-elevated);
+      color: var(--accent-emerald);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      margin-top: 0.75rem;
+    }
+
+    .console-frame {
+      background: var(--l1-subfloor);
+      border: 1px solid var(--border-edge);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 2rem 0;
+      box-shadow: var(--specular-line), var(--shadow-deep);
+    }
+
+    .console-header {
+      background: var(--l2-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.85rem 1.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .console-title {
+      color: var(--text-pure);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .console-title::before {
+      content: "$";
+      color: var(--accent-cyan);
+      font-weight: 700;
+    }
+
+    pre {
+      padding: 2rem;
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      line-height: 1.65;
+      color: #E2E8F0;
+      overflow-x: auto;
+      box-shadow: inset 0 8px 16px rgba(0, 0, 0, 0.5);
+    }
+
+    .syntax-comment { color: #64748B; }
+    .syntax-fn { color: var(--accent-cyan); font-weight: 600; }
+    .syntax-string { color: var(--accent-emerald); }
+    .syntax-key { color: var(--accent-amber); font-weight: 600; }
+
+    .specs-duo {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.75rem;
+      margin: 2rem 0;
+    }
+
+    .specs-duo .console-frame {
+      margin: 0;
+    }
+
+    /* 全螢幕簡報播放模式 (Presentation Mode Classes) */
+    body.is-presenting {
+      overflow: hidden;
+    }
+
+    body.is-presenting header.deck-bar {
+      position: fixed;
+      width: 100%;
+      top: 0;
+      opacity: 0.15;
+      transition: opacity 0.3s ease;
+    }
+
+    body.is-presenting header.deck-bar:hover {
+      opacity: 1;
+    }
+
+    body.is-presenting section.slide-container {
+      height: 100vh;
+      min-height: 100vh;
+      max-height: 100vh;
+      padding: 3rem 5rem;
+      overflow-y: auto;
+      scroll-snap-align: start;
+    }
+
+    /* 懸浮簡報控制器 (Presenter Floating Controls) */
+    .presenter-hud {
+      position: fixed;
+      bottom: 2rem;
+      right: 2.5rem;
+      z-index: 200;
+      background: rgba(20, 24, 32, 0.85);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-bright);
+      border-radius: 999px;
+      padding: 0.4rem 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      box-shadow: var(--shadow-deep);
+    }
+
+    .hud-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      padding: 0.3rem 0.6rem;
+      border-radius: 999px;
+      transition: all 0.2s;
+    }
+
+    .hud-btn:hover {
+      color: var(--text-pure);
+      background: var(--border-subtle);
+    }
+
+    .hud-counter {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--accent-cyan);
+      padding: 0 0.4rem;
+      border-left: 1px solid var(--border-edge);
+      border-right: 1px solid var(--border-edge);
+    }
+
+    @media (max-width: 1024px) {
+      .engine-panel, .triad-grid, .specs-duo, .grammar-deck-grid, .pipeline-flow { grid-template-columns: 1fr; }
+      .engine-side:first-child { border-right: none; border-bottom: 1px solid var(--border-edge); }
+      h1.deck-title { font-size: 2.75rem; }
+      section.slide-container { padding: 3rem 1.5rem; }
+      header.deck-bar { padding: 0.8rem 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 頂部控制列 -->
+  <header class="deck-bar">
+    <div class="brand-meta">
+      <div class="brand-name">
+        <span class="status-beacon"></span>
+        FORGEFLOW SPECIFICATION
+      </div>
+      <div class="brand-version">SYSTEM ARCHITECTURE PROTOCOL</div>
+    </div>
+    
+    <div class="deck-controls">
+      <nav class="deck-nav">
+        <a href="#slide-1" onclick="goToSlide(0)">01 哲學</a>
+        <a href="#slide-2" onclick="goToSlide(1)">02 物理防幻覺</a>
+        <a href="#slide-3" onclick="goToSlide(2)">03 測試對齊</a>
+        <a href="#slide-4" onclick="goToSlide(3)">04 任務卡</a>
+        <a href="#slide-5" onclick="goToSlide(4)">05 契約語法</a>
+        <a href="#slide-6" onclick="goToSlide(5)">06 閉環管線</a>
+      </nav>
+
+      <button class="present-btn" id="fsToggleBtn" onclick="togglePresentationMode()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        全螢幕簡報 <kbd>F</kbd>
+      </button>
+    </div>
+  </header>
+
+  <!-- 懸浮簡報導航 HUD (左右切換與頁碼) -->
+  <div class="presenter-hud" id="presenterHud">
+    <button class="hud-btn" onclick="prevSlide()" title="上一頁 (← / P)">上頁</button>
+    <span class="hud-counter" id="hudCounter">01 / 06</span>
+    <button class="hud-btn" onclick="nextSlide()" title="下一頁 (→ / Space / N)">下頁</button>
+  </div>
+
+  <!-- SLIDE 1: 核心哲學對比 -->
+  <section class="slide-container" id="slide-1">
+    <div class="slide-index-tag">PHASE 01 • SPECIFICATION REVOLUTION</div>
+    <h1 class="deck-title">從口頭提示，<br>轉向確定性軟體契約</h1>
+    <p class="deck-summary">向團隊解說：為什麼傳統的「Prompt 道德勸說」永遠會失效，而 ForgeFlow 如何將規格化為實體卡榫。</p>
+
+    <div class="axiom-banner">
+      <p>「用不可篡改的軟體合約限制代理人權限，用作業系統確定性的測試命令取代 AI 的主觀自信。」</p>
+    </div>
+
+    <div class="engine-panel">
+      <div class="engine-side">
+        <span class="side-header bad">FAIL PATTERN • PROMPT-DRIVEN</span>
+        <h3>依賴道德勸說的脆弱假設</h3>
+        <p>在 Markdown 寫滿原則（如「請一定要測邊界條件、請勿亂裝套件」）。這類非約束性指導隨上下文增長而迅速衰減，最終使團隊陷入盲信與反覆猜疑。</p>
+      </div>
+      <div class="engine-side">
+        <span class="side-header good">SUCCESS PATTERN • SPEC-DRIVEN</span>
+        <h3>由機械工具執行的物理卡榫</h3>
+        <p>意圖沉澱為結構化的任務卡與測試指標。代理人的每一項宣稱都必須經過作業系統 Exit Code 與集合差集運算的硬性查驗，未達標準即刻中斷。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 2: 物理防幻覺 -->
+  <section class="slide-container" id="slide-2">
+    <div class="slide-index-tag">PHASE 02 • MECHANICAL TRIAD</div>
+    <h2 class="slide-title">防幻覺的實質運作：三重機械檢驗</h2>
+    <p class="deck-summary">不靠另一顆 AI 來評測，而是用純 POSIX Shell、正則表達式與 CPU 二進制測試構築三重防線。</p>
+
+    <div class="triad-grid">
+      <div class="triad-box">
+        <span class="triad-badge">GATE 01</span>
+        <h3>集合雙向追溯 (Traceability)</h3>
+        <p>規格書內列出的每一個 AC，必須在測試代碼中存在完全精確的標記。以 UNIX diff 進行差集比對，少一個立即報錯退出。</p>
+      </div>
+      <div class="triad-box">
+        <span class="triad-badge">GATE 02</span>
+        <h3>作業系統退出碼 (Exit Status)</h3>
+        <p>語言模型對話中的承諾毫無效力。系統僅承認 make verify 執行後由作業系統內核回傳的 $? = 0 狀態碼。</p>
+      </div>
+      <div class="triad-box">
+        <span class="triad-badge">GATE 03</span>
+        <h3>權限邊界約束 (Authority Set)</h3>
+        <p>嚴格限制代理人僅能執行已授權的操作。若在未開放 add_dependency 的情況下修改套件表，結案檢查立即判定失敗。</p>
+      </div>
+    </div>
+
+    <div class="tech-breakdown-card">
+      <div class="tech-pill-row">
+        <span class="tech-pill">底層技術：POSIX Shell (set -eu)</span>
+        <span class="tech-pill">字串解析：Stream Editor (sed)</span>
+        <span class="tech-pill">集合運算：UNIX diff -u</span>
+        <span class="tech-pill">零依賴：Zero External Runtime</span>
+      </div>
+      <h4>追溯性閘門的底層技術實作原理</h4>
+      <p>檢查器不依賴 Python、Node 或外部套件，而是直接使用相容 POSIX 的 <code>/bin/sh</code> 原生工具。透過 <code>sed</code> 提取規格與程式碼的 AST Token 集合，並以 UNIX 核心工具 <code>diff -u</code> 進行差集計算。任何單向不匹配，核心進程直接拋出 Exit Code 1，硬性阻斷 CI 流水線。</p>
+    </div>
+
+    <div class="console-frame">
+      <div class="console-header">
+        <div class="console-title">scripts/check-traceability.sh</div>
+        <span>POSIX SHELL VERIFICATION GATE</span>
+      </div>
+      <pre><code><span class="syntax-comment"># 1. 提取 specs/stories/.../acceptance.md 中的所有 AC 編號</span>
+sed -n <span class="syntax-string">'s/^[[:space:]]*\* \[ \] \(AC-[0-9][0-9]*\):.*/\1/p'</span> acceptance.md | sort > acceptance-ids
+
+<span class="syntax-comment"># 2. 提取測試代碼中的測試案例標記</span>
+sed -n <span class="syntax-string">'s/^[[:space:]]*test("\(AC-[0-9][0-9]*\):.*/\1/p'</span> order.test.ts | sort > test-ids
+
+<span class="syntax-comment"># 3. 進行嚴格集合比對：只要差異存在，命令直接拋出 Exit 1 崩潰中斷！</span>
+<span class="syntax-fn">if ! diff -u acceptance-ids test-ids; then</span>
+    printf <span class="syntax-string">'acceptance and executable test identifier sets differ\n'</span> >&2
+    <span class="syntax-key">exit 1</span>
+<span class="syntax-fn">fi</span></code></pre>
+    </div>
+  </section>
+
+  <!-- SLIDE 3: 測試映射粒度 -->
+  <section class="slide-container" id="slide-3">
+    <div class="slide-index-tag">PHASE 03 • MAPPING GRANULARITY</div>
+    <h2 class="slide-title">映射粒度：測試案例而非個別檔案</h2>
+    <p class="deck-summary">答覆團隊疑問：一個 Story 有 10 個 AC 檢查點，不需要開 10 個 test.ts，而是同一個檔案裡的 10 個測試區塊。</p>
+
+    <div class="tech-breakdown-card">
+      <div class="tech-pill-row">
+        <span class="tech-pill">底層技術：Node.js Test Runner / Vitest / Go Test</span>
+        <span class="tech-pill">斷言機制：Strict Assertions</span>
+        <span class="tech-pill">標記機制：Regex String Anchoring</span>
+      </div>
+      <h4>單元測試與 AC 的語義錨定技術</h4>
+      <p>現代測試框架原生支援字串標籤過濾。ForgeFlow 利用測試描述字串作為 AST 錨定點（<code>test("AC-01: ...")</code>），在編譯期與執行期均保持單一檔案的內聚性，同時提供粒度達到單一斷言（Assertion）層級的檢驗報告。</p>
+    </div>
+
+    <div class="console-frame">
+      <div class="console-header">
+        <div class="console-title">test/order-total.test.ts</div>
+        <span>NODE.JS TEST RUNNER • 1-TO-1 SEMANTIC ANCHOR</span>
+      </div>
+      <pre><code><span class="syntax-fn">import</span> test <span class="syntax-fn">from</span> <span class="syntax-string">"node:test"</span>;
+<span class="syntax-fn">import</span> assert <span class="syntax-fn">from</span> <span class="syntax-string">"node:assert/strict"</span>;
+
+<span class="syntax-comment">// 對應 AC-01: 金額計算加總</span>
+test(<span class="syntax-string">"AC-01: sums line item prices in cents"</span>, () => {
+  assert.equal(calculateOrderTotal([{ price: 1250, qty: 2 }]), 2500);
+});
+
+<span class="syntax-comment">// 對應 AC-02: 空購物車回傳零值</span>
+test(<span class="syntax-string">"AC-02: returns zero for an empty order"</span>, () => {
+  assert.equal(calculateOrderTotal([]), 0);
+});
+
+<span class="syntax-comment">// 對應 AC-03: 負數單價拋出特定業務錯誤</span>
+test(<span class="syntax-string">"AC-03: rejects invalid unit prices"</span>, () => {
+  assert.throws(() => calculateOrderTotal([{ price: -1, qty: 1 }]));
+});</code></pre>
+    </div>
+  </section>
+
+  <!-- SLIDE 4: 實戰任務卡 -->
+  <section class="slide-container" id="slide-4">
+    <div class="slide-index-tag">PHASE 04 • PRODUCTION ARTIFACTS</div>
+    <h2 class="slide-title">實戰任務卡架構：以資料庫工具 (dbcli) 為例</h2>
+    <p class="deck-summary">任務卡是一個獨立封閉的目錄 <code>specs/stories/DBC-001-query-json/</code>，職責嚴密分離：</p>
+
+    <div class="tech-breakdown-card">
+      <div class="tech-pill-row">
+        <span class="tech-pill">底層技術：Finite State Machine (有限狀態機解析)</span>
+        <span class="tech-pill">語法規格：CommonMark / GFM AST</span>
+        <span class="tech-pill">權限引擎：POSIX Shell Invariant Engine</span>
+      </div>
+      <h4>任務卡解析器的底層技術原理</h4>
+      <p><code>scripts/story-check</code> 與 <code>scripts/verification-check</code> 內部實作了一套純 Shell 狀態機，逐行分析 Markdown Token。它將任務卡視為強型別結構體（Struct），驗證項目包含：權限遮罩（Authority Mask）、安全邊界欄位（Trust Boundary）、與預期例外集合（Expected Errors）。任何欄位缺失或格式不合法均在預檢期（Preflight）直接攔截。</p>
+    </div>
+
+    <div class="specs-duo">
+      <div class="console-frame">
+        <div class="console-header">
+          <div class="console-title">story.md (意圖與權限邊界)</div>
+          <span>SPECIFICATION</span>
+        </div>
+        <pre><code><span class="syntax-fn"># Story: DBC-001 SQL Query to JSON</span>
+
+<span class="syntax-key">## Classification</span>
+* Security sensitive: yes
+* Task mode: execution
+
+<span class="syntax-key">## Authority</span>
+* plan: yes
+* modify: yes
+* add_dependency: no  <span class="syntax-comment"># 嚴禁擅自裝套件</span>
+* commit: no
+
+<span class="syntax-key">## Scope</span>
+### In Scope
+* 解析 --sql 與 --format json
+* 查詢 DATABASE_URL 並以 JSON 輸出
+### Out of Scope
+* 暫不支援大於 100MB 串流</code></pre>
+      </div>
+
+      <div class="console-frame">
+        <div class="console-header">
+          <div class="console-title">acceptance.md (驗收與證據表)</div>
+          <span>EVIDENCE MAP</span>
+        </div>
+        <pre><code><span class="syntax-fn"># Acceptance Criteria</span>
+
+## Happy Path
+* [ ] AC-01: Valid query outputs JSON.
+* [ ] AC-02: Empty query outputs [].
+
+## Failure Cases
+* [ ] AC-05: Malformed SQL exits 2.
+* [ ] AC-06: Timeout redacts password.
+
+## Acceptance Evidence
+| AC | Method | Evidence |
+| `AC-01` | test | `test/query.test.ts` |
+| `AC-02` | test | `test/query.test.ts` |
+| `AC-05` | test | `test/query.test.ts` |
+| `AC-06` | test | `test/query.test.ts` |</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 5: 形式契約語法 -->
+  <section class="slide-container" id="slide-5">
+    <div class="slide-index-tag">PHASE 05 • CONTRACT DSL ARCHITECTURE</div>
+    <h2 class="slide-title">任務卡的底層語法：Contract DSL 深度解析</h2>
+    <p class="deck-summary">向團隊交代真相：任務卡外觀是 GFM Markdown，底層則是透過 POSIX 詞法分析器與有限狀態機（FSM）逐行審計的 5 大強型別語法結構。</p>
+
+    <div class="tech-breakdown-card">
+      <div class="tech-pill-row">
+        <span class="tech-pill">語法架構：GFM-Compliant Contract DSL</span>
+        <span class="tech-pill">詞法解析器：scripts/story-check Lexer</span>
+        <span class="tech-pill">驗證原則：Zero Ambiguity / Zero Placeholder</span>
+      </div>
+      <h4>為什麼「看似 Markdown」卻能做到編譯器等級的語法查核？</h4>
+      <p>一般人把 Markdown 當隨筆筆記；ForgeFlow 則將其視為一門**受限的領域特定語言（DSL）**。人類閱讀時好讀美觀，但 Shell 腳本在底層會啟動狀態機，將每一個符號拆解為 Token 並嚴格核對欄位數與字面量，杜絕 AI 產生任何模糊發揮的空間。</p>
+    </div>
+
+    <div class="grammar-deck-grid">
+      <div class="grammar-card">
+        <div class="grammar-header">
+          <span class="grammar-title">1. 識別碼正規文法 (Story ID Grammar)</span>
+          <span class="grammar-source-tag">Regex Scanner</span>
+        </div>
+        <p>任務卡目錄與 ID 絕非自由命名，必須符合 BNF 形式文法，嚴禁小寫開頭或底線符號。</p>
+        <div class="grammar-syntax-box">^[A-Z][A-Z0-9]*(-[A-Z0-9]+)*-[0-9]+(-[a-z0-9-]+)?$</div>
+        <div class="grammar-rule">合規：<code>DBC-001</code>, <code>FF-PLAT-009</code> | 違規：<code>story-01</code> <strong>(拋出 ERROR Invalid ID)</strong></div>
+      </div>
+
+      <div class="grammar-card">
+        <div class="grammar-header">
+          <span class="grammar-title">2. 宣告式鍵值對 (Declaration Bullet)</span>
+          <span class="grammar-source-tag">Section FSM</span>
+        </div>
+        <p>所有系統參數使用單行嚴格宣告，底層函式 <code>forgeflow_read_declaration()</code> 逐行讀取冒號後的值。</p>
+        <div class="grammar-syntax-box">* &lt;Key&gt;: &lt;Value&gt;  (例：* Security sensitive: yes)</div>
+        <div class="grammar-rule">限制：值限定為布林或特定列舉，<strong>嚴禁跨行縮排或未定義關鍵字</strong></div>
+      </div>
+
+      <div class="grammar-card">
+        <div class="grammar-header">
+          <span class="grammar-title">3. 驗收核取方塊 (Checkbox AC Notation)</span>
+          <span class="grammar-source-tag">forgeflow_is_placeholder</span>
+        </div>
+        <p>驗收條款必須使用標準方塊符號，底層函式會主動掃描角括號，<strong>全面禁止任何占位符</strong>。</p>
+        <div class="grammar-syntax-box">* [ ] AC-&lt;Number&gt;: &lt;Criterion Prose&gt;</div>
+        <div class="grammar-rule">抓包：若包含 <code>&lt;TODO&gt;</code>, <code>TBD</code>, <code>N/A</code> 直接判定 <strong>NOT READY 退件</strong></div>
+      </div>
+
+      <div class="grammar-card">
+        <div class="grammar-header">
+          <span class="grammar-title">4. 固定五欄表格 (Strict 5-Column Table)</span>
+          <span class="grammar-source-tag">forgeflow_is_five_column_separator</span>
+        </div>
+        <p>證據對照表欄位完全固定。底層逐行計算管線符號 <code>|</code>，多一欄或少一欄均直接語法錯誤。</p>
+        <div class="grammar-syntax-box">| AC | Method | Evidence | Fixture | Expected observation |</div>
+        <div class="grammar-rule">限制：<code>Method</code> 只能是 <code>test|command|human</code>；Evidence 必須是反引號字面量</div>
+      </div>
+
+      <div class="grammar-card" style="grid-column: span 2;">
+        <div class="grammar-header">
+          <span class="grammar-title">5. 結案斷言語法 (Evidence Observation Syntax)</span>
+          <span class="grammar-source-tag">verification-check --result</span>
+        </div>
+        <p>在結案檔案 <code>verification.md</code> 中，AI 不得使用自由對話報告，必須輸出包含全形破折號的斷言語法：</p>
+        <div class="grammar-syntax-box">* `AC-xx`: pass — `&lt;精確測試案例標籤或指令&gt;`</div>
+        <div class="grammar-rule">狀態關鍵字僅限 <code>pass</code>, <code>fail</code>, <code>blocked</code>, <code>skipped</code>。若任何 AC 缺漏或未對齊，系統即刻判定為 <strong>VERIFICATION_PARTIAL (拒絕合併)</strong>。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 6: SDD + TDD 閉環驗證流水線 -->
+  <section class="slide-container" id="slide-6">
+    <div class="slide-index-tag">PHASE 06 • THE CLOSED-LOOP PIPELINE</div>
+    <h2 class="slide-title">SDD + TDD 雙重閉環：工程流水線全景</h2>
+    <p class="deck-summary">向團隊做最後總結：ForgeFlow 不是外掛插件，而是讓「規格驅動（SDD）」與「測試驅動（TDD）」在機器層面完美咬合的閉環管線。</p>
+
+    <div class="pipeline-flow">
+      <div class="flow-step">
+        <div class="flow-step-num">STAGE 01</div>
+        <h4>SDD 意圖固化</h4>
+        <p>人類或架構師定義 <code>story.md</code> 與 <code>acceptance.md</code>。邊界、輸入輸出、預期錯誤與權限邊界在此刻鎖死。</p>
+        <span class="flow-badge">產出：規格考卷</span>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-step-num">STAGE 02</div>
+        <h4>TDD 測試先行</h4>
+        <p>AI 代理人接單，不得直接寫功能。必須先在測試檔中撰寫帶有 <code>AC-xx</code> 標籤的紅燈測試（Failing Tests）。</p>
+        <span class="flow-badge">實作：Red-to-Green</span>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-step-num">STAGE 03</div>
+        <h4>物理機械對帳</h4>
+        <p>執行 <code>scripts/check-traceability.sh</code> 與 <code>make verify</code>。UNIX diff 差集核對題號，CPU 執行真實二進制斷言。</p>
+        <span class="flow-badge">查核：Exit Code 0</span>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-step-num">STAGE 04</div>
+        <h4>結案證據遞交</h4>
+        <p>生成 <code>verification.md</code>，將每個 AC 綁定通過的測試日誌。唯有完全無缺漏，才放行進入人類審查（Human Review）。</p>
+        <span class="flow-badge">交付：確定性成果</span>
+      </div>
+    </div>
+
+    <div class="axiom-banner" style="margin-top: 2rem;">
+      <p>「規格（SDD）給出邊界與題目，測試（TDD）提供客觀答案，機械檢查器則是不收賄賂的閱卷官。」</p>
+    </div>
+  </section>
+
+  <!-- 簡報互動邏輯引擎 (Presentation Engine JS) -->
+  <script>
+    const slides = document.querySelectorAll('.slide-container');
+    let currentSlide = 0;
+    const hudCounter = document.getElementById('hudCounter');
+    const fsBtn = document.getElementById('fsToggleBtn');
+
+    function updateHud() {
+      const pad = (n) => String(n + 1).padStart(2, '0');
+      hudCounter.textContent = `${pad(currentSlide)} / ${pad(slides.length - 1)}`;
+    }
+
+    function goToSlide(index) {
+      if (index < 0 || index >= slides.length) return;
+      currentSlide = index;
+      slides[currentSlide].scrollIntoView({ behavior: 'smooth' });
+      updateHud();
+    }
+
+    function nextSlide() {
+      if (currentSlide < slides.length - 1) {
+        goToSlide(currentSlide + 1);
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        goToSlide(currentSlide - 1);
+      }
+    }
+
+    // 鍵盤快速鍵監聽 (Keynote Style)
+    window.addEventListener('keydown', (e) => {
+      // 空白鍵、右鍵、下鍵、N 鍵 -> 下一張
+      if (e.code === 'Space' || e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        nextSlide();
+      }
+      // 左鍵、上鍵、P 鍵 -> 上一張
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        prevSlide();
+      }
+      // F 鍵 -> 切換全螢幕
+      else if (e.key.toLowerCase() === 'f' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        togglePresentationMode();
+      }
+      // Escape 鍵 -> 退出全螢幕
+      else if (e.key === 'Escape' && document.fullscreenElement) {
+        document.exitFullscreen();
+      }
+    });
+
+    // 瀏覽器原生物理全螢幕 + 幻燈片吸附
+    function togglePresentationMode() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().then(() => {
+          document.body.classList.add('is-presenting');
+          goToSlide(currentSlide);
+        }).catch(err => {
+          console.warn("Fullscreen request denied, fallback to window presentation");
+          document.body.classList.toggle('is-presenting');
+        });
+      } else {
+        document.exitFullscreen().then(() => {
+          document.body.classList.remove('is-presenting');
+        });
+      }
+    }
+
+    // 監聽全螢幕狀態變更
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement) {
+        document.body.classList.remove('is-presenting');
+      } else {
+        document.body.classList.add('is-presenting');
+      }
+    });
+
+    // 滾動自動偵測當前頁碼
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const index = Array.from(slides).indexOf(entry.target);
+          if (index !== -1) {
+            currentSlide = index;
+            updateHud();
+          }
+        }
+      });
+    }, { threshold: 0.6 });
+
+    slides.forEach(slide => observer.observe(slide));
+  </script>
+
+</body>
+</html>
