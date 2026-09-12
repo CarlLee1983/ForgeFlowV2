@@ -19,7 +19,7 @@ bootstrap.
 * add_dependency: no
 * migration: no
 * commit: yes
-* push: no
+* push: yes
 * deploy: no
 
 ## Architecture
@@ -90,8 +90,9 @@ bootstrap.
   mode stays builtin-only and read-only.
 * Preserve Doctor command forms, result/exit semantics for core failures, and
   bootstrap safety/recovery guarantees.
-* Do not add dependencies, run migrations, push, or deploy. A local commit
-  requires explicit human follow-up authorization.
+* Do not add dependencies, run migrations, or deploy. Local commits, pushing
+  this branch, and creating its pull request require explicit human follow-up
+  authorization.
 
 ## Superseded Behavior
 
