@@ -217,6 +217,30 @@ This executes repository-owned code and is not read-only or sandboxed. See
 [Repository Doctor](docs/doctor.md) for the command forms, safety boundary, and
 result semantics.
 
+## TypeScript tooling workspace
+
+The root pnpm 12 workspace builds the public `@forgeflow/core` and
+`@forgeflow/cli` package shells without replacing any portable shell command:
+
+```sh
+pnpm install --frozen-lockfile
+make verify-tooling
+node packages/cli/dist/bin.js --help
+node packages/cli/dist/bin.js --version
+```
+
+The package version is the TypeScript tooling version, independent of the
+ForgeFlow Protocol version in `VERSION`. The foundation CLI supports only help
+and version output. Every migration command remains unavailable, writes a usage
+diagnostic to standard error, and exits `2`; run `forgeflow --help` for the
+available forms. Neither package exposes implementation subpaths. Core has no
+runtime dependency, and CLI's only runtime dependency is Core.
+
+The workspace keeps the lockfile consumable by single-document dependency
+scanners, so pnpm does not switch versions automatically. `make verify-tooling`
+rejects any pnpm version other than the exact `packageManager` pin before it
+runs the workspace gates.
+
 ## TypeScript example
 
 The example in `examples/typescript` uses pnpm 12 and demonstrates a
@@ -244,18 +268,20 @@ Its gate checks formatting, `go vet`, Staticcheck, Story traceability, and tests
 
 ## Verify this repository
 
-Install the example's locked development dependencies, then run ForgeFlow's own
-canonical verification command from the repository root:
+Install the tooling workspace and example's locked development dependencies,
+then run ForgeFlow's own canonical verification command from the repository
+root:
 
 ```sh
+pnpm install --frozen-lockfile
 pnpm --dir examples/typescript install --frozen-lockfile
 go -C examples/go mod download
 make verify
 ```
 
 The root command checks required protocol artifacts, bootstrap and Doctor
-behavior, release-check behavior, and GitHub Actions syntax, then delegates to
-both example repositories. The
+behavior, release-check behavior, the TypeScript tooling packages, and GitHub
+Actions syntax, then delegates to both example repositories. The
 repository workflow in [`.github/workflows/verify.yml`](.github/workflows/verify.yml)
 sets up its Linux toolchains and locked dependencies before invoking this same
 gate.

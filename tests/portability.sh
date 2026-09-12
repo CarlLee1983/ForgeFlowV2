@@ -136,8 +136,8 @@ source_scripts_remain_unchanged() {
   done
 }
 
-canonical_verify_is_unchanged() {
-  grep -Fqx 'verify: verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions verify-execution' \
+canonical_verify_keeps_existing_dependencies() {
+  grep -Fqx 'verify: verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions verify-execution verify-tooling' \
     "$forgeflow_repo/Makefile" || fail 'canonical verify dependencies changed'
   grep -Fqx 'release-check: verify' "$forgeflow_repo/Makefile" ||
     fail 'release-check no longer depends on canonical verify'
@@ -179,7 +179,7 @@ portability_coverage_is_documented() {
     fail 'README overstates unobserved remote CI'
 }
 
-run_case 'FF220-AC-001' canonical_verify_is_unchanged
+run_case 'FF220-AC-001' canonical_verify_keeps_existing_dependencies
 run_case 'FF220-AC-002' selected_shell_is_real
 run_case 'FF220-AC-003' copied_scripts_use_selected_shell
 run_case 'FF220-AC-002' selected_shell_runs_existing_behavior_suites

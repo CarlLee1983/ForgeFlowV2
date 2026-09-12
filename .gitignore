@@ -1,2 +1,8 @@
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 graft/
+
+# Root TypeScript tooling workspace outputs.
+/node_modules/
+/packages/*/dist/
+/packages/*/node_modules/
+/packages/*/.tsbuildinfo
