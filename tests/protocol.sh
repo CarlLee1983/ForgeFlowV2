@@ -867,6 +867,49 @@ mutable_lifecycle_state_is_removed_for_0_8_0() {
   fi
 }
 
+risk_driven_readiness_is_additive_for_0_8_0() {
+  for forgeflow_risk_document in \
+    protocol/story.md \
+    protocol/execution.md \
+    templates/story/story.md \
+    docs/contract-checks.md \
+    docs/execution-governance.md \
+    docs/releases/0.8.0.md \
+    README.md
+  do
+    for forgeflow_risk_signal in \
+      error-projection concurrency bounded-capacity retention-overflow
+    do
+      grep -Fq "$forgeflow_risk_signal" \
+        "$forgeflow_repo/$forgeflow_risk_document" ||
+        fail "$forgeflow_risk_document omits $forgeflow_risk_signal"
+    done
+  done
+
+  for forgeflow_risk_section in \
+    '## Error Projection' '## Concurrency' '## Capacity' \
+    '## Retention and Overflow'
+  do
+    if grep -Fqx "$forgeflow_risk_section" \
+      "$forgeflow_repo/templates/story/story.md"; then
+      fail "Story template activates an unused risk section: $forgeflow_risk_section"
+    fi
+  done
+
+  grep -Fq 'P0-002 risk-driven Story readiness is **Additive** for `0.8.0`' \
+    "$forgeflow_repo/protocol/versioning.md" ||
+    fail 'versioning omits the P0-002 Additive classification'
+  grep -Fq 'No migration is required' \
+    "$forgeflow_repo/protocol/versioning.md" ||
+    fail 'versioning omits P0-002 compatibility guidance'
+  grep -Fq 'no separate' \
+    "$forgeflow_repo/protocol/story.md" ||
+    fail 'Story protocol creates or implies a second risk evidence map'
+  grep -Fq 'does not infer Signals from prose' \
+    "$forgeflow_repo/docs/contract-checks.md" ||
+    fail 'contract-check docs omit the risk-inference boundary'
+}
+
 run_case 'FF223-AC-001' guidance_baseline_artifacts_are_selective_and_advisory
 run_case 'FF223-AC-005' guidance_contract_and_agent_flow_are_documented
 run_case 'FF223-AC-008' guidance_authority_and_version_boundaries_are_documented
@@ -878,5 +921,6 @@ run_case 'P0001-AC-003' mutable_lifecycle_state_is_removed_for_0_8_0
 run_case 'P0001-AC-004' mutable_lifecycle_state_is_removed_for_0_8_0
 run_case 'P0001-AC-005' mutable_lifecycle_state_is_removed_for_0_8_0
 run_case 'P0001-AC-007' mutable_lifecycle_state_is_removed_for_0_8_0
+run_case 'P0002-AC-009' risk_driven_readiness_is_additive_for_0_8_0
 
 printf 'protocol tests passed\n'

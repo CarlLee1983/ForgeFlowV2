@@ -76,6 +76,12 @@ risk selects a verification profile, and an optional per-Story result record
 traces every acceptance criterion to the observation that proves it, so a
 verified Story carries evidence rather than a claim.
 
+When a Story explicitly declares `error-projection`, `concurrency`,
+`bounded-capacity`, or `retention-overflow`, ForgeFlow requires only that
+risk's contract and links it to an existing Acceptance Criterion and Acceptance
+Evidence row before readiness passes. Stories without a Signal gain no fields,
+and the checker never infers risk from prose.
+
 ```sh
 ./scripts/verification-check specs/stories/<story-id>
 ./scripts/verification-check --result specs/stories/<story-id>
@@ -168,12 +174,16 @@ implementing:
 
 ```sh
 ./scripts/story-check [story-directory ...]
+./scripts/story-check --ready [story-directory ...]
 ./scripts/handoff-check [handoff-file]
 ```
 
 `story-check` reports a missing Classification, a security-sensitive Story
 without an executable [security fixture matrix](protocol/story.md), or a
 baseline-conformance Story that does not name the behavior it supersedes.
+Declared Risk Signals also activate their matching error-projection,
+concurrency, capacity, or retention contract; `--ready` requires concrete
+values and an Evidence AC already mapped by Acceptance Evidence.
 `handoff-check` reports a handoff whose [evidence block](protocol/handoff.md)
 does not identify one Story, UTC recording time, repository, exact revision,
 verification command, and observed result. Handoff evidence is historical; it

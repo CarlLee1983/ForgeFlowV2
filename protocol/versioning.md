@@ -345,6 +345,20 @@ guidance together. A `0.8.0` record cannot reconstruct current, next, or
 completed work; obtain that state from the control plane or human rather than
 inferring it from historical evidence.
 
+P0-002 risk-driven Story readiness is **Additive** for `0.8.0`: the four
+standard `Signal` declarations are optional and conditional. A Story that names
+none of them requires no new section and keeps both its default Story-contract
+and opt-in readiness verdicts. A Story that opts in must add only the matching
+Error Projection, Concurrency, Capacity, or Retention and Overflow contract and
+link it to an existing Acceptance Criterion and Acceptance Evidence row.
+
+No migration is required. `Signal` does not replace Risk `Level` or `Reason`,
+does not alter the resolved verification profile, and introduces no inference
+from Story prose. Command forms, result names, exit statuses, Doctor defaults,
+and `make verify` semantics remain unchanged. Rollback removes the optional
+Signal declarations and corresponding sections together with the `0.8.0`
+checker, protocol, template, and documentation.
+
 ## Repository release readiness
 
 ForgeFlow maintainers can run root `make release-check` on a clean committed

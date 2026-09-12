@@ -87,6 +87,7 @@ A change that carries real weight says so:
 * Level: high
 * Reason: `payment`
 * Reason: `external-api`
+* Signal: `error-projection`
 ```
 
 ## What each part refuses to do
@@ -109,6 +110,32 @@ coherent change; it proves more about it.
 A `Reason:` is one non-empty same-line backticked signal, for example
 `versioned-surface`; it is not a prose paragraph or a value closed on another
 line.
+
+A standard `Signal:` does a different job. It declares that the Story carries
+one of four engineering risks — `error-projection`, `concurrency`,
+`bounded-capacity`, or `retention-overflow` — and activates the matching Story
+readiness contract. For example, `concurrency` requires the contended resource,
+linearization point, conflict outcome, and an Evidence AC before readiness can
+pass. Signals do not change Risk `Level`, `Reason`, or the verification profile.
+No Signal means no additional fields.
+
+The flow is deliberately declaration-driven:
+
+```text
+Story declares applicable Signal
+        ↓
+matching contract becomes required
+        ↓
+Evidence AC names observable behavior
+        ↓
+the existing Acceptance Evidence row plans the proof
+        ↓
+story-check --ready
+```
+
+The checker does not guess. Words such as “queue”, “parallel”, and “database”
+do not activate a contract; deciding whether a Story omitted a real risk remains
+Human Review judgment.
 
 **Evidence** does not prove itself. `VERIFICATION_PASS` means the declared
 evidence is complete, not that it is convincing.

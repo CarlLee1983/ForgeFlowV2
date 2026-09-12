@@ -71,7 +71,8 @@ already had:
 - **Architecture** — an optional `## Architecture` section declaring the impact
   and the decisions, boundaries, contracts, and ownership the change is
   answerable to
-- **Risk** — an optional `## Risk` section declaring the level and its reasons
+- **Risk** — an optional `## Risk` section declaring the level, its reasons,
+  and repeatable standard Signals that activate conditional readiness contracts
 
 See the [Execution Contract](execution.md) and the
 [Architecture Contract](architecture.md).
@@ -99,6 +100,49 @@ a Story invalid, and a reference never adds an implicit acceptance criterion.
 Read only the relevant repository guidance after the approved Story and
 acceptance criteria. More specific, explicitly approved context takes precedence
 over generic guidance; surface a genuine unresolved conflict to Human Review.
+
+### Risk-driven readiness contracts
+
+`## Risk` may declare any of four optional, repeatable `Signal` values. A value
+must be one same-line backticked literal, may appear at most once, and does not
+replace or change the existing `Level` or `Reason` declarations:
+
+| Signal | Required Story section | Required fields |
+| --- | --- | --- |
+| `error-projection` | `## Error Projection` | `Source failure`, `Public projection`, `Detail policy`, `Evidence AC` |
+| `concurrency` | `## Concurrency` | `Contended resource`, `Linearization point`, `Conflict outcome`, `Evidence AC` |
+| `bounded-capacity` | `## Capacity` | `Bounded resource`, `Limit`, `Saturation behavior`, `Failure projection`, `Evidence AC` |
+| `retention-overflow` | `## Retention and Overflow` | `Retained resource`, `Retention bound`, `Overflow policy`, `Recovery / observability`, `Evidence AC` |
+
+For example:
+
+```markdown
+## Risk
+
+* Level: medium
+* Reason: `shared-write-path`
+* Signal: `concurrency`
+
+## Concurrency
+
+* Contended resource: `order status`
+* Linearization point: `conditional database update`
+* Conflict outcome: `return order_conflict`
+* Evidence AC: `AC-005`
+```
+
+The normal Story check requires every activated section exactly once and every
+listed field exactly once as a non-empty same-line backticked value. Readiness
+additionally rejects the documented finite placeholders and requires
+`Evidence AC` to name a real checkbox AC with a row in the existing
+`## Acceptance Evidence` table. This reuses the one evidence map; no separate
+risk-evidence table is created.
+
+A Story with no Signal requires no risk-contract section and keeps its existing
+verdict, including when older prose happens to use one of these headings. The
+checker validates declared contracts only. It does not infer a Signal from
+Story prose or decide whether the author omitted an applicable risk; that
+remains Human Review judgment.
 
 ## Acceptance
 
@@ -184,7 +228,8 @@ and never replaces `make verify` or human review.
 ## Sizing and readiness
 
 Optional `scripts/story-check --ready [story-directory ...]` checks minimum
-content and acceptance-evidence completeness as well as structure; defaults and Doctor do not change. It requires
+content, acceptance-evidence completeness, and any declared risk contract as
+well as structure; defaults and Doctor do not change. It requires
 non-placeholder content under exact `## Goal` and `## Scope` headings and at
 least one unique checkbox `AC-<digits>:` with same-line content, for example
 `* [ ] AC-001: An empty order returns zero cents.` Subheadings do not count as
@@ -214,6 +259,8 @@ A Story is ready for implementation when:
 - acceptance criteria cover the required behavior;
 - every acceptance criterion has a concrete evidence method, fixture or
   precondition, and expected observation;
+- every declared Risk Signal has a concrete conditional contract whose
+  Evidence AC exists and has planned Acceptance Evidence;
 - the Classification is declared and its required sections are present;
 - unresolved decisions do not materially change the implementation.
 

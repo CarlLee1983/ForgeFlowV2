@@ -48,8 +48,28 @@ The check enforces the [Story Contract](../protocol/story.md):
   locations, and verification, and states the expected result as `preserve`,
   `redact`, `reject`, or `omit`;
 * `Baseline conformance: yes` requires `## Superseded Behavior` in `story.md`,
-  naming each superseded test or behavior exactly; and
-* a section that contradicts its declaration fails in both directions.
+  naming each superseded test or behavior exactly;
+* each optional, unique `Signal` under `## Risk` is one of
+  `error-projection`, `concurrency`, `bounded-capacity`, or
+  `retention-overflow`, and activates only its corresponding risk-contract
+  section and required fields; and
+* a Classification-gated section that contradicts its `yes` or `no`
+  declaration fails in both directions.
+
+The conditional risk contracts are:
+
+| Signal | Section | Required field labels |
+| --- | --- | --- |
+| `error-projection` | `## Error Projection` | `Source failure`, `Public projection`, `Detail policy`, `Evidence AC` |
+| `concurrency` | `## Concurrency` | `Contended resource`, `Linearization point`, `Conflict outcome`, `Evidence AC` |
+| `bounded-capacity` | `## Capacity` | `Bounded resource`, `Limit`, `Saturation behavior`, `Failure projection`, `Evidence AC` |
+| `retention-overflow` | `## Retention and Overflow` | `Retained resource`, `Retention bound`, `Overflow policy`, `Recovery / observability`, `Evidence AC` |
+
+Each activated section appears exactly once. Each required label appears
+exactly once with a non-empty same-line backticked value. A Story that declares
+no Signal needs none of these sections and keeps its previous verdict. The
+checker does not infer Signals from prose such as “queue”, “parallel”, or
+“database”; omission of an applicable risk remains Human Review judgment.
 
 A quoted payload may contain markup, so `<script>alert(1)</script>` is an exact
 value; only a whole-cell placeholder or an empty quotation is rejected. A pipe
@@ -111,12 +131,25 @@ need no migration. This opt-in mode adds these exact minimum-content rules:
   `<fixture / precondition>`, and `<expected observation>`. Technical values
   such as `<T>` remain valid when backticked.
 * All these readers use the fence rules above; examples do not supply content.
+* Every declared Risk Signal's required fields are concrete rather than one of
+  the finite placeholders below. `Evidence AC` is exactly `AC-<digits>`, names
+  a checkbox AC in the same `acceptance.md`, and that AC has a row in the
+  existing Acceptance Evidence table. No second risk-evidence map is required.
 
 The finite placeholder list is: empty text, bare `*` or `-`, `TBD`, `tbd`,
 `TODO`, `todo`, `N/A`, `n/a`, `...`, `<goal>`, `<scope>`,
 `<acceptance criterion>`, and `Describe the user or business outcome.`
 Matching is exact after trimming and optional bullet removal; `<T>`, Chinese
 requirements, and technical strings are not rejected by language or scoring.
+
+Risk-contract values use the same blank, bare bullet, `TBD`, `TODO`, `N/A`, and
+`...` tokens, plus these field-shaped placeholders: `<value>`,
+`<source failure>`, `<public projection>`, `<detail policy>`,
+`<contended resource>`, `<linearization point>`, `<conflict outcome>`,
+`<bounded resource>`, `<limit>`, `<saturation behavior>`,
+`<failure projection>`, `<retained resource>`, `<retention bound>`,
+`<overflow policy>`, `<recovery / observability>`, and `<evidence ac>`.
+Matching is exact after the required outer backticks are removed.
 
 For example, an actual criterion outside a fence can be:
 
@@ -187,6 +220,13 @@ without `push`, `push` without `commit`, or `commit` without `modify`, an
 `medium` or `high` with no decision or contract, a referenced decision that does
 not exist or is not usable, an owner naming an undeclared boundary, and a
 recognized high-risk signal filed below `high`.
+
+Both governance checkers accept the four standard `Signal` declarations and
+reject unknown or duplicate values. A Signal is not a `Reason` and does not
+change the resolved risk level or verification profile. Risk-contract sections,
+their concrete readiness content, and their Evidence AC links belong to
+`story-check`; `verification-check` only keeps the shared Risk declaration
+grammar consistent while resolving the execution profile.
 
 Each `Reason:` declaration needs one non-empty same-line backticked signal, for
 example `versioned-surface`. A prose reason or a closing backtick on a later

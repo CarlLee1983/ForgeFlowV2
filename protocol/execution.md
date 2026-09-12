@@ -83,6 +83,7 @@ A Story may declare its risk in an optional `## Risk` section:
 * Level: high
 * Reason: `payment`
 * Reason: `external-api`
+* Signal: `error-projection`
 ```
 
 `Level` is `low`, `medium`, or `high` and defaults to `low`. A `medium` or
@@ -98,6 +99,16 @@ It never widens implementation scope: a high-risk Story implements the same
 smallest coherent change, and proves more about it.
 
 Risk selects the [verification profile](verification.md#verification-profiles).
+
+A Story may also declare any of these standard engineering-risk Signals, each
+at most once: `error-projection`, `concurrency`, `bounded-capacity`, and
+`retention-overflow`.
+
+Signals are independent of `Level` and `Reason`: they do not select or raise a
+verification profile. Instead, each Signal activates the corresponding
+[risk-driven readiness contract](story.md#risk-driven-readiness-contracts).
+The checker validates only explicitly declared Signals. It never infers one
+from words such as “queue”, “parallel”, or “database”.
 
 ## Execution invariants
 
