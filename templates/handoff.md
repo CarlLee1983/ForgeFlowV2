@@ -1,36 +1,29 @@
-# ForgeFlow Handoff
+# ForgeFlow Handoff Evidence
 
-Prose context for the next human or agent belongs outside the block. The block
-below is the authoritative, machine-readable lifecycle statement; a consumer
-must never infer the next Story from list order or narrative text.
+Prose may explain the historical execution context. The block records one
+point-in-time observation; it is not current workflow state.
 
-## Lifecycle
+## Evidence
 
 ```yaml
-workflow:
-  current_story: ABC-001
-  next_story: pending
-  completed_stories: []
-  status: ready_for_implementation
-
-baseline:
-  repository: owner/repository
-  branch: main
-  commit: 0000000000000000000000000000000000000000
-  dirty_worktree: false
-  story_owned_paths: []
-  known_unrelated_paths: []
+handoff:
+  story: <story-id>
+  recorded_at: <YYYY-MM-DDTHH:MM:SSZ>
+  repository: <owner/repository>
+  revision: <full-commit-sha>
 
 verification:
-  last_command: make verify
+  command: make verify
   result: not_run
 ```
 
 ## Notes
 
-* Use `none` for `current_story` when no Story is active and `pending` for
-  `next_story` when selection has not been made.
-* Record candidate Stories, if any, as prose here — never as `next_story`.
-* Remote tag, Release, and CI state is time-sensitive evidence. Record only
-  historical facts here and query the remote rather than treating this handoff
-  as the long-term source of truth for current state.
+* Replace every placeholder with facts observed at the recorded UTC time and
+  exact commit revision.
+* Once versioned, do not update this record to report newer state. Create a new
+  evidence record for a later observation.
+* Do not add current or next work, lifecycle status, completed work, Gate state,
+  review state, or completion state. Those facts belong to the external control
+  plane when one is present.
+* ForgePilot is one possible control plane, not a ForgeFlow dependency.

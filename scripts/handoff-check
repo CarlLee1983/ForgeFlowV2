@@ -18,12 +18,26 @@ help() {
   printf 'Usage: %s [handoff-file]\n' "$0"
   printf '       %s --help\n\n' "$0"
   printf 'The handoff file defaults to specs/handoff.md.\n\n'
-  printf 'The check is static and read-only. It validates the machine-readable\n'
-  printf 'lifecycle block only; it never runs verification or authorizes a merge.\n'
+  printf 'The check is static and read-only. It validates one immutable\n'
+  printf 'point-in-time evidence block; it never reads lifecycle state, runs\n'
+  printf 'verification, or authorizes a merge.\n'
 }
 
 forgeflow_cr=$(printf '\r')
 forgeflow_tab=$(printf '\t')
+forgeflow_nel=$(printf '\302\205')
+forgeflow_line_separator=$(printf '\342\200\250')
+forgeflow_paragraph_separator=$(printf '\342\200\251')
+
+forgeflow_has_yaml_line_break() {
+  case "$1" in
+    *"$forgeflow_cr"*|*"$forgeflow_nel"*|*"$forgeflow_line_separator"*|*"$forgeflow_paragraph_separator"*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
 
 forgeflow_trim_right() {
   forgeflow_trimmed=$1
@@ -79,11 +93,7 @@ forgeflow_is_story_id() {
     *[!"$forgeflow_digit"]*) return 1 ;;
   esac
 
-  # Every segment between the first and the last is a subsystem name: uppercase
-  # letters and digits, and at least one uppercase letter so a bare number
-  # cannot pass as one.
-  while [ "$forgeflow_id_rest" != "$forgeflow_id_last" ]
-  do
+  while [ "$forgeflow_id_rest" != "$forgeflow_id_last" ]; do
     forgeflow_id_middle=${forgeflow_id_rest%%-*}
 
     case "$forgeflow_id_middle" in
@@ -98,9 +108,7 @@ forgeflow_is_story_id() {
   return 0
 }
 
-forgeflow_is_commit_sha() {
-  # Forty lowercase hexadecimal characters: the pattern fixes the length and the
-  # case guard fixes the alphabet.
+forgeflow_is_revision() {
   case "$1" in
     ????????????????????????????????????????) ;;
     *) return 1 ;;
@@ -113,124 +121,132 @@ forgeflow_is_commit_sha() {
   return 0
 }
 
-forgeflow_list_contains() {
-  forgeflow_list_haystack=$1
-  forgeflow_list_needle=$2
-  forgeflow_list_item=
+# The checker supports a deliberately small YAML subset. Every field value is
+# one unquoted plain scalar. Reject forms that YAML would interpret as null,
+# collections, tags, anchors, aliases, block scalars, or inline comments rather
+# than pretending this line parser decoded them.
+forgeflow_is_plain_scalar() {
+  case "$1" in
+    ' '*|"$forgeflow_tab"*) return 1 ;;
+    ''|null|Null|NULL|'~') return 1 ;;
+    true|True|TRUE|false|False|FALSE) return 1 ;;
+    yes|Yes|YES|no|No|NO|on|On|ON|off|Off|OFF) return 1 ;;
+    .nan|.NaN|.NAN|.inf|.Inf|.INF|+.inf|+.Inf|+.INF|-.inf|-.Inf|-.INF) return 1 ;;
+    '{'*|'}'*|'['*|']'*|','*|'&'*|'*'*|'!'*|'|'*|'>'*) return 1 ;;
+    "'"*|'"'*|'%'*|'@'*|'`'*|'#'*) return 1 ;;
+    '-'|'?'|':'|'- '*|'? '*|': '*|*': '*|*':'|*' #'*) return 1 ;;
+  esac
 
-  while IFS= read -r forgeflow_list_item; do
-    [ -n "$forgeflow_list_item" ] || continue
-    if [ "$forgeflow_list_item" = "$forgeflow_list_needle" ]; then
-      return 0
-    fi
-  done <<FORGEFLOW_LIST
-$forgeflow_list_haystack
-FORGEFLOW_LIST
+  forgeflow_numeric_candidate=$1
 
-  return 1
+  case "$forgeflow_numeric_candidate" in
+    +*|-*) forgeflow_numeric_candidate=${forgeflow_numeric_candidate#?} ;;
+  esac
+
+  case "$forgeflow_numeric_candidate" in
+    0[xX][0123456789abcdefABCDEF]*|0[oO][01234567]*|0[bB][01]*) return 1 ;;
+    *[!0123456789._eE+-]*) ;;
+    *[0123456789]*) return 1 ;;
+  esac
+
+  return 0
 }
 
-# Linear rescanning is quadratic in the number of completed Stories, which is
-# the right trade at this scale: the sort-and-uniq pipeline it replaces is what
-# made the verdict depend on the caller's PATH.
-forgeflow_list_has_duplicate() {
-  forgeflow_duplicate_seen=
+# recorded_at is deliberately one canonical RFC 3339 form. UTC avoids making
+# consumers learn offset variants, and validation remains shell-builtin-only.
+forgeflow_is_recorded_at() {
+  forgeflow_timestamp=$1
 
-  while IFS= read -r forgeflow_duplicate_item; do
-    [ -n "$forgeflow_duplicate_item" ] || continue
+  case "$forgeflow_timestamp" in
+    ????-??-??T??:??:??Z) ;;
+    *) return 1 ;;
+  esac
 
-    if forgeflow_list_contains "$forgeflow_duplicate_seen" \
-      "$forgeflow_duplicate_item"; then
-      return 0
-    fi
+  forgeflow_date=${forgeflow_timestamp%%T*}
+  forgeflow_time=${forgeflow_timestamp#*T}
+  forgeflow_time=${forgeflow_time%Z}
 
-    forgeflow_duplicate_seen="$forgeflow_duplicate_seen
-$forgeflow_duplicate_item"
-  done <<FORGEFLOW_DUPLICATE
-$1
-FORGEFLOW_DUPLICATE
+  forgeflow_year=${forgeflow_date%%-*}
+  forgeflow_date_rest=${forgeflow_date#*-}
+  forgeflow_month=${forgeflow_date_rest%%-*}
+  forgeflow_day=${forgeflow_date_rest#*-}
 
-  return 1
+  forgeflow_hour=${forgeflow_time%%:*}
+  forgeflow_time_rest=${forgeflow_time#*:}
+  forgeflow_minute=${forgeflow_time_rest%%:*}
+  forgeflow_second=${forgeflow_time_rest#*:}
+
+  case "$forgeflow_year$forgeflow_month$forgeflow_day$forgeflow_hour$forgeflow_minute$forgeflow_second" in
+    *[!"$forgeflow_digit"]*) return 1 ;;
+  esac
+
+  case "$forgeflow_month" in
+    01|02|03|04|05|06|07|08|09|10|11|12) ;;
+    *) return 1 ;;
+  esac
+
+  case "$forgeflow_day" in
+    01|02|03|04|05|06|07|08|09|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31) ;;
+    *) return 1 ;;
+  esac
+
+  case "$forgeflow_hour" in
+    00|01|02|03|04|05|06|07|08|09|10|11|12|13|14|15|16|17|18|19|20|21|22|23) ;;
+    *) return 1 ;;
+  esac
+
+  case "$forgeflow_minute:$forgeflow_second" in
+    [012345]["$forgeflow_digit"]:[012345]["$forgeflow_digit"]) ;;
+    *) return 1 ;;
+  esac
+
+  return 0
 }
 
 forgeflow_record_key() {
   forgeflow_record_name=$1
   forgeflow_record_value=$2
 
+  if forgeflow_has_yaml_line_break "$forgeflow_record_value"; then
+    forgeflow_fail "handoff evidence value contains an embedded YAML line break: $forgeflow_record_name"
+  fi
+
+  case "$forgeflow_record_value" in
+    ' '*|"$forgeflow_tab"*)
+      forgeflow_fail "handoff evidence value must follow exactly one separator space: $forgeflow_record_name"
+      ;;
+  esac
+
   case "$forgeflow_record_name" in
-    workflow.current_story)
-      forgeflow_current_count=$((forgeflow_current_count + 1))
-      forgeflow_current_story=$forgeflow_record_value
+    handoff.story)
+      forgeflow_story_count=$((forgeflow_story_count + 1))
+      forgeflow_story=$forgeflow_record_value
       ;;
-    workflow.next_story)
-      forgeflow_next_count=$((forgeflow_next_count + 1))
-      forgeflow_next_story=$forgeflow_record_value
+    handoff.recorded_at)
+      forgeflow_recorded_at_count=$((forgeflow_recorded_at_count + 1))
+      forgeflow_recorded_at=$forgeflow_record_value
       ;;
-    workflow.status)
-      forgeflow_status_count=$((forgeflow_status_count + 1))
-      forgeflow_status=$forgeflow_record_value
-      ;;
-    workflow.completed_stories)
-      forgeflow_completed_count=$((forgeflow_completed_count + 1))
-      forgeflow_list_target=completed
-      [ "$forgeflow_record_value" != '[]' ] || forgeflow_list_target=
-      ;;
-    baseline.repository)
+    handoff.repository)
       forgeflow_repository_count=$((forgeflow_repository_count + 1))
       forgeflow_repository=$forgeflow_record_value
       ;;
-    baseline.branch)
-      forgeflow_branch_count=$((forgeflow_branch_count + 1))
-      forgeflow_branch=$forgeflow_record_value
+    handoff.revision)
+      forgeflow_revision_count=$((forgeflow_revision_count + 1))
+      forgeflow_revision=$forgeflow_record_value
       ;;
-    baseline.commit)
-      forgeflow_commit_count=$((forgeflow_commit_count + 1))
-      forgeflow_commit=$forgeflow_record_value
-      ;;
-    baseline.dirty_worktree)
-      forgeflow_dirty_count=$((forgeflow_dirty_count + 1))
-      forgeflow_dirty=$forgeflow_record_value
-      ;;
-    baseline.story_owned_paths)
-      forgeflow_owned_count=$((forgeflow_owned_count + 1))
-      forgeflow_list_target=owned
-      [ "$forgeflow_record_value" != '[]' ] || forgeflow_list_target=
-      ;;
-    baseline.known_unrelated_paths)
-      forgeflow_unrelated_count=$((forgeflow_unrelated_count + 1))
-      forgeflow_list_target=unrelated
-      [ "$forgeflow_record_value" != '[]' ] || forgeflow_list_target=
-      ;;
-    verification.last_command)
+    verification.command)
       forgeflow_command_count=$((forgeflow_command_count + 1))
-      forgeflow_last_command=$forgeflow_record_value
+      forgeflow_command=$forgeflow_record_value
       ;;
     verification.result)
       forgeflow_result_count=$((forgeflow_result_count + 1))
       forgeflow_result=$forgeflow_record_value
       ;;
-    *)
-      forgeflow_fail "unknown lifecycle key: $forgeflow_record_name"
-      ;;
-  esac
-}
-
-forgeflow_record_item() {
-  case "$forgeflow_list_target" in
-    completed)
-      forgeflow_completed_stories="$forgeflow_completed_stories
-$1"
-      ;;
-    owned)
-      forgeflow_owned_paths="$forgeflow_owned_paths
-$1"
-      ;;
-    unrelated)
-      forgeflow_unrelated_paths="$forgeflow_unrelated_paths
-$1"
+    workflow.*|baseline.*)
+      forgeflow_fail "mutable lifecycle evidence is forbidden: $forgeflow_record_name"
       ;;
     *)
-      forgeflow_fail "list item does not belong to a lifecycle list: $1"
+      forgeflow_fail "unknown handoff evidence key: $forgeflow_record_name"
       ;;
   esac
 }
@@ -244,6 +260,11 @@ forgeflow_parse_block() {
   while IFS= read -r forgeflow_line || [ -n "$forgeflow_line" ]; do
     forgeflow_trim_right "$forgeflow_line"
     forgeflow_line=$forgeflow_trimmed
+
+    if forgeflow_has_yaml_line_break "$forgeflow_line"; then
+      forgeflow_fail 'handoff source line contains an embedded YAML line break'
+      continue
+    fi
 
     if [ "$forgeflow_in_block" -eq 0 ]; then
       case "$forgeflow_line" in
@@ -276,8 +297,7 @@ forgeflow_parse_block() {
 
     case "$forgeflow_line" in
       '    - '*)
-        forgeflow_item=${forgeflow_line#'    - '}
-        forgeflow_record_item "$forgeflow_item"
+        forgeflow_fail "lists are not part of handoff evidence: $forgeflow_line"
         continue
         ;;
       '  '*)
@@ -285,7 +305,7 @@ forgeflow_parse_block() {
 
         case "$forgeflow_pair" in
           ' '*|'-'*)
-            forgeflow_fail "unsupported lifecycle indentation: $forgeflow_line"
+            forgeflow_fail "unsupported handoff evidence indentation: $forgeflow_line"
             continue
             ;;
           *': '*)
@@ -297,41 +317,39 @@ forgeflow_parse_block() {
             forgeflow_value=
             ;;
           *)
-            forgeflow_fail "unsupported lifecycle line: $forgeflow_line"
+            forgeflow_fail "unsupported handoff evidence line: $forgeflow_line"
             continue
             ;;
         esac
 
         if [ -z "$forgeflow_section" ]; then
-          forgeflow_fail "lifecycle key declared outside a section: $forgeflow_key"
+          forgeflow_fail "handoff evidence key declared outside a section: $forgeflow_key"
           continue
         fi
 
-        forgeflow_list_target=
         forgeflow_record_key \
           "$forgeflow_section.$forgeflow_key" "$forgeflow_value"
         continue
         ;;
       *':')
         forgeflow_section=${forgeflow_line%:}
-        forgeflow_list_target=
 
         case "$forgeflow_section" in
-          workflow)
-            forgeflow_workflow_section=$((forgeflow_workflow_section + 1))
-            ;;
-          baseline)
-            forgeflow_baseline_section=$((forgeflow_baseline_section + 1))
+          handoff)
+            forgeflow_handoff_section=$((forgeflow_handoff_section + 1))
             ;;
           verification)
             forgeflow_verification_section=$((forgeflow_verification_section + 1))
             ;;
-          *) forgeflow_fail "unknown lifecycle section: $forgeflow_section" ;;
+          workflow|baseline)
+            forgeflow_fail "mutable lifecycle section is forbidden: $forgeflow_section"
+            ;;
+          *) forgeflow_fail "unknown handoff evidence section: $forgeflow_section" ;;
         esac
         continue
         ;;
       *)
-        forgeflow_fail "unsupported lifecycle line: $forgeflow_line"
+        forgeflow_fail "unsupported handoff evidence line: $forgeflow_line"
         ;;
     esac
   done <"$forgeflow_parse_file"
@@ -393,241 +411,104 @@ if [ ! -f "$forgeflow_handoff" ] || [ ! -r "$forgeflow_handoff" ] ||
 fi
 
 forgeflow_contract_incomplete=0
-forgeflow_workflow_section=0
-forgeflow_baseline_section=0
+forgeflow_handoff_section=0
 forgeflow_verification_section=0
-forgeflow_current_count=0
-forgeflow_next_count=0
-forgeflow_status_count=0
-forgeflow_completed_count=0
+forgeflow_story_count=0
+forgeflow_recorded_at_count=0
 forgeflow_repository_count=0
-forgeflow_branch_count=0
-forgeflow_commit_count=0
-forgeflow_dirty_count=0
-forgeflow_owned_count=0
-forgeflow_unrelated_count=0
+forgeflow_revision_count=0
 forgeflow_command_count=0
 forgeflow_result_count=0
-forgeflow_current_story=
-forgeflow_next_story=
-forgeflow_status=
+forgeflow_story=
+forgeflow_recorded_at=
 forgeflow_repository=
-forgeflow_branch=
-forgeflow_commit=
-forgeflow_dirty=
-forgeflow_last_command=
+forgeflow_revision=
+forgeflow_command=
 forgeflow_result=
-forgeflow_completed_stories=
-forgeflow_owned_paths=
-forgeflow_unrelated_paths=
-forgeflow_list_target=
 
 forgeflow_parse_block "$forgeflow_handoff"
 
 if [ "$forgeflow_block_count" -eq 1 ] && [ "$forgeflow_in_block" -eq 1 ]; then
-  printf 'FAIL  lifecycle block is not closed\n'
+  printf 'FAIL  handoff evidence block is not closed\n'
   printf '\nResult: HANDOFF_CONTRACT_INCOMPLETE\n\n'
   printf 'Next:\n'
-  printf 'Close the fenced yaml lifecycle block in %s.\n' "$forgeflow_handoff"
+  printf 'Close the fenced yaml evidence block in %s.\n' "$forgeflow_handoff"
   exit 1
 fi
 
 if [ "$forgeflow_block_count" -ne 1 ]; then
-  printf 'FAIL  handoff must contain exactly one machine-readable lifecycle block\n'
+  printf 'FAIL  handoff must contain exactly one machine-readable evidence block\n'
   printf '\nResult: HANDOFF_CONTRACT_INCOMPLETE\n\n'
   printf 'Next:\n'
-  printf 'Add exactly one fenced yaml lifecycle block to %s.\n' \
+  printf 'Add exactly one fenced yaml evidence block to %s.\n' \
     "$forgeflow_handoff"
   exit 1
 fi
 
 for forgeflow_section_requirement in \
-  "workflow=$forgeflow_workflow_section" \
-  "baseline=$forgeflow_baseline_section" \
+  "handoff=$forgeflow_handoff_section" \
   "verification=$forgeflow_verification_section"
 do
   forgeflow_section_name=${forgeflow_section_requirement%%=*}
   forgeflow_section_seen=${forgeflow_section_requirement#*=}
 
   if [ "$forgeflow_section_seen" -ne 1 ]; then
-    forgeflow_fail "lifecycle block must declare the $forgeflow_section_name section exactly once"
+    forgeflow_fail "evidence block must declare the $forgeflow_section_name section exactly once"
   fi
 done
 
-if forgeflow_require_single "$forgeflow_current_count" 'workflow.current_story'
-then
-  if [ "$forgeflow_current_story" != 'none' ] &&
-    ! forgeflow_is_story_id "$forgeflow_current_story"; then
-    forgeflow_fail 'workflow.current_story must be one Story ID or none'
+if forgeflow_require_single "$forgeflow_story_count" 'handoff.story'; then
+  if ! forgeflow_is_story_id "$forgeflow_story"; then
+    forgeflow_fail 'handoff.story must be one Story ID'
   fi
-fi
-
-if forgeflow_require_single "$forgeflow_next_count" 'workflow.next_story'; then
-  if [ "$forgeflow_next_story" != 'pending' ] &&
-    ! forgeflow_is_story_id "$forgeflow_next_story"; then
-    forgeflow_fail 'workflow.next_story must be one Story ID or pending'
-  fi
-fi
-
-if forgeflow_require_single "$forgeflow_status_count" 'workflow.status'; then
-  case "$forgeflow_status" in
-    draft|ready_for_implementation|implementing|verifying|review|done|spec_blocked) ;;
-    *) forgeflow_fail "workflow.status is not a lifecycle state: $forgeflow_status" ;;
-  esac
-fi
-
-forgeflow_require_single \
-  "$forgeflow_completed_count" 'workflow.completed_stories' || :
-
-forgeflow_completed_total=0
-
-while IFS= read -r forgeflow_completed_entry; do
-  [ -n "$forgeflow_completed_entry" ] || continue
-  forgeflow_completed_total=$((forgeflow_completed_total + 1))
-
-  forgeflow_is_story_id "$forgeflow_completed_entry" ||
-    forgeflow_fail "completed Story is not a Story ID: $forgeflow_completed_entry"
-done <<FORGEFLOW_COMPLETED
-$forgeflow_completed_stories
-FORGEFLOW_COMPLETED
-
-if forgeflow_list_has_duplicate "$forgeflow_completed_stories"; then
-  forgeflow_fail 'completed Story IDs must be unique'
 fi
 
 if forgeflow_require_single \
-  "$forgeflow_repository_count" 'baseline.repository'; then
-  [ -n "$forgeflow_repository" ] ||
-    forgeflow_fail 'baseline.repository must name the target repository'
-fi
-
-if forgeflow_require_single "$forgeflow_branch_count" 'baseline.branch'; then
-  [ -n "$forgeflow_branch" ] ||
-    forgeflow_fail 'baseline.branch must name the baseline branch'
-fi
-
-if forgeflow_require_single "$forgeflow_commit_count" 'baseline.commit'; then
-  forgeflow_is_commit_sha "$forgeflow_commit" ||
-    forgeflow_fail 'baseline.commit must be a full 40-character commit SHA'
+  "$forgeflow_recorded_at_count" 'handoff.recorded_at'; then
+  if ! forgeflow_is_recorded_at "$forgeflow_recorded_at"; then
+    forgeflow_fail 'handoff.recorded_at must be YYYY-MM-DDTHH:MM:SSZ in UTC'
+  fi
 fi
 
 if forgeflow_require_single \
-  "$forgeflow_dirty_count" 'baseline.dirty_worktree'; then
-  case "$forgeflow_dirty" in
-    true|false) ;;
-    *) forgeflow_fail 'baseline.dirty_worktree must be true or false' ;;
-  esac
+  "$forgeflow_repository_count" 'handoff.repository'; then
+  forgeflow_is_plain_scalar "$forgeflow_repository" ||
+    forgeflow_fail 'handoff.repository must be one non-null unquoted plain scalar'
 fi
 
-if [ "$forgeflow_owned_count" -gt 1 ]; then
-  forgeflow_fail 'handoff declares baseline.story_owned_paths more than once'
-fi
-
-if [ "$forgeflow_unrelated_count" -gt 1 ]; then
-  forgeflow_fail 'handoff declares baseline.known_unrelated_paths more than once'
-fi
-
-forgeflow_owned_total=0
-
-while IFS= read -r forgeflow_owned_count_entry; do
-  [ -n "$forgeflow_owned_count_entry" ] || continue
-  forgeflow_owned_total=$((forgeflow_owned_total + 1))
-done <<FORGEFLOW_OWNED_TOTAL
-$forgeflow_owned_paths
-FORGEFLOW_OWNED_TOTAL
-
-if [ "$forgeflow_dirty" = 'true' ]; then
-  if [ "$forgeflow_owned_count" -ne 1 ]; then
-    forgeflow_fail 'a dirty worktree must declare baseline.story_owned_paths'
-  elif [ "$forgeflow_owned_total" -eq 0 ]; then
-    forgeflow_fail 'a dirty worktree must attribute at least one path to the Story'
+if forgeflow_require_single "$forgeflow_revision_count" 'handoff.revision'; then
+  if ! forgeflow_is_revision "$forgeflow_revision"; then
+    forgeflow_fail 'handoff.revision must be a full 40-character commit SHA'
   fi
-
-  [ "$forgeflow_unrelated_count" -eq 1 ] ||
-    forgeflow_fail 'a dirty worktree must declare baseline.known_unrelated_paths'
 fi
 
-while IFS= read -r forgeflow_owned_entry; do
-  [ -n "$forgeflow_owned_entry" ] || continue
-
-  if forgeflow_list_contains "$forgeflow_unrelated_paths" \
-    "$forgeflow_owned_entry"; then
-    forgeflow_fail "path is both Story-owned and unrelated: $forgeflow_owned_entry"
-  fi
-done <<FORGEFLOW_OWNED
-$forgeflow_owned_paths
-FORGEFLOW_OWNED
-
-if forgeflow_require_single \
-  "$forgeflow_command_count" 'verification.last_command'; then
-  [ -n "$forgeflow_last_command" ] ||
-    forgeflow_fail 'verification.last_command must record the authoritative command'
+if forgeflow_require_single "$forgeflow_command_count" 'verification.command'; then
+  forgeflow_is_plain_scalar "$forgeflow_command" ||
+    forgeflow_fail 'verification.command must be one non-null unquoted plain scalar'
 fi
 
-if forgeflow_require_single "$forgeflow_result_count" 'verification.result'
-then
+if forgeflow_require_single "$forgeflow_result_count" 'verification.result'; then
   case "$forgeflow_result" in
     pass|fail|not_run) ;;
     *) forgeflow_fail 'verification.result must be pass, fail, or not_run' ;;
   esac
 fi
 
-if [ -n "$forgeflow_current_story" ] && [ -n "$forgeflow_next_story" ] &&
-  [ "$forgeflow_current_story" = "$forgeflow_next_story" ] &&
-  [ "$forgeflow_current_story" != 'none' ]; then
-  forgeflow_fail 'the same Story cannot be both current and next'
-fi
-
-for forgeflow_lifecycle_claim in \
-  "current=$forgeflow_current_story" \
-  "next=$forgeflow_next_story"
-do
-  forgeflow_claim_name=${forgeflow_lifecycle_claim%%=*}
-  forgeflow_claim_story=${forgeflow_lifecycle_claim#*=}
-
-  case "$forgeflow_claim_story" in
-    ''|none|pending) continue ;;
-  esac
-
-  if forgeflow_list_contains "$forgeflow_completed_stories" \
-    "$forgeflow_claim_story"; then
-    forgeflow_fail "$forgeflow_claim_name Story is also recorded as completed: $forgeflow_claim_story"
-  fi
-done
-
-case "$forgeflow_status" in
-  ready_for_implementation|implementing|verifying|review)
-    if [ "$forgeflow_current_story" = 'none' ]; then
-      forgeflow_fail "status $forgeflow_status requires an explicit current Story"
-    fi
-    ;;
-esac
-
-case "$forgeflow_status" in
-  review|done)
-    if [ "$forgeflow_result" = 'fail' ] ||
-      [ "$forgeflow_result" = 'not_run' ]; then
-      forgeflow_fail "status $forgeflow_status contradicts verification result $forgeflow_result"
-    fi
-    ;;
-esac
-
 if [ "$forgeflow_contract_incomplete" -eq 1 ]; then
   printf '\nResult: HANDOFF_CONTRACT_INCOMPLETE\n\n'
   printf 'Next:\n'
-  printf 'Resolve the reported lifecycle statements in %s, then run this\n' \
+  printf 'Resolve the reported evidence fields in %s, then run this check\n' \
     "$forgeflow_handoff"
-  printf 'check again.\n'
+  printf 'again. Mutable lifecycle state belongs in a control plane, not here.\n'
   exit 1
 fi
 
-printf 'PASS  current Story: %s\n' "$forgeflow_current_story"
-printf 'PASS  next Story: %s\n' "$forgeflow_next_story"
-printf 'PASS  completed Stories: %s\n' "$forgeflow_completed_total"
-printf 'PASS  baseline: %s %s %s\n' \
-  "$forgeflow_repository" "$forgeflow_branch" "$forgeflow_commit"
-printf 'PASS  verification: %s %s\n' \
-  "$forgeflow_last_command" "$forgeflow_result"
+printf 'PASS  Story evidence: %s\n' "$forgeflow_story"
+printf 'PASS  recorded at: %s\n' "$forgeflow_recorded_at"
+printf 'PASS  repository revision: %s %s\n' \
+  "$forgeflow_repository" "$forgeflow_revision"
+printf 'PASS  verification evidence: %s %s\n' \
+  "$forgeflow_command" "$forgeflow_result"
 printf '\nResult: HANDOFF_CONTRACT_OK\n\n'
 printf 'Next:\n'
-printf 'Lifecycle statements only. Run make verify and human review.\n'
+printf 'Historical evidence only. Ask the human or control plane for current state.\n'

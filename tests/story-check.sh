@@ -1074,16 +1074,12 @@ optional_guidance_preserves_story_contract_compatibility() {
 forgeflow_id_corpus='FF-001 A-1 DBCLI-004 FF2-30 DBCLI-PLAT-001 FF-CORE-A1-042 ff-001 FF001 FF- -1 FF-1a 1F-1 FF-1-2 FF-01x FF-plat-001 FF--1'
 
 forgeflow_story_grammar='does not name a Story ID'
-forgeflow_corpus_completed_id='TST-004'
 forgeflow_handoff_check_under_test=
 
 # One shared corpus, fed to both checkers. The two do not judge the same thing:
-# handoff-check judges a Story ID, story-check judges a directory name and
-# reports the ID it read. The property that has to hold is that the two never
-# disagree about what is recordable — every ID story-check accepts is one
-# handoff-check accepts, and every ID handoff-check accepts is one story-check
-# accepts as a bare directory name. That is what keeps one grammar from growing
-# two implementations again.
+# handoff-check judges the Story attached to immutable evidence, while
+# story-check judges a directory name and reports the ID it read. The property
+# that has to hold is that the two never disagree about what is recordable.
 forgeflow_id_corpus='FF-001 A-1 DBCLI-004 FF2-30 DBCLI-PLAT-001 FF-CORE-A1-042 ff-001 FF001 FF- -1 FF-1a 1F-1 FF-1-2 FF-01x FF-plat-001 FF--1'
 
 story_verdict_for_id() {
@@ -1108,28 +1104,19 @@ handoff_verdict_for_id() {
   forgeflow_corpus_handoff="$forgeflow_test_dir/$forgeflow_case_id-corpus.md"
 
   cat >"$forgeflow_corpus_handoff" <<FORGEFLOW_CORPUS
-# ForgeFlow Handoff
+# ForgeFlow Handoff Evidence
 
-## Lifecycle
+## Evidence
 
 \`\`\`yaml
-workflow:
-  current_story: $1
-  next_story: pending
-  completed_stories:
-    - $forgeflow_corpus_completed_id
-  status: ready_for_implementation
-
-baseline:
+handoff:
+  story: $1
+  recorded_at: 2026-09-12T02:30:00Z
   repository: example/repository
-  branch: main
-  commit: 0123456789abcdef0123456789abcdef01234567
-  dirty_worktree: false
-  story_owned_paths: []
-  known_unrelated_paths: []
+  revision: 0123456789abcdef0123456789abcdef01234567
 
 verification:
-  last_command: make verify
+  command: make verify
   result: pass
 \`\`\`
 FORGEFLOW_CORPUS
@@ -1181,11 +1168,6 @@ compare_whole_corpus() {
   set -f
   for forgeflow_corpus_id in $forgeflow_id_corpus
   do
-    if [ "$forgeflow_corpus_id" = "$forgeflow_corpus_completed_id" ]; then
-      set +f
-      fail "corpus entry $forgeflow_corpus_id collides with the fixture completed Story and would be rejected for uniqueness, not grammar"
-    fi
-
     compare_one_id "$forgeflow_corpus_id"
     [ -z "$forgeflow_corpus_disagreement" ] || break
   done

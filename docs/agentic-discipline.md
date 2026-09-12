@@ -45,10 +45,11 @@ the worktree is an implementation detail, not a new protocol state.
 | QA result | Acceptance evidence and Human Review of product behavior |
 | Final deterministic gate | `make verify` (the only canonical ForgeFlow completion command) |
 
-The mapping deliberately leaves the existing [handoff
-contract](../protocol/handoff.md) unchanged. A role may be recorded in a
-branch name, worktree note, or delivery report, but adopters should not invent
-protocol fields just to imitate a six-agent diagram.
+The mapping deliberately leaves role coordination outside the [Handoff
+Evidence Contract](../protocol/handoff.md). A role may be recorded in a branch
+name, control plane, worktree note, or delivery report, but adopters should not
+invent protocol fields or turn historical evidence into workflow state just to
+imitate a six-agent diagram.
 
 ## A small adoption loop
 

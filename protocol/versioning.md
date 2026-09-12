@@ -307,6 +307,44 @@ record-status rules, adoption marker, bootstrap, and Doctor behavior are
 unchanged. No migration is required; [the 0.7.0 release notes](../docs/releases/0.7.0.md)
 describe the opt-in configuration.
 
+## P0-001 remove mutable lifecycle state
+
+P0-001 is **Breaking** for `0.8.0`. A handoff that satisfied `0.7.0` by
+persisting `workflow.current_story`, `workflow.next_story`,
+`workflow.completed_stories`, `workflow.status`, mutable worktree state, and
+the last verification claim no longer satisfies the Handoff Evidence Contract.
+The replacement is one immutable point-in-time record anchored to a Story, UTC
+time, repository, exact commit revision, verification command, and observed
+result.
+
+This hard cut is required to leave one current-state authority. Accepting both
+schemas would keep ForgeFlow's lifecycle database valid beside an external
+control plane. Command forms, result names, and exit statuses remain unchanged,
+but existing valid handoff files must change, which meets the Breaking
+definition above.
+
+Migration for `0.8.0`:
+
+1. Move current work, lifecycle status, blockers or Gates, next action, review,
+   verification-current, and completion state to the team's external control
+   plane or direct human coordination. ForgePilot is one example and is not
+   required by ForgeFlow.
+2. Remove the legacy `workflow` and `baseline` projections. If historical
+   execution context is worth preserving, replace the file with one record
+   containing `handoff.story`, `handoff.recorded_at`, `handoff.repository`,
+   `handoff.revision`, `verification.command`, and `verification.result`.
+   Rename `last_command` to `command`; use the exact committed revision rather
+   than attaching dirty-worktree evidence to HEAD.
+3. Reconcile repository-owned `AGENTS.md` and installed ForgeFlow skills so they
+   select work only from explicit human or control-plane context and treat a
+   handoff as historical evidence.
+4. Run `./scripts/handoff-check`, Repository Doctor if used, and `make verify`.
+
+Rollback requires restoring the `0.7.0` protocol, template, checker, and agent
+guidance together. A `0.8.0` record cannot reconstruct current, next, or
+completed work; obtain that state from the control plane or human rather than
+inferring it from historical evidence.
+
 ## Repository release readiness
 
 ForgeFlow maintainers can run root `make release-check` on a clean committed

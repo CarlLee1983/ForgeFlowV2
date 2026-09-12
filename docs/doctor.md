@@ -78,7 +78,7 @@ Once the required structure is confirmed, static mode composes the two
 four more lines:
 
 ```text
-Adopted version: 0.7.0
+Adopted version: 0.8.0
 Story contract: STORY_CONTRACT_OK
 Handoff: HANDOFF_CONTRACT_OK
 Guidance: GUIDANCE_BASELINE_OK
@@ -88,8 +88,10 @@ Guidance: GUIDANCE_BASELINE_OK
 `specs/.forgeflow-adoption`, or `UNKNOWN` when the repository has no marker.
 `Story contract:` runs `scripts/story-check` over every directory under
 `specs/stories/` except `_template/`, and is `NO_STORIES` when there are none.
-`Handoff:` runs `scripts/handoff-check` on `specs/handoff.md`, and is
-`NOT_PRESENT` when that file does not exist.
+`Handoff:` runs `scripts/handoff-check` on the optional immutable evidence
+record at `specs/handoff.md`, and is `NOT_PRESENT` when that file does not
+exist. Doctor validates its structure only; the record is not current lifecycle
+state and Doctor does not query or require a control plane.
 
 `Guidance:` is `OPTIONAL_LEGACY` when absent, `GUIDANCE_BASELINE_OK` for the
 four-file baseline, or `GUIDANCE_INCOMPLETE` when a present baseline is partial
@@ -163,7 +165,7 @@ In all Doctor outcomes, CI and merge policy remain `NOT_CHECKED`.
 | --- | --- | --- |
 | Bootstrap success | The managed guide, Guidance baseline, and Story-template files were installed. | The adopter-owned gate exists or adoption is complete. |
 | `STRUCTURE_OK` | Doctor could confirm the three required structural paths, and found no contract drift. | `make verify`, CI, or human review passed. |
-| `CONTRACT_DRIFT` | The structure is complete, but Stories, handoff, version, or a present Guidance baseline drift. | The repository is broken, or that the drift blocks anything; the exit status is still `0`. |
+| `CONTRACT_DRIFT` | The structure is complete, but Stories, handoff evidence, version, or a present Guidance baseline drift. | The repository is broken, or that the drift blocks anything; the exit status is still `0`. |
 | `VERIFIED_LOCAL` | The repository-configured automated gate returned zero in that local execution. | CI passed, the tests are sufficient, or the change may merge. |
 | Human review | A person evaluates requirements, design, and test sufficiency. | Repository merge policy has automatically been satisfied. |
 | Merge decision | The repository's own policy permits the reviewed change to merge. | Doctor made or automated that decision. |

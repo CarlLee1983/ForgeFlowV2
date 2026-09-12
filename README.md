@@ -4,7 +4,8 @@
 
 ForgeFlow is an agent-agnostic development protocol for AI-assisted engineering.
 It turns approved human intent into a bounded Story, makes repository tooling the
-authority on completion, and sends only verified work to human review.
+source of deterministic verification evidence, and sends verified work to human
+review.
 
 ```text
 Human → Story → Agent implementation → Verify → Repair → PASS → Human review → Merge
@@ -23,8 +24,8 @@ Each change starts as a Story under
   expected errors, dependencies, and constraints.
 - `acceptance.md` turns the required behavior into checkable acceptance
   criteria.
-- `task.md` may track implementation progress, but it is not a source of
-  product requirements.
+- `task.md` may contain human working notes, but it is not a source of product
+  requirements or authoritative lifecycle state.
 
 The agent implements the smallest coherent change, adds or updates tests, and
 runs the repository's canonical verification command:
@@ -39,7 +40,7 @@ returns to implementation, repairs the root cause without weakening the Story,
 and verifies again. A zero exit makes the work eligible for human review; it
 does not replace product or architecture judgment.
 
-The protocol is split into six small contracts:
+The protocol contracts include:
 
 - [Story](protocol/story.md)
 - [Verification](protocol/verification.md)
@@ -49,6 +50,13 @@ The protocol is split into six small contracts:
 - [Handoff](protocol/handoff.md)
 - [Repository adoption](protocol/repository-contract.md)
 - [Versioning and compatibility](protocol/versioning.md)
+
+ForgeFlow defines what the work means and what proves it; it does not store what state the work is currently in.
+Lifecycle names remain shared vocabulary. When
+an external control plane is present, it owns current work, lifecycle and Gate
+state, next action, review state, verification-current state, and completion
+state. ForgePilot is one example, not a dependency: Story checks, Doctor,
+bootstrap, and `make verify` work without it.
 
 ## Optional engineering guidance
 
@@ -66,7 +74,7 @@ the architecture it must not break, and its risk. These declarations are
 optional and defaulted, so an existing Story keeps its meaning. The declared
 risk selects a verification profile, and an optional per-Story result record
 traces every acceptance criterion to the observation that proves it, so a
-completed Story carries evidence rather than a claim.
+verified Story carries evidence rather than a claim.
 
 ```sh
 ./scripts/verification-check specs/stories/<story-id>
@@ -166,10 +174,11 @@ implementing:
 `story-check` reports a missing Classification, a security-sensitive Story
 without an executable [security fixture matrix](protocol/story.md), or a
 baseline-conformance Story that does not name the behavior it supersedes.
-`handoff-check` reports a handoff whose [lifecycle block](protocol/handoff.md)
-does not state exactly one current Story, exactly one next Story, the repository
-baseline, and the last verification result. Neither replaces `make verify` or
-human review. See [Contract checks](docs/contract-checks.md).
+`handoff-check` reports a handoff whose [evidence block](protocol/handoff.md)
+does not identify one Story, UTC recording time, repository, exact revision,
+verification command, and observed result. Handoff evidence is historical; it
+does not select work or persist lifecycle state. Neither checker replaces
+`make verify` or human review. See [Contract checks](docs/contract-checks.md).
 
 ## Diagnose an adoption (optional)
 
@@ -273,7 +282,8 @@ repository guidance, verification, lifecycle, and versioning contracts, a
 reusable Story-development skill, executable TypeScript and Go examples, CI
 support, a non-destructive bootstrap script, and a local release-readiness
 check with a manual publication runbook. Repository Doctor is an optional
-static diagnostic with explicitly authorized local verification.
+static diagnostic with explicitly authorized local verification. Optional
+handoffs preserve immutable historical evidence, never current workflow state.
 
 Multi-agent orchestration, workflow services, schedulers, agent runtimes,
 dashboards, persistent workflow state, and language-model abstraction layers are

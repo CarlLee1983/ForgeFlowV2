@@ -40,20 +40,22 @@ ff215_completion_records_agree() {
     'Human Review remains pending'
   lacks specs/stories/FF-215-human-review-guidance/task.md \
     'Story is not DONE'
-  contains specs/handoff.md '    - FF-215'
-  contains specs/handoff.md 'so the Story is DONE'
+  contains protocol/versioning.md \
+    'Human Review Guidance is **Additive** for `0.3.4`'
 }
 
 handoff_records_release_history_not_live_state() {
-  contains specs/handoff.md '`v0.3.4`'
-  contains specs/handoff.md 'tag and GitHub Release were published'
-  contains specs/handoff.md '8e0eb8c10bbd3d6d4d654de42ff7eee115d8c8a4'
-  lacks specs/handoff.md 'has not been tagged or published'
-  for forgeflow_file in protocol/handoff.md templates/handoff.md docs/releasing.md
+  contains specs/stories/FF-216-review-integrity-and-state-consistency/acceptance.md \
+    '`v0.3.4` as published'
+  contains specs/stories/FF-216-review-integrity-and-state-consistency/acceptance.md \
+    '8e0eb8c10bbd3d6d4d654de42ff7eee115d8c8a4'
+  contains specs/handoff.md 'immutable'
+  contains specs/handoff.md 'intentionally says nothing about current work'
+  for forgeflow_file in protocol/handoff.md docs/releasing.md
   do
     contains "$forgeflow_file" 'time-sensitive'
-    contains "$forgeflow_file" 'long-term source of truth'
   done
+  contains protocol/handoff.md 'query the owning system'
 }
 
 review_checks_classification_truthfulness() {
@@ -79,9 +81,9 @@ review_checks_classification_truthfulness() {
 
 review_checks_current_verification_evidence() {
   for forgeflow_term in \
-    'currently under review' \
+    'implementation under review' \
     'complete `make verify` PASS' \
-    'does not prove that PASS occurred or remains fresh'
+    'does not prove that PASS occurred'
   do
     contains docs/human-review.md "$forgeflow_term"
   done
@@ -92,9 +94,9 @@ behavior_changes_require_complete_reverification() {
     'source code, tests, configuration' \
     'immediately invalidates the prior PASS' \
     'complete `make verify`' \
-    'final handoff-only documentation change' \
-    'attribute its paths' \
-    'human reviewer decides'
+    'handoff evidence edit is also a repository change' \
+    'human reviewer' \
+    'complete re-verification'
   do
     contains docs/human-review.md "$forgeflow_term"
   done
@@ -102,10 +104,10 @@ behavior_changes_require_complete_reverification() {
 
 contract_checks_and_human_review_have_distinct_jobs() {
   for forgeflow_term in \
-    'checks declared structure, not Classification truthfulness' \
-    'Story, Acceptance Criteria, Classification, implementation, and tests agree' \
-    'does not prove that the recorded command ran' \
-    'fresh for the implementation under review'
+    'validates the declarations themselves' \
+    'does not re-run it' \
+    'prove the revision exists' \
+    'prove the record was never edited'
   do
     contains docs/contract-checks.md "$forgeflow_term"
   done
@@ -119,7 +121,7 @@ agent_guidance_prepares_truthful_fresh_review() {
       'actual trust boundaries' \
       'baseline behavior' \
       'verification freshness' \
-      'implementation. A source' \
+      'A source, test, configuration' \
       'full `make verify`'
     do
       contains "$forgeflow_file" "$forgeflow_term"

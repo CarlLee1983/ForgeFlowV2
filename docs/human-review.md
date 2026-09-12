@@ -50,15 +50,16 @@ match reality. Human Review asks:
 Review also confirms that verification evidence belongs to the implementation
 currently under review:
 
-* Require a complete `make verify` PASS from the current implementation.
+* Require a complete `make verify` PASS from the implementation under review.
 * A change to source code, tests, configuration, or another behavior-affecting
   file immediately invalidates the prior PASS. Run complete `make verify` again
   before returning to REVIEW.
-* For a final handoff-only documentation change that does not affect the
-  implementation, attribute its paths explicitly. The human reviewer decides
-  whether it affects behavior and requires re-verification.
-* A handoff checker validates the consistency of the recorded declaration. It
-  does not prove that PASS occurred or remains fresh.
+* A handoff checker validates one immutable point-in-time evidence record. It
+  does not prove that PASS occurred, remains fresh, or represents current
+  lifecycle state. Never attach dirty-worktree verification to an unchanged
+  HEAD revision.
+* A handoff evidence edit is also a repository change. The human reviewer
+  decides whether it affects behavior and requires complete re-verification.
 
 ### Naming and readability
 

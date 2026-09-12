@@ -61,7 +61,7 @@ verification_keeps_one_tool_agnostic_gate() {
     'constrains the verification interface and its PASS/FAIL semantics' \
     'does not require a language' \
     'additional Make target' \
-    '`make verify` remains the only authoritative completion gate'
+    'deterministic authority for its point-in-time PASS or FAIL result'
   do
     contains protocol/verification.md "$forgeflow_term"
   done

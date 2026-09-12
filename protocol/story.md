@@ -36,9 +36,11 @@ as it is complete; `FF-1-2-x` therefore names `FF-1` with the slug `2-x`, and
 the problem is reported when the Story is written rather than when the handoff
 records it, and it reports the ID it read for every Story it checks.
 
-`story.md` and `acceptance.md` are required once a Story
-enters READY. `task.md` is optional progress metadata and never
-overrides product requirements.
+`story.md` and `acceptance.md` define approved intent and its observable
+contract. `task.md` is optional human context and never overrides product
+requirements. A mutable status, current step, blocker, or done marker in an
+optional note is not authoritative lifecycle state, and ForgeFlow tooling must
+not use it to select work or infer a transition.
 
 ## Story fields
 
@@ -205,7 +207,7 @@ and no unresolved authority conflict remains. A skipped required check, a
 blocked verification, or a missing observation makes the Story partial rather
 than Done. See [Completion](verification.md#completion).
 
-A Story can enter READY when:
+A Story is ready for implementation when:
 
 - the Goal and scope are approved by a human;
 - business rules and expected errors are explicit;
@@ -214,6 +216,10 @@ A Story can enter READY when:
   precondition, and expected observation;
 - the Classification is declared and its required sections are present;
 - unresolved decisions do not materially change the implementation.
+
+`READY` is the shared lifecycle term for this condition, not a status that the
+Story file must persist. A control plane may track it externally without a
+synchronized edit to `story.md`, `acceptance.md`, or `task.md`.
 
 ## Change control
 

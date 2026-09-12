@@ -80,6 +80,33 @@ check_acceptance_mapping() {
   done
 }
 
+check_prefixed_acceptance_mapping() {
+  forgeflow_mapping_acceptance=$1
+  forgeflow_mapping_tests=$2
+  forgeflow_mapping_prefix=$3
+  shift 3
+
+  for forgeflow_mapping_ac_number in "$@"
+  do
+    forgeflow_mapping_acceptance_count=$(
+      grep -Ec "AC-$forgeflow_mapping_ac_number:" \
+        "$forgeflow_mapping_acceptance" || :
+    )
+    forgeflow_mapping_test_count=$(
+      grep -Ec "^run_case '$forgeflow_mapping_prefix-AC-$forgeflow_mapping_ac_number'" \
+        "$forgeflow_mapping_tests" || :
+    )
+
+    if [ "$forgeflow_mapping_acceptance_count" -ne 1 ]; then
+      fail "$forgeflow_mapping_acceptance must define AC-$forgeflow_mapping_ac_number exactly once"
+    fi
+
+    if [ "$forgeflow_mapping_test_count" -lt 1 ]; then
+      fail "$forgeflow_mapping_tests must map $forgeflow_mapping_prefix-AC-$forgeflow_mapping_ac_number"
+    fi
+  done
+}
+
 check_acceptance_headings() {
   forgeflow_heading_file=$1
   forgeflow_heading_label=$2
@@ -133,6 +160,7 @@ for forgeflow_required_file in \
   docs/releases/0.5.2.md \
   docs/releases/0.6.0.md \
   docs/releases/0.7.0.md \
+  docs/releases/0.8.0.md \
   docs/releasing.md \
   examples/typescript/Makefile \
   examples/typescript/scripts/check-traceability.sh \
@@ -151,7 +179,9 @@ for forgeflow_required_file in \
   tests/review-integrity.sh \
   specs/stories/FF-216-review-integrity-and-state-consistency/story.md \
   specs/stories/FF-216-review-integrity-and-state-consistency/acceptance.md \
-  specs/stories/FF-216-review-integrity-and-state-consistency/task.md
+  specs/stories/FF-216-review-integrity-and-state-consistency/task.md \
+  specs/stories/P0-001-remove-mutable-lifecycle-state/story.md \
+  specs/stories/P0-001-remove-mutable-lifecycle-state/acceptance.md
 do
   if [ ! -s "$forgeflow_repo/$forgeflow_required_file" ]; then
     fail "required artifact is missing or empty: $forgeflow_required_file"
@@ -529,7 +559,7 @@ fi
 
 forgeflow_story_contract_acceptance="$forgeflow_repo/specs/stories/FF-208-security-fixture-matrix/acceptance.md"
 forgeflow_story_contract_tests="$forgeflow_repo/tests/story-check.sh"
-forgeflow_handoff_acceptance="$forgeflow_repo/specs/stories/FF-209-handoff-contract/acceptance.md"
+forgeflow_handoff_acceptance="$forgeflow_repo/specs/stories/P0-001-remove-mutable-lifecycle-state/acceptance.md"
 forgeflow_handoff_tests="$forgeflow_repo/tests/handoff-check.sh"
 forgeflow_review_integrity_acceptance="$forgeflow_repo/specs/stories/FF-216-review-integrity-and-state-consistency/acceptance.md"
 forgeflow_review_integrity_tests="$forgeflow_repo/tests/review-integrity.sh"
@@ -538,9 +568,9 @@ check_acceptance_mapping \
   "$forgeflow_story_contract_acceptance" "$forgeflow_story_contract_tests" \
   001 002 003 004 005 006 007 008 009 010 011 012
 
-check_acceptance_mapping \
-  "$forgeflow_handoff_acceptance" "$forgeflow_handoff_tests" \
-  001 002 003 004 005 006 007 008 009 010
+check_prefixed_acceptance_mapping \
+  "$forgeflow_handoff_acceptance" "$forgeflow_handoff_tests" P0001 \
+  002 006 008
 
 check_acceptance_mapping \
   "$forgeflow_review_integrity_acceptance" "$forgeflow_review_integrity_tests" \
@@ -576,9 +606,9 @@ grep -Fq '[Contract checks](docs/contract-checks.md)' \
   "$forgeflow_repo/README.md" ||
   fail 'README does not link to the contract check documentation'
 
-grep -Fq '[Handoff Contract](handoff.md)' \
+grep -Fq '[Handoff Evidence Contract](handoff.md)' \
   "$forgeflow_repo/protocol/lifecycle.md" ||
-  fail 'lifecycle does not link to the Handoff Contract'
+  fail 'lifecycle does not link to the Handoff Evidence Contract'
 
 for forgeflow_story_contract_term in \
   '## Classification' \
@@ -609,13 +639,13 @@ do
 done
 
 for forgeflow_handoff_document_term in \
-  'current_story' \
-  'next_story' \
-  'completed_stories' \
-  'dirty_worktree' \
-  'story_owned_paths' \
-  'known_unrelated_paths' \
-  'last_command'
+  'handoff:' \
+  'story:' \
+  'recorded_at:' \
+  'repository:' \
+  'revision:' \
+  'command:' \
+  'result:'
 do
   grep -Fq -- "$forgeflow_handoff_document_term" \
     "$forgeflow_repo/protocol/handoff.md" ||
@@ -624,6 +654,22 @@ do
   grep -Fq -- "$forgeflow_handoff_document_term" \
     "$forgeflow_repo/templates/handoff.md" ||
     fail "handoff template is missing: $forgeflow_handoff_document_term"
+done
+
+for forgeflow_forbidden_handoff_term in \
+  'current_story:' \
+  'next_story:' \
+  'completed_stories:' \
+  'dirty_worktree:' \
+  'story_owned_paths:' \
+  'known_unrelated_paths:' \
+  'last_command:'
+do
+  if grep -Fq -- "$forgeflow_forbidden_handoff_term" \
+    "$forgeflow_repo/protocol/handoff.md" \
+    "$forgeflow_repo/templates/handoff.md"; then
+    fail "active handoff documents persist mutable state: $forgeflow_forbidden_handoff_term"
+  fi
 done
 
 for forgeflow_handoff_result_term in \
@@ -688,7 +734,7 @@ guidance_contract_and_agent_flow_are_documented() {
 }
 
 guidance_authority_and_version_boundaries_are_documented() {
-  grep -Fq 'Intent != Guidance != Verification != Approval' \
+  grep -Fq 'Intent != Guidance != Verification != Current State != Approval' \
     "$forgeflow_repo/docs/concepts.md" || fail 'concepts omits Guidance boundary'
   grep -Fq '**Additive** for `0.4.1`' "$forgeflow_repo/protocol/versioning.md" ||
     fail 'versioning omits FF-223 additive classification'
@@ -746,9 +792,6 @@ the_story_id_grammar_is_breaking_for_0_6_0() {
 }
 
 configurable_decision_root_is_additive_for_0_7_0() {
-  grep -Fqx '0.7.0' "$forgeflow_repo/VERSION" ||
-    fail 'VERSION is not 0.7.0'
-
   grep -Fq 'FF-228 configurable decision root is **Additive** for `0.7.0`' \
     "$forgeflow_repo/protocol/versioning.md" ||
     fail 'versioning omits the FF-228 Additive classification'
@@ -770,11 +813,70 @@ configurable_decision_root_is_additive_for_0_7_0() {
     fail 'Story template omits the risk-reason shape'
 }
 
+mutable_lifecycle_state_is_removed_for_0_8_0() {
+  grep -Fqx '0.8.0' "$forgeflow_repo/VERSION" ||
+    fail 'VERSION is not 0.8.0'
+
+  for forgeflow_authority_document in \
+    protocol/handoff.md \
+    protocol/lifecycle.md \
+    protocol/story.md \
+    README.md \
+    templates/AGENTS.md \
+    skills/forgeflow/SKILL.md \
+    skills/story-development/SKILL.md
+  do
+    grep -Fq 'control plane' "$forgeflow_repo/$forgeflow_authority_document" ||
+      fail "$forgeflow_authority_document omits the control-plane authority seam"
+  done
+
+  for forgeflow_migration_document in \
+    protocol/versioning.md \
+    docs/upgrading.md \
+    docs/releases/0.8.0.md
+  do
+    grep -Fq '0.8.0' "$forgeflow_repo/$forgeflow_migration_document" ||
+      fail "$forgeflow_migration_document omits the 0.8.0 migration"
+  done
+
+  grep -Fq 'P0-001 is **Breaking** for `0.8.0`' \
+    "$forgeflow_repo/protocol/versioning.md" ||
+    fail 'versioning omits the P0-001 Breaking classification'
+  grep -Fq 'does not store what state the work is currently in' \
+    "$forgeflow_repo/README.md" ||
+    fail 'README omits the final authority principle'
+  grep -Fq 'not persisted ForgeFlow repository state' \
+    "$forgeflow_repo/protocol/lifecycle.md" ||
+    fail 'lifecycle does not disclaim repository state persistence'
+  for forgeflow_story_note_rule in \
+    'not authoritative lifecycle state' \
+    'select work or infer a transition'
+  do
+    grep -Fq "$forgeflow_story_note_rule" \
+      "$forgeflow_repo/protocol/story.md" ||
+      fail 'Story Contract does not protect optional task notes'
+  done
+
+  if grep -Fq 'ForgePilot' \
+    "$forgeflow_repo/scripts/story-check" \
+    "$forgeflow_repo/scripts/handoff-check" \
+    "$forgeflow_repo/scripts/doctor" \
+    "$forgeflow_repo/scripts/bootstrap" \
+    "$forgeflow_repo/Makefile"; then
+    fail 'ForgeFlow executable gates must not depend on ForgePilot'
+  fi
+}
+
 run_case 'FF223-AC-001' guidance_baseline_artifacts_are_selective_and_advisory
 run_case 'FF223-AC-005' guidance_contract_and_agent_flow_are_documented
 run_case 'FF223-AC-008' guidance_authority_and_version_boundaries_are_documented
 run_case 'FF227-AC-002' one_story_id_grammar_is_stated_where_a_story_is_named
 run_case 'FF227-AC-006' the_story_id_grammar_is_breaking_for_0_6_0
 run_case 'FF228-AC-005' configurable_decision_root_is_additive_for_0_7_0
+run_case 'P0001-AC-001' mutable_lifecycle_state_is_removed_for_0_8_0
+run_case 'P0001-AC-003' mutable_lifecycle_state_is_removed_for_0_8_0
+run_case 'P0001-AC-004' mutable_lifecycle_state_is_removed_for_0_8_0
+run_case 'P0001-AC-005' mutable_lifecycle_state_is_removed_for_0_8_0
+run_case 'P0001-AC-007' mutable_lifecycle_state_is_removed_for_0_8_0
 
 printf 'protocol tests passed\n'

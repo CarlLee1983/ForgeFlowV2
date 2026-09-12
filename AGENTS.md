@@ -16,7 +16,9 @@ For implementation work:
 2. Read its acceptance criteria.
 3. Read `guidance/ENTRY.md` when it exists, then load only the guidance relevant
    to the Story.
-4. Read `specs/handoff.md` for the current lifecycle state and baseline.
+4. Resolve current work from the human request or an external control plane
+   when one is present. Read `specs/handoff.md` only as immutable historical
+   evidence; never infer current lifecycle state from it.
 5. Inspect relevant existing code.
 6. Implement the smallest coherent change.
 7. Add or update tests, mapping each case to the acceptance criterion it covers.
@@ -106,8 +108,9 @@ Report:
 * assumptions
 * remaining risks
 
-When work changes hands, update `specs/handoff.md`: exactly one current Story,
-exactly one next Story or `pending`, completed Story IDs, the repository
-baseline, and the last verification command and result. A dirty work tree must
-attribute every dirty path. Never leave the next Story to be inferred from list
-order.
+When work changes hands, report the result to the human or external control plane
+that owns mutable lifecycle state. A repository handoff is optional,
+immutable historical evidence only; create one only when its Story, UTC time,
+repository, exact committed revision, command, and observed result are known.
+Never write current/next/status/Gate/completion state into ForgeFlow files or
+attach dirty-worktree verification to an unchanged HEAD revision.

@@ -1,77 +1,85 @@
-# Handoff Contract
+# Handoff Evidence Contract
 
-A handoff is what one human or agent leaves for the next one. It is optional
-until work actually changes hands; once it exists, its lifecycle statement is
-machine-readable so that no consumer has to infer the next Story from list
-order, ordering conventions, or narrative text.
+A handoff records what was true at one point in time so another human or agent
+can understand the execution context later. It is optional historical evidence,
+not an authoritative source for current work, lifecycle state, blockers, next
+actions, review state, or completion state.
 
-## Location
+ForgeFlow owns this evidence interface. When an external control plane is
+present, that system is authoritative for mutable lifecycle state. ForgePilot is
+one example; ForgeFlow does not require, detect, or call it.
 
-Store the handoff at `specs/handoff.md`, or pass another path to the checker.
-Prose context belongs in the file around the block and is ignored by the
-contract check.
+## Location and immutability
 
-## Lifecycle block
+`scripts/handoff-check` defaults to `specs/handoff.md` and accepts another path.
+A repository may instead keep separately named records under `specs/handoffs/`.
+Prose context belongs around the block and is ignored by the checker.
 
-The file contains exactly one fenced `yaml` block holding three sections:
+One file carries one point-in-time record. Once versioned, the record is not
+edited to describe newer state; a later event gets another record and revision.
+VCS history preserves earlier versions of a conventional `specs/handoff.md`
+during migration. Immutability is a property of the recorded facts and
+repository history, not something the static checker can prove.
+
+## Evidence block
+
+The file contains exactly one fenced `yaml` block with two sections:
 
 ```yaml
-workflow:
-  current_story: ABC-005
-  next_story: ABC-006
-  completed_stories:
-    - ABC-004
-  status: ready_for_implementation
-
-baseline:
+handoff:
+  story: ABC-005
+  recorded_at: 2026-09-12T02:30:00Z
   repository: owner/repository
-  branch: main
-  commit: 0000000000000000000000000000000000000000
-  dirty_worktree: true
-  story_owned_paths:
-    - src/guard.ts
-  known_unrelated_paths:
-    - docs/notes.md
+  revision: 0123456789abcdef0123456789abcdef01234567
 
 verification:
-  last_command: make verify
+  command: make verify
   result: pass
 ```
 
 | Field | Meaning |
 | --- | --- |
-| `workflow.current_story` | One Story ID, or `none` when no Story is active |
-| `workflow.next_story` | One Story ID, or `pending` when selection has not been made |
-| `workflow.completed_stories` | Completed Story IDs, recorded separately from candidates |
-| `workflow.status` | One lowercase [lifecycle state](lifecycle.md) |
-| `baseline.repository` | The target repository |
-| `baseline.branch` | The baseline branch |
-| `baseline.commit` | The full 40-character baseline commit SHA |
-| `baseline.dirty_worktree` | `true` or `false` |
-| `baseline.story_owned_paths` | Working-tree paths the Story owns |
-| `baseline.known_unrelated_paths` | Working-tree paths the Story does not own |
-| `verification.last_command` | The last authoritative verification command |
-| `verification.result` | `pass`, `fail`, or `not_run` |
+| `handoff.story` | The Story whose execution context was recorded |
+| `handoff.recorded_at` | Recording time in UTC seconds as `YYYY-MM-DDTHH:MM:SSZ` |
+| `handoff.repository` | The repository in which the observation was made |
+| `handoff.revision` | The exact full 40-character lowercase commit SHA observed |
+| `verification.command` | The command whose point-in-time result is recorded |
+| `verification.result` | The observed result: `pass`, `fail`, or `not_run` |
 
 A Story ID is hyphen-separated segments of uppercase letters and digits:
 the first segment starts with an uppercase letter,
 each middle segment has an uppercase letter,
-and the last segment is digits.
-`FF-209` and `DBCLI-PLAT-001` conform; `FF-1-2` does not, because a bare
-number is not a subsystem name. `scripts/story-check` and
-`scripts/handoff-check` enforce this same grammar.
+and the last segment is digits. `FF-209` and
+`DBCLI-PLAT-001` conform; `FF-1-2` does not, because a bare number is not a
+subsystem name. `scripts/story-check` and `scripts/handoff-check` enforce this
+same grammar.
 
-An empty list is written as `[]`.
+## Authority rules
 
-## Rules
-
-- Exactly one current Story is stated, or `none`. Exactly one next Story is
-  stated, or `pending`. Candidates are recorded as prose, never as `next_story`.
-- Completed Story IDs are unique and never overlap the current or next Story.
-- A dirty worktree declares both path lists, attributes at least one path to the
-  Story, and records no path as both Story-owned and unrelated.
-- A `review` or `done` status requires a last verification result of `pass`.
-- Contradictory lifecycle statements are rejected rather than repaired.
+- Each section and field above appears exactly once; unknown sections, keys,
+  and lists are rejected.
+- This is a line-oriented restricted YAML subset. Each field is one single-line
+  lexical value, introduced by exactly one ASCII space after `:`; `story`,
+  `recorded_at`, `revision`, and `result` use their exact grammars above.
+  `repository` and `command` use one unquoted, non-null string-like plain
+  scalar. YAML null, boolean, numeric, and special
+  floating-point forms; flow collections; quoted scalars; tags; anchors;
+  aliases; block scalars; and inline comments are rejected for those generic
+  fields. Embedded YAML line breaks (CR, NEL, line separator, or paragraph
+  separator) are rejected on every source line before Markdown fences,
+  comments, or fields are interpreted; a line-ending carriage return in CRLF
+  input is normalized.
+  Whole-line comments are ignored.
+- The evidence block never contains `workflow`, `current_story`, `next_story`,
+  `completed_stories`, lifecycle `status`, Gate state, current revision, latest
+  verification, or another mutable-state projection.
+- A record states only what was observed at its `recorded_at` time and exact
+  `revision`. It does not say that the Story or verification has that state now.
+- An uncommitted worktree cannot be represented by a commit SHA. Do not attach
+  its verification result to the unchanged HEAD revision; keep current
+  verification in the control plane or wait for an exact immutable revision.
+- ForgeFlow tooling never infers current work or a lifecycle transition from a
+  handoff record or its prose.
 
 ## Checking the contract
 
@@ -80,11 +88,12 @@ An empty list is written as `[]`.
 ```
 
 The check is static and read-only. It exits `0` for `HANDOFF_CONTRACT_OK`, `1`
-for `HANDOFF_CONTRACT_INCOMPLETE`, and `2` for an operational error. It records
-what the last verification claimed; it never runs verification, edits the
-handoff, or authorizes a merge. Use
-[the handoff template](../templates/handoff.md) as the canonical layout.
+for `HANDOFF_CONTRACT_INCOMPLETE`, and `2` for an operational error. It
+validates timestamp syntax and component ranges, not clock truth, and it does
+not prove that the revision exists or that the command ran. It never edits the
+record, runs verification, advances a lifecycle state, or authorizes a merge.
+Use [the handoff template](../templates/handoff.md) as the canonical layout.
 
-Remote tag, Release, and CI state is time-sensitive evidence. A handoff may
-record a historical fact, but it is not the long-term source of truth for
-current remote state; query the remote when that evidence is needed.
+Remote tags, releases, CI, and control-plane state are time-sensitive. Record a
+historical observation when it matters and query the owning system whenever the
+current fact is needed.

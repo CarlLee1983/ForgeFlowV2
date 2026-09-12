@@ -1,9 +1,16 @@
 # Story Lifecycle
 
-ForgeFlow uses lifecycle states as a shared vocabulary. They are conceptual
-only: repositories do not need a workflow engine, state database, or agent
-orchestrator. The current protocol version is recorded in
-[`VERSION`](../VERSION).
+ForgeFlow uses lifecycle states and transitions as shared protocol vocabulary.
+They define what state names mean, but they are not persisted ForgeFlow repository state.
+A repository does not synchronize a current status in a
+Story, acceptance file, task note, or handoff, and it does not need a workflow
+engine, state database, or agent orchestrator. The current protocol version is
+recorded in [`VERSION`](../VERSION).
+
+When an external control plane is present, it is authoritative for current
+work, lifecycle state, blockers or Gates, next action, review state,
+verification-current state, and completion state. ForgePilot is one example;
+ForgeFlow neither depends on nor detects a control plane.
 
 ```text
 DRAFT → READY → IMPLEMENTING → VERIFYING → REVIEW → DONE
@@ -66,6 +73,7 @@ what `make verify` passing has to mean before REVIEW begins. See
 
 ## Handing work over
 
-When work changes hands, the state is recorded in a handoff whose lifecycle
-block states the current Story, the next Story, the repository baseline, and the
-last verification result. See the [Handoff Contract](handoff.md).
+When historical execution context is useful, a handoff may preserve one
+point-in-time observation anchored to a Story, time, repository revision, and
+verification result. It does not persist or imply the current lifecycle state.
+See the [Handoff Evidence Contract](handoff.md).

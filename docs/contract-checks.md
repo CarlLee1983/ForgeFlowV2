@@ -199,27 +199,43 @@ line is malformed and reports that shape.
 ```
 
 The handoff file defaults to `specs/handoff.md`. The check enforces the
-[Handoff Contract](../protocol/handoff.md): exactly one lifecycle block, exactly
-one current Story or `none`, exactly one next Story or `pending`, separately
-recorded completed Story IDs, a full baseline commit SHA, dirty-worktree path
-attribution with at least one Story-owned path, and the last authoritative
-verification command and result.
-Contradictory statements — the same Story as current and next, a current or next
-Story also recorded as completed, an active status with no current Story, or a
-`review` or `done` status whose last verification did not pass — are rejected
-rather than repaired.
+[Handoff Evidence Contract](../protocol/handoff.md): exactly one evidence block,
+one `handoff` section, one `verification` section, and one value for each of
+`story`, `recorded_at`, `repository`, `revision`, `command`, and `result`.
+Story IDs use the shared grammar, recording time uses UTC seconds in
+`YYYY-MM-DDTHH:MM:SSZ` form, revision is a full lowercase commit SHA, and result
+is `pass`, `fail`, or `not_run`.
+
+Unknown or repeated fields are rejected. Legacy `workflow` and `baseline`
+sections are rejected rather than retained as a compatibility state database.
+Current or next work, lifecycle status, completed work, Gates, review state,
+and completion state belong to the external control plane when one is present.
+ForgeFlow does not require such a control plane and does not infer current state
+from handoff prose.
+
+The supported YAML subset is intentionally line-oriented and lexical. Each
+field is one single-line value introduced by exactly one ASCII space after
+the field's `:`; Story ID, time, revision, and result use their documented
+exact grammars. Repository and command are unquoted, non-null
+string-like plain scalars. YAML null, boolean, numeric, and special
+floating-point forms; flow collections; quoted scalars; tags; anchors; aliases;
+block scalars; and inline comments are rejected for those generic fields rather
+than misread as text. Embedded YAML line breaks (CR, NEL, line separator, or
+paragraph separator) are rejected on every source line before Markdown fences,
+comments, or fields are interpreted; line-ending carriage returns in CRLF input
+are normalized. Prose outside the block and whole-line comments inside it are
+ignored.
 
 | Result | Exit | Meaning |
 | --- | --- | --- |
-| `HANDOFF_CONTRACT_OK` | `0` | The lifecycle block is complete and self-consistent. |
-| `HANDOFF_CONTRACT_INCOMPLETE` | `1` | A statement is missing, malformed, or contradictory. |
+| `HANDOFF_CONTRACT_OK` | `0` | The point-in-time evidence block is structurally complete. |
+| `HANDOFF_CONTRACT_INCOMPLETE` | `1` | A section or field is missing, repeated, unknown, or malformed. |
 | `ERROR` | `2` | Invalid invocation, or a missing, unreadable, or symlinked handoff. |
 
-`verification.result` records what the last run claimed. The checker does not
-re-run it and does not prove that the recorded command ran. Human Review checks
-that the PASS is genuine and fresh for the implementation under review. A
-stale `pass` is a review concern, not a checker failure. Prose outside the
-block, and comments inside it, are ignored.
+`verification.result` records what was observed at the stated time and
+revision. The checker does not re-run it, prove the revision exists, establish
+clock truth, or prove the record was never edited. Immutability comes from the
+record semantics and VCS history.
 
 ## Composed by Doctor
 

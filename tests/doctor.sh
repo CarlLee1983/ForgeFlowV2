@@ -168,22 +168,14 @@ add_valid_handoff() {
 # Handoff
 
 ```yaml
-workflow:
-  current_story: FF-001
-  next_story: pending
-  completed_stories: []
-  status: implementing
-
-baseline:
+handoff:
+  story: FF-001
+  recorded_at: 2026-09-12T02:30:00Z
   repository: example/repository
-  branch: main
-  commit: 0123456789abcdef0123456789abcdef01234567
-  dirty_worktree: false
-  story_owned_paths: []
-  known_unrelated_paths: []
+  revision: 0123456789abcdef0123456789abcdef01234567
 
 verification:
-  last_command: make verify
+  command: make verify
   result: not_run
 ```
 FORGEFLOW_HANDOFF
@@ -877,7 +869,7 @@ incomplete_stories_are_drift_without_changing_the_exit_status() {
 an_incomplete_handoff_is_drift() {
   forgeflow_fixture="$forgeflow_test_dir/contract-handoff-drift"
   create_adopted_fixture "$forgeflow_fixture"
-  printf '# Handoff\n\nNo lifecycle block.\n' \
+  printf '# Handoff\n\nNo evidence block.\n' \
     >"$forgeflow_fixture/specs/handoff.md"
 
   run_doctor "$forgeflow_fixture"

@@ -35,10 +35,8 @@ run_handoff_check() {
     forgeflow_command_status=$?
   fi
 
-  for forgeflow_forbidden_claim in APPROVED MERGE_ALLOWED
-  do
-    if grep -Fq -- "$forgeflow_forbidden_claim" "$forgeflow_command_output"
-    then
+  for forgeflow_forbidden_claim in APPROVED MERGE_ALLOWED; do
+    if grep -Fq -- "$forgeflow_forbidden_claim" "$forgeflow_command_output"; then
       fail "handoff check emitted forbidden claim: $forgeflow_forbidden_claim"
     fi
   done
@@ -56,19 +54,38 @@ new_handoff() {
   forgeflow_handoff_file="$forgeflow_test_dir/$forgeflow_case_id-$1.md"
 
   cat >"$forgeflow_handoff_file" <<'FORGEFLOW_FIXTURE'
-# ForgeFlow Handoff
+# ForgeFlow Handoff Evidence
 
 Prose context that the contract check ignores.
 
-## Lifecycle
+## Evidence
+
+```yaml
+handoff:
+  story: TST-005
+  recorded_at: 2026-09-12T02:30:00Z
+  repository: example/repository
+  revision: 0123456789abcdef0123456789abcdef01234567
+
+verification:
+  command: make verify
+  result: pass
+```
+FORGEFLOW_FIXTURE
+}
+
+new_legacy_handoff() {
+  forgeflow_handoff_file="$forgeflow_test_dir/$forgeflow_case_id-legacy.md"
+
+  cat >"$forgeflow_handoff_file" <<'FORGEFLOW_FIXTURE'
+# Legacy ForgeFlow Handoff
 
 ```yaml
 workflow:
   current_story: TST-005
-  next_story: TST-006
-  completed_stories:
-    - TST-004
-  status: ready_for_implementation
+  next_story: pending
+  completed_stories: []
+  status: implementing
 
 baseline:
   repository: example/repository
@@ -80,7 +97,7 @@ baseline:
 
 verification:
   last_command: make verify
-  result: pass
+  result: not_run
 ```
 FORGEFLOW_FIXTURE
 }
@@ -106,156 +123,245 @@ forgeflow_repo=$(
 )
 forgeflow_handoff_check="$forgeflow_repo/scripts/handoff-check"
 
-complete_handoff_passes() {
-  new_handoff ok
+complete_evidence_passes_without_current_state_claims() {
+  new_handoff complete
   run_handoff_check "$forgeflow_handoff_file"
+
   assert_status 0
   assert_output_contains 'Result: HANDOFF_CONTRACT_OK'
-  assert_output_contains 'current Story: TST-005'
-  assert_output_contains 'next Story: TST-006'
-  assert_output_contains 'completed Stories: 1'
-  assert_output_contains 'example/repository main'
-  assert_output_contains 'make verify pass'
+  assert_output_contains 'Story evidence: TST-005'
+  assert_output_contains 'recorded at: 2026-09-12T02:30:00Z'
+  assert_output_contains 'example/repository 0123456789abcdef0123456789abcdef01234567'
+  assert_output_contains 'verification evidence: make verify pass'
+  assert_output_contains 'Historical evidence only.'
+
+  for forgeflow_mutable_claim in \
+    'current Story:' \
+    'next Story:' \
+    'completed Stories:' \
+    'lifecycle status:' \
+    'Gate state:' \
+    'review state:' \
+    'completion state:'
+  do
+    assert_output_excludes "$forgeflow_mutable_claim"
+  done
 }
 
-inactive_handoff_states_absence_explicitly() {
-  new_handoff inactive
-  edit_handoff 's/current_story: TST-005/current_story: none/'
-  edit_handoff 's/next_story: TST-006/next_story: pending/'
-  edit_handoff 's/status: ready_for_implementation/status: draft/'
+required_evidence_is_single_and_explicit() {
+  new_handoff no-story
+  edit_handoff '/story: TST-005/d'
   run_handoff_check "$forgeflow_handoff_file"
-  assert_status 0
-  assert_output_contains 'current Story: none'
-  assert_output_contains 'next Story: pending'
+  assert_status 1
+  assert_output_contains 'handoff is missing: handoff.story'
+
+  new_handoff repeated-time
+  edit_handoff 's/  recorded_at: 2026-09-12T02:30:00Z/  recorded_at: 2026-09-12T02:30:00Z\
+  recorded_at: 2026-09-12T02:31:00Z/'
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 1
+  assert_output_contains 'handoff declares handoff.recorded_at more than once'
+
+  new_handoff repeated-section
+  edit_handoff 's/^verification:/handoff:\
+\
+verification:/'
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 1
+  assert_output_contains 'evidence block must declare the handoff section exactly once'
+
+  new_handoff missing-section
+  edit_handoff '/^verification:$/d'
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 1
+  assert_output_contains 'evidence block must declare the verification section exactly once'
+
+  new_handoff no-verification
+  edit_handoff '/command: make verify/d'
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 1
+  assert_output_contains 'handoff is missing: verification.command'
+
+  new_handoff blank-repository
+  edit_handoff 's|repository: example/repository|repository:|'
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 1
+  assert_output_contains 'handoff.repository must be one non-null unquoted plain scalar'
 }
 
-current_and_next_story_are_single_and_explicit() {
-  new_handoff no-next
-  edit_handoff '/next_story: TST-006/d'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 1
-  assert_output_contains 'handoff is missing: workflow.next_story'
+timestamp_and_result_forms_are_validated() {
+  for forgeflow_bad_timestamp in \
+    '2026-13-12T02:30:00Z' \
+    '2026-09-00T02:30:00Z' \
+    '2026-09-12T24:30:00Z' \
+    '2026-09-12T02:60:00Z' \
+    '2026-09-12T02:30:00+00:00'
+  do
+    new_handoff bad-time
+    edit_handoff "s/recorded_at: .*/recorded_at: $forgeflow_bad_timestamp/"
+    run_handoff_check "$forgeflow_handoff_file"
+    assert_status 1
+    assert_output_contains 'handoff.recorded_at must be YYYY-MM-DDTHH:MM:SSZ in UTC'
+  done
 
-  new_handoff repeated-current
-  edit_handoff 's/current_story: TST-005/current_story: TST-005\
-  current_story: TST-007/'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 1
-  assert_output_contains 'declares workflow.current_story more than once'
-
-  new_handoff inferred-next
-  edit_handoff 's/next_story: TST-006/next_story: see the candidate list/'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 1
-  assert_output_contains 'workflow.next_story must be one Story ID or pending'
-}
-
-completed_stories_are_recorded_separately() {
-  new_handoff duplicate-completed
-  edit_handoff 's/    - TST-004/    - TST-004\
-    - TST-004/'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 1
-  assert_output_contains 'completed Story IDs must be unique'
-
-  new_handoff prose-completed
-  edit_handoff 's/    - TST-004/    - the earlier refactor/'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 1
-  assert_output_contains 'completed Story is not a Story ID'
-}
-
-baseline_identity_is_required() {
-  new_handoff short-commit
-  edit_handoff 's/commit: 0123456789abcdef0123456789abcdef01234567/commit: 0123456/'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 1
-  assert_output_contains 'baseline.commit must be a full 40-character commit SHA'
-
-  new_handoff no-branch
-  edit_handoff '/branch: main/d'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 1
-  assert_output_contains 'handoff is missing: baseline.branch'
-
-  new_handoff bad-dirty
-  edit_handoff 's/dirty_worktree: false/dirty_worktree: maybe/'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 1
-  assert_output_contains 'baseline.dirty_worktree must be true or false'
-}
-
-dirty_worktree_requires_path_attribution() {
-  new_handoff dirty-missing-paths
-  edit_handoff 's/dirty_worktree: false/dirty_worktree: true/'
-  edit_handoff '/story_owned_paths: \[\]/d'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 1
-  assert_output_contains 'a dirty worktree must declare baseline.story_owned_paths'
-
-  new_handoff dirty-conflicting-paths
-  edit_handoff 's/dirty_worktree: false/dirty_worktree: true/'
-  edit_handoff 's|  story_owned_paths: \[\]|  story_owned_paths:\
-    - src/guard.ts|'
-  edit_handoff 's|  known_unrelated_paths: \[\]|  known_unrelated_paths:\
-    - src/guard.ts|'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 1
-  assert_output_contains 'path is both Story-owned and unrelated: src/guard.ts'
-
-  new_handoff dirty-empty-paths
-  edit_handoff 's/dirty_worktree: false/dirty_worktree: true/'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 1
-  assert_output_contains 'must attribute at least one path to the Story'
-
-  new_handoff repeated-paths
-  edit_handoff 's|  story_owned_paths: \[\]|  story_owned_paths: []\
-  story_owned_paths: []|'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 1
-  assert_output_contains 'declares baseline.story_owned_paths more than once'
-}
-
-verification_state_is_required() {
   new_handoff bad-result
   edit_handoff 's/result: pass/result: probably/'
   run_handoff_check "$forgeflow_handoff_file"
   assert_status 1
   assert_output_contains 'verification.result must be pass, fail, or not_run'
 
-  new_handoff no-command
-  edit_handoff '/last_command: make verify/d'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 1
-  assert_output_contains 'handoff is missing: verification.last_command'
+  for forgeflow_result_value in pass fail not_run; do
+    new_handoff "result-$forgeflow_result_value"
+    edit_handoff "s/result: pass/result: $forgeflow_result_value/"
+    run_handoff_check "$forgeflow_handoff_file"
+    assert_status 0
+  done
 }
 
-contradictory_lifecycle_states_are_rejected() {
-  new_handoff same-story
-  edit_handoff 's/next_story: TST-006/next_story: TST-005/'
+mutable_lifecycle_and_unknown_fields_are_rejected() {
+  new_legacy_handoff
   run_handoff_check "$forgeflow_handoff_file"
   assert_status 1
-  assert_output_contains 'the same Story cannot be both current and next'
+  assert_output_contains 'mutable lifecycle section is forbidden: workflow'
+  assert_output_contains 'mutable lifecycle section is forbidden: baseline'
+  assert_output_contains 'mutable lifecycle evidence is forbidden: workflow.current_story'
+  assert_output_excludes 'Result: HANDOFF_CONTRACT_OK'
 
-  new_handoff completed-and-next
-  edit_handoff 's/next_story: TST-006/next_story: TST-004/'
+  new_handoff current-status
+  edit_handoff 's/  story: TST-005/  story: TST-005\
+  current_status: implementing/'
   run_handoff_check "$forgeflow_handoff_file"
   assert_status 1
-  assert_output_contains 'next Story is also recorded as completed: TST-004'
+  assert_output_contains 'unknown handoff evidence key: handoff.current_status'
 
-  new_handoff active-without-current
-  edit_handoff 's/current_story: TST-005/current_story: none/'
+  new_handoff current-revision
+  edit_handoff 's/  revision: /  current_revision: current\
+  revision: /'
   run_handoff_check "$forgeflow_handoff_file"
   assert_status 1
-  assert_output_contains 'status ready_for_implementation requires an explicit current Story'
+  assert_output_contains 'unknown handoff evidence key: handoff.current_revision'
 
-  new_handoff reviewed-but-failing
-  edit_handoff 's/status: ready_for_implementation/status: review/'
-  edit_handoff 's/result: pass/result: fail/'
+  new_handoff unknown-section
+  edit_handoff 's/^verification:/gates:\
+  open: GATE-1\
+\
+verification:/'
   run_handoff_check "$forgeflow_handoff_file"
   assert_status 1
-  assert_output_contains 'status review contradicts verification result fail'
+  assert_output_contains 'unknown handoff evidence section: gates'
+}
+
+non_string_yaml_forms_and_inline_comments_are_rejected() {
+  new_handoff flow-map
+  edit_handoff 's|repository: example/repository|repository: {name: example/repository, current_story: TST-999}|'
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 1
+  assert_output_contains 'handoff.repository must be one non-null unquoted plain scalar'
+  assert_output_excludes 'Result: HANDOFF_CONTRACT_OK'
+
+  new_handoff flow-sequence
+  edit_handoff 's|command: make verify|command: [make, verify, {status: implementing}]|'
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 1
+  assert_output_contains 'verification.command must be one non-null unquoted plain scalar'
+
+  for forgeflow_extra_space_value in \
+    '{"current_story":"TST-999","status":"implementing"}' \
+    '[make, verify]' \
+    null \
+    '"make verify"' \
+    '|'
+  do
+    new_handoff extra-separator-space
+    edit_handoff "s@command: make verify@command:  $forgeflow_extra_space_value@"
+    run_handoff_check "$forgeflow_handoff_file"
+    assert_status 1
+    assert_output_contains 'handoff evidence value must follow exactly one separator space: verification.command'
+    assert_output_excludes 'Result: HANDOFF_CONTRACT_OK'
+  done
+
+  for forgeflow_bad_repository in null false 123 '|'; do
+    new_handoff non-string-repository
+    edit_handoff "s@repository: example/repository@repository: $forgeflow_bad_repository@"
+    run_handoff_check "$forgeflow_handoff_file"
+    assert_status 1
+    assert_output_contains 'handoff.repository must be one non-null unquoted plain scalar'
+  done
+
+  for forgeflow_bad_command in \
+    '!!str make verify' \
+    '&verify make verify' \
+    '*verify' \
+    '"make verify"' \
+    'make verify # current result'
+  do
+    new_handoff unsupported-command
+    edit_handoff "s|command: make verify|command: $forgeflow_bad_command|"
+    run_handoff_check "$forgeflow_handoff_file"
+    assert_status 1
+    assert_output_contains 'verification.command must be one non-null unquoted plain scalar'
+  done
+
+  for forgeflow_bad_indicator in '-' '?' ':' 'make verify:'; do
+    new_handoff invalid-indicator
+    edit_handoff "s|command: make verify|command: $forgeflow_bad_indicator|"
+    run_handoff_check "$forgeflow_handoff_file"
+    assert_status 1
+    assert_output_contains 'verification.command must be one non-null unquoted plain scalar'
+  done
+
+  new_handoff whole-line-comment
+  edit_handoff 's/  story: TST-005/  # Historical context only.\
+  story: TST-005/'
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 0
+  assert_output_contains 'Result: HANDOFF_CONTRACT_OK'
+
+  forgeflow_embedded_cr=$(printf '\r')
+  forgeflow_embedded_nel=$(printf '\302\205')
+  forgeflow_embedded_ls=$(printf '\342\200\250')
+  forgeflow_embedded_ps=$(printf '\342\200\251')
+
+  for forgeflow_embedded_line_break in \
+    "$forgeflow_embedded_cr" \
+    "$forgeflow_embedded_nel" \
+    "$forgeflow_embedded_ls" \
+    "$forgeflow_embedded_ps"
+  do
+    new_handoff embedded-yaml-line-break
+    edit_handoff "s@command: make verify@command: ${forgeflow_embedded_line_break}    {current_story: TST-999, status: implementing}@"
+    assert_same_verdict_without_utilities "$forgeflow_handoff_file"
+    assert_status 1
+    assert_output_contains 'handoff source line contains an embedded YAML line break'
+    assert_output_excludes 'Result: HANDOFF_CONTRACT_OK'
+
+    new_handoff comment-prefixed-yaml-line-break
+    edit_handoff "s@^handoff:@# Historical context${forgeflow_embedded_line_break}workflow: {current_story: TST-999, status: implementing}\\
+handoff:@"
+    assert_same_verdict_without_utilities "$forgeflow_handoff_file"
+    assert_status 1
+    assert_output_contains 'handoff source line contains an embedded YAML line break'
+    assert_output_excludes 'Result: HANDOFF_CONTRACT_OK'
+
+    new_handoff hidden-opener-after-record
+    printf '\nHistorical context%s```yaml\nworkflow:\n  current_story: TST-999\n```\n' \
+      "$forgeflow_embedded_line_break" >>"$forgeflow_handoff_file"
+    assert_same_verdict_without_utilities "$forgeflow_handoff_file"
+    assert_status 1
+    assert_output_contains 'handoff source line contains an embedded YAML line break'
+    assert_output_excludes 'Result: HANDOFF_CONTRACT_OK'
+
+    new_handoff hidden-opener-before-record
+    forgeflow_hidden_prefix="$forgeflow_handoff_file.prefix"
+    printf 'Historical context%s```yaml\nworkflow:\n  current_story: TST-999\n```\n' \
+      "$forgeflow_embedded_line_break" >"$forgeflow_hidden_prefix"
+    cat "$forgeflow_handoff_file" >>"$forgeflow_hidden_prefix"
+    mv "$forgeflow_hidden_prefix" "$forgeflow_handoff_file"
+    assert_same_verdict_without_utilities "$forgeflow_handoff_file"
+    assert_status 1
+    assert_output_contains 'handoff source line contains an embedded YAML line break'
+    assert_output_excludes 'Result: HANDOFF_CONTRACT_OK'
+  done
 }
 
 block_and_invocation_errors_are_distinct() {
@@ -263,21 +369,20 @@ block_and_invocation_errors_are_distinct() {
   edit_handoff 's/```yaml/```text/'
   run_handoff_check "$forgeflow_handoff_file"
   assert_status 1
-  assert_output_contains 'exactly one machine-readable lifecycle block'
+  assert_output_contains 'exactly one machine-readable evidence block'
 
   new_handoff duplicate-source
   cat "$forgeflow_handoff_file" >"$forgeflow_test_dir/$forgeflow_case_id-two.md"
-  cat "$forgeflow_handoff_file" \
-    >>"$forgeflow_test_dir/$forgeflow_case_id-two.md"
+  cat "$forgeflow_handoff_file" >>"$forgeflow_test_dir/$forgeflow_case_id-two.md"
   run_handoff_check "$forgeflow_test_dir/$forgeflow_case_id-two.md"
   assert_status 1
-  assert_output_contains 'exactly one machine-readable lifecycle block'
+  assert_output_contains 'exactly one machine-readable evidence block'
 
   new_handoff unclosed-block
   edit_handoff '/^```$/d'
   run_handoff_check "$forgeflow_handoff_file"
   assert_status 1
-  assert_output_contains 'lifecycle block is not closed'
+  assert_output_contains 'handoff evidence block is not closed'
 
   run_handoff_check --bogus
   assert_status 2
@@ -327,36 +432,15 @@ assert_same_verdict_without_utilities() {
     fail 'an empty PATH changed the output'
 }
 
-the_verdict_does_not_depend_on_external_utilities() {
+verdicts_do_not_depend_on_external_utilities() {
   assert_same_verdict_without_utilities "$forgeflow_repo/specs/handoff.md"
   assert_status 0
   assert_output_contains 'Result: HANDOFF_CONTRACT_OK'
-}
 
-assert_story_id_accepted() {
-  new_handoff "id-ok-$2"
-  edit_handoff "s/current_story: TST-005/current_story: $1/"
-  edit_handoff "s/next_story: TST-006/next_story: pending/"
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 0
-  assert_output_contains "current Story: $1"
-}
-
-assert_story_id_rejected() {
-  new_handoff "id-bad-$2"
-  edit_handoff "s/current_story: TST-005/current_story: $1/"
-  edit_handoff "s/next_story: TST-006/next_story: pending/"
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 1
-  assert_output_contains 'workflow.current_story must be one Story ID or none'
-}
-
-contradictions_and_usage_errors_survive_an_empty_path() {
-  new_handoff empty-path-contradiction
-  edit_handoff 's/next_story: TST-006/next_story: TST-005/'
+  new_legacy_handoff
   assert_same_verdict_without_utilities "$forgeflow_handoff_file"
   assert_status 1
-  assert_output_contains 'the same Story cannot be both current and next'
+  assert_output_contains 'mutable lifecycle section is forbidden: workflow'
 
   assert_same_verdict_without_utilities --unknown
   assert_status 2
@@ -364,13 +448,9 @@ contradictions_and_usage_errors_survive_an_empty_path() {
 }
 
 handoff_check_uses_no_external_utilities() {
-  # Tests may use external commands; the scripts under test may not. This scan
-  # is a tripwire that names the utilities these scripts once used, not proof of
-  # the guarantee: the empty-PATH cases are what establish it. Comment lines are
-  # dropped after numbering so a reported line refers to the file.
   forgeflow_scan_output="$forgeflow_test_dir/$forgeflow_case_id.scan"
 
-  grep -nE '(^|[ 	(|&;`]|\$\()(grep|sed|awk|sort|uniq|tr|cut|head|tail|wc|expr|cat|find|basename|dirname|readlink|stat|date|mktemp|xargs|git)([ 	]|$)' \
+  grep -nE '(^|[ \t(|&;`]|\$\()(grep|sed|awk|sort|uniq|tr|cut|head|tail|wc|expr|cat|find|basename|dirname|readlink|stat|date|mktemp|xargs|git)([ \t]|$)' \
     "$forgeflow_handoff_check" | grep -v '^[0-9][0-9]*:[[:space:]]*#' \
     >"$forgeflow_scan_output" || :
 
@@ -379,11 +459,29 @@ handoff_check_uses_no_external_utilities() {
   fi
 }
 
+assert_story_id_accepted() {
+  new_handoff "id-ok-$2"
+  edit_handoff "s/story: TST-005/story: $1/"
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 0
+  assert_output_contains "Story evidence: $1"
+}
+
+assert_story_id_rejected() {
+  new_handoff "id-bad-$2"
+  edit_handoff "s/story: TST-005/story: $1/"
+  run_handoff_check "$forgeflow_handoff_file"
+  assert_status 1
+  assert_output_contains 'handoff.story must be one Story ID'
+}
+
 the_story_id_form_is_unchanged() {
   assert_story_id_accepted 'FF-001' 1
   assert_story_id_accepted 'A-1' 2
   assert_story_id_accepted 'DBCLI-004' 3
   assert_story_id_accepted 'FF2-30' 4
+  assert_story_id_accepted 'DBCLI-PLAT-001' 5
+  assert_story_id_accepted 'FF-CORE-A1-042' 6
 
   assert_story_id_rejected 'ff-001' 1
   assert_story_id_rejected 'FF001' 2
@@ -395,69 +493,30 @@ the_story_id_form_is_unchanged() {
   assert_story_id_rejected 'FF-01x' 8
 }
 
-multi_segment_story_ids_are_recordable() {
-  new_handoff subsystem-id
-  edit_handoff 's/current_story: TST-005/current_story: DBCLI-PLAT-001/'
-  edit_handoff 's/next_story: TST-006/next_story: DBCLI-PLAT-002/'
-  edit_handoff 's/    - TST-004/    - DBCLI-PLAT-013/'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 0
-  assert_output_contains 'Result: HANDOFF_CONTRACT_OK'
-  assert_output_contains 'current Story: DBCLI-PLAT-001'
-  assert_output_contains 'next Story: DBCLI-PLAT-002'
-  assert_output_excludes 'is not a Story ID'
-
-  # The three positions carry three distinct IDs because completed Story IDs
-  # may not overlap the current or next Story. The criterion is that a
-  # multi-segment ID is recordable in every position, not that one ID occupies
-  # all three at once.
-  assert_story_id_accepted 'DBCLI-PLAT-001' 9
-  assert_story_id_accepted 'FF-CORE-A1-042' 10
-}
-
-assert_commit_accepted() {
-  new_handoff "sha-ok-$2"
-  edit_handoff "s/commit: [0-9a-f]*/commit: $1/"
+assert_revision_accepted() {
+  new_handoff "revision-ok-$2"
+  edit_handoff "s/revision: [0-9a-f]*/revision: $1/"
   run_handoff_check "$forgeflow_handoff_file"
   assert_status 0
   assert_output_contains "$1"
 }
 
-assert_commit_rejected() {
-  new_handoff "sha-bad-$2"
-  edit_handoff "s/commit: [0-9a-f]*/commit: $1/"
+assert_revision_rejected() {
+  new_handoff "revision-bad-$2"
+  edit_handoff "s/revision: [0-9a-f]*/revision: $1/"
   run_handoff_check "$forgeflow_handoff_file"
   assert_status 1
-  assert_output_contains 'baseline.commit must be a full 40-character commit SHA'
+  assert_output_contains 'handoff.revision must be a full 40-character commit SHA'
 }
 
-the_baseline_commit_form_is_unchanged() {
-  assert_commit_accepted '0123456789abcdef0123456789abcdef01234567' 1
-  assert_commit_accepted 'ffffffffffffffffffffffffffffffffffffffff' 2
+the_revision_form_is_unchanged() {
+  assert_revision_accepted '0123456789abcdef0123456789abcdef01234567' 1
+  assert_revision_accepted 'ffffffffffffffffffffffffffffffffffffffff' 2
 
-  assert_commit_rejected '0123456789abcdef0123456789abcdef0123456' 1
-  assert_commit_rejected '0123456789abcdef0123456789abcdef012345678' 2
-  assert_commit_rejected '0123456789ABCDEF0123456789abcdef01234567' 3
-  assert_commit_rejected '0123456789abcdefg123456789abcdef01234567' 4
-}
-
-duplicate_detection_is_unchanged() {
-  new_handoff dup-yes
-  edit_handoff 's/    - TST-004/    - TST-004\n    - TST-004/'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 1
-  assert_output_contains 'completed Story IDs must be unique'
-
-  new_handoff dup-distinct
-  edit_handoff 's/    - TST-004/    - TST-004\n    - TST-003/'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_status 0
-  assert_output_contains 'completed Stories: 2'
-
-  new_handoff dup-empty
-  edit_handoff 's/^    - TST-004$//'
-  run_handoff_check "$forgeflow_handoff_file"
-  assert_output_excludes 'completed Story IDs must be unique'
+  assert_revision_rejected '0123456789abcdef0123456789abcdef0123456' 1
+  assert_revision_rejected '0123456789abcdef0123456789abcdef012345678' 2
+  assert_revision_rejected '0123456789ABCDEF0123456789abcdef01234567' 3
+  assert_revision_rejected '0123456789abcdefg123456789abcdef01234567' 4
 }
 
 root_verify_validates_repository_handoff() {
@@ -476,7 +535,7 @@ root_verify_validates_repository_handoff() {
   grep -Fq './scripts/handoff-check' "$forgeflow_root_makefile" ||
     fail 'verify-handoff does not validate this repository own handoff'
 
-  forgeflow_command_output="$forgeflow_test_dir/AC-010.output"
+  forgeflow_command_output="$forgeflow_test_dir/$forgeflow_case_id.output"
 
   if (
     CDPATH='' cd "$forgeflow_repo"
@@ -491,23 +550,16 @@ root_verify_validates_repository_handoff() {
   assert_output_contains 'Result: HANDOFF_CONTRACT_OK'
 }
 
-run_case 'AC-001' complete_handoff_passes
-run_case 'AC-002' inactive_handoff_states_absence_explicitly
-run_case 'AC-003' current_and_next_story_are_single_and_explicit
-run_case 'AC-004' completed_stories_are_recorded_separately
-run_case 'AC-005' baseline_identity_is_required
-run_case 'AC-006' dirty_worktree_requires_path_attribution
-run_case 'AC-007' verification_state_is_required
-run_case 'AC-008' contradictory_lifecycle_states_are_rejected
-run_case 'AC-009' block_and_invocation_errors_are_distinct
-run_case 'AC-010' root_verify_validates_repository_handoff
-
-run_case 'FF212-AC-001' the_verdict_does_not_depend_on_external_utilities
-run_case 'FF212-AC-009' contradictions_and_usage_errors_survive_an_empty_path
-run_case 'FF212-AC-004' the_story_id_form_is_unchanged
-run_case 'FF227-AC-001' multi_segment_story_ids_are_recordable
-run_case 'FF212-AC-005' the_baseline_commit_form_is_unchanged
-run_case 'FF212-AC-006' duplicate_detection_is_unchanged
+run_case 'P0001-AC-002' complete_evidence_passes_without_current_state_claims
+run_case 'P0001-AC-006' required_evidence_is_single_and_explicit
+run_case 'P0001-AC-006' timestamp_and_result_forms_are_validated
+run_case 'P0001-AC-006' mutable_lifecycle_and_unknown_fields_are_rejected
+run_case 'P0001-AC-006' non_string_yaml_forms_and_inline_comments_are_rejected
+run_case 'P0001-AC-006' block_and_invocation_errors_are_distinct
+run_case 'FF212-AC-001' verdicts_do_not_depend_on_external_utilities
 run_case 'FF212-AC-012' handoff_check_uses_no_external_utilities
+run_case 'FF212-AC-004' the_story_id_form_is_unchanged
+run_case 'FF212-AC-005' the_revision_form_is_unchanged
+run_case 'P0001-AC-008' root_verify_validates_repository_handoff
 
 printf 'handoff-check tests passed\n'

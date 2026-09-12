@@ -150,6 +150,14 @@ repository:
   `FORGEFLOW_DECISIONS_ROOT` set to that collection, for example
   `FORGEFLOW_DECISIONS_ROOT=docs/adr ./scripts/story-check`. Leaving it unset
   or empty preserves the default `specs/decisions/` root; and
+* when upgrading to 0.8.0 or later, move mutable current work, lifecycle,
+  blocker/Gate, next-action, review, verification-current, and completion state
+  to the external control plane or direct human coordination. Replace a legacy
+  `workflow`/`baseline` handoff with the immutable evidence template, or remove
+  the optional handoff when no historical record is needed. Reconcile
+  repository-owned `AGENTS.md` and installed ForgeFlow skills manually; they
+  must no longer select work from `specs/handoff.md`. Run
+  `./scripts/handoff-check`, Doctor if used, and `make verify`; and
 * when upgrading to 0.4.1 or later, optionally copy the four baseline files from
   `guidance/` and reconcile them with repository/team decisions; do not replace
   existing decisions or practices wholesale.

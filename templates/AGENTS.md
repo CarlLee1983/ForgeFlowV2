@@ -50,8 +50,8 @@ Check Classification truthfulness against the actual trust boundaries and
 baseline behavior, including the required conditional evidence. Confirm
 verification freshness: the complete PASS must cover the current
 implementation. A source, test, configuration, or other behavior-affecting
-change after PASS requires a new full `make verify`; attribute a final
-handoff-only documentation change so the human can judge its impact.
+change after PASS requires a new full `make verify`. A handoff evidence edit is
+also a repository change; the human judges whether it affects behavior.
 
 This report supports review without self-approval. Only a human may accept
 REVIEW and advance the Story to DONE. If review requests an implementation
@@ -103,7 +103,9 @@ Report:
 * assumptions
 * remaining risks
 
-When work changes hands, record the handoff lifecycle block: exactly one current
-Story, exactly one next Story or `pending`, completed Story IDs, the repository
-baseline, and the last verification command and result. Never leave the next
-Story to be inferred from list order.
+When work changes hands, report the result to the human or external control plane
+that owns mutable lifecycle state. A repository handoff is optional,
+immutable historical evidence only; create one only for a known Story, UTC
+time, repository, exact committed revision, command, and observed result. Never
+persist current/next/status/Gate/completion state in ForgeFlow files or attach
+dirty-worktree verification to an unchanged HEAD revision.

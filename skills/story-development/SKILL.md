@@ -6,7 +6,8 @@ description: Implement an approved ForgeFlow Story when a request names a Story 
 # Story Development
 
 Treat the approved Story as the intent boundary and repository verification as
-the completion authority.
+the deterministic evidence authority. Current completion state belongs to the
+human or external control plane.
 
 ## Develop the Story
 
@@ -64,10 +65,9 @@ After PASS, assemble:
 
 Check Classification truthfulness against the actual trust boundaries and
 baseline behavior, including the required conditional evidence. Confirm
-verification freshness: the complete PASS must cover the current
-implementation. A source, test, configuration, or other behavior-affecting
-change after PASS requires a new full `make verify`; attribute a final
-handoff-only documentation change so the human can judge its impact.
+verification freshness: the complete PASS must cover the implementation under
+review. A source, test, configuration, or other behavior-affecting change after
+PASS requires a new full `make verify`.
 
 This report supports review without self-approval. Only a human may accept
 REVIEW and advance the Story to DONE. When review requests implementation
@@ -102,10 +102,13 @@ After PASS, report:
 - assumptions
 - remaining risks
 
-When the work changes hands, record the handoff lifecycle block: exactly one
-current Story, exactly one next Story or `pending`, completed Story IDs, the
-repository baseline commit and worktree state, and the last verification command
-and result. State that selection is pending rather than implying it by ordering.
+When the work changes hands, report the result to the human or external control
+plane that owns mutable lifecycle state. A ForgeFlow handoff is optional,
+immutable historical evidence only. Create one only when a known Story, UTC
+time, repository, exact committed revision, command, and observed result can be
+recorded truthfully. Never infer or persist current/next/status/Gate/completion
+state in ForgeFlow files, and never bind dirty-worktree verification to the
+unchanged HEAD SHA.
 
 If specification-blocked, report the conflicting or missing requirement,
 evidence already inspected, and the smallest human decision needed. Do not

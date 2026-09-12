@@ -170,17 +170,23 @@ report required by `AGENTS.md`.
 
 ## 7. Hand the work over
 
-When the work changes hands, record the state in a handoff so the next human or
-agent does not have to infer it:
+When historical execution context will help, copy the handoff template to a
+record path and replace its placeholders with one exact point-in-time
+observation:
 
 ```sh
-cp /path/to/forgeflow/templates/handoff.md specs/handoff.md
-./scripts/handoff-check specs/handoff.md
+mkdir -p specs/handoffs
+cp /path/to/forgeflow/templates/handoff.md \
+  specs/handoffs/2026-09-12T023000Z-ABC-005.md
+./scripts/handoff-check specs/handoffs/2026-09-12T023000Z-ABC-005.md
 ```
 
-The [Handoff Contract](../protocol/handoff.md) requires exactly one current
-Story, exactly one next Story, the repository baseline, and the last
-verification result.
+The [Handoff Evidence Contract](../protocol/handoff.md) requires one Story, UTC
+recording time, repository, exact committed revision, verification command, and
+observed result. It is immutable evidence, not current workflow state. Do not
+attach a dirty-worktree PASS to the unchanged HEAD SHA. When a control plane is
+present, report current status, blockers, next action, review, and completion
+there instead.
 
 ## 8. Review and merge
 
