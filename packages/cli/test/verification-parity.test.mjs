@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -234,6 +235,9 @@ async function legacyOutcome(fixture, args, observe) {
     ({ stdout: output } = await execFile(verificationCheck, args, {
       cwd: fixture,
       encoding: "utf8",
+      // The TypeScript reader is locale independent by contract, so the
+      // retained checker's glob is pinned to the matching byte collation.
+      env: { ...globalThis.process.env, LC_ALL: "C" },
     }));
   } catch (error) {
     output = `${error.stdout ?? ""}${error.stderr ?? ""}`;
@@ -557,6 +561,69 @@ test("TST005-AC-002: multi-Story discovery has retained-checker parity", async (
         acceptance,
       );
     },
+  );
+});
+
+test("TST005-AC-002: collation changes presentation order only", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "forgeflow-collation-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const names = [
+    "TST-1-Alpha",
+    "TST-1-beta",
+    "tst-1-gamma",
+    "TST-10-delta",
+    "TST-2-epsilon",
+  ];
+
+  for (const name of names) {
+    const directory = join(root, "specs", "stories", name);
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      join(directory, "story.md"),
+      name === "TST-2-epsilon"
+        ? withSection("## Risk", "* Level: critical")
+        : base,
+    );
+    await writeFile(join(directory, "acceptance.md"), acceptance);
+  }
+
+  const runLegacy = async (collation) =>
+    execFile(verificationCheck, [], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...globalThis.process.env, LC_ALL: collation },
+    }).catch((error) => ({
+      stdout: `${error.stdout ?? ""}`,
+      code: error.code,
+    }));
+  const execution = await runVerificationCheck(
+    [],
+    createNodeStoryReader(undefined, root),
+  );
+  const typescript = typescriptEvidence(execution);
+  const byLabel = (entries) =>
+    entries
+      .filter((entry) => entry.label !== undefined)
+      .sort((left, right) => (left.label < right.label ? -1 : 1));
+
+  // The reader is locale independent, so it matches the byte collation exactly
+  // and stays equivalent under any other collation the retained glob may use.
+  const byteOrdered = await runLegacy("C");
+  assert.equal(byteOrdered.code, 1);
+  assert.equal(execution.result.exit, 1);
+  assert.deepEqual(legacyEvidence(byteOrdered.stdout), typescript);
+
+  const collated = await runLegacy("en_US.UTF-8");
+  assert.equal(collated.code, 1);
+  assert.deepEqual(
+    byLabel(legacyEvidence(collated.stdout)),
+    byLabel(typescript),
+  );
+  assert.deepEqual(
+    legacyEvidence(collated.stdout).find(
+      (entry) => entry.checked !== undefined,
+    ),
+    { checked: names.length },
   );
 });
 
