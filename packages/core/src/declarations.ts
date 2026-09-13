@@ -33,9 +33,16 @@ const placeholders = new Set([
   "...",
 ]);
 
-function trim(line: string): string {
+/**
+ * Trims exactly the whitespace the portable checker trims: carriage return,
+ * tab, and space. Every other code point, Unicode whitespace included, is
+ * content.
+ */
+export function trimDeclarationText(line: string): string {
   return line.replace(/^[ \t\r]+/, "").replace(/[ \t\r]+$/, "");
 }
+
+const trim = trimDeclarationText;
 
 function fenceRun(line: string, character: string): number {
   let run = 0;

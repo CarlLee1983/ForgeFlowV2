@@ -59,7 +59,8 @@ const taskModes: readonly VerificationTaskMode[] = [
   "mixed",
 ];
 const levels: readonly VerificationLevel[] = ["low", "medium", "high"];
-const authorityOperations: readonly VerificationAuthorityOperation[] = [
+/** Every operation a Story can grant, in declaration order. */
+export const authorityOperations: readonly VerificationAuthorityOperation[] = [
   "plan",
   "modify",
   "add_dependency",
@@ -67,6 +68,16 @@ const authorityOperations: readonly VerificationAuthorityOperation[] = [
   "commit",
   "push",
   "deploy",
+];
+/** Every verification layer a profile or a record can name. */
+export const verificationLayers: readonly VerificationLayer[] = [
+  "lint",
+  "static",
+  "unit",
+  "integration",
+  "contract",
+  "e2e",
+  "architecture",
 ];
 const riskSignals: readonly string[] = [
   "error-projection",
@@ -122,7 +133,8 @@ function isLevel(value: string): value is VerificationLevel {
   return (levels as readonly string[]).includes(value);
 }
 
-function isAuthorityOperation(
+/** Recognizes one declared authority operation. */
+export function isAuthorityOperation(
   value: string,
 ): value is VerificationAuthorityOperation {
   return (authorityOperations as readonly string[]).includes(value);

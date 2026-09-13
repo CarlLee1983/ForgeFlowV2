@@ -3,6 +3,7 @@ import {
   readExactLiteral,
   readSectionBullets,
   splitDeclaration,
+  trimDeclarationText,
 } from "./declarations.js";
 import {
   IMPLEMENTED_PROTOCOL_VERSION,
@@ -11,7 +12,9 @@ import {
   type ResultIssue,
 } from "./result.js";
 import {
+  isAuthorityOperation,
   resolveVerificationPlan,
+  verificationLayers,
   type VerificationAuthorityOperation,
   type VerificationLayer,
   type VerificationPlan,
@@ -77,15 +80,6 @@ export interface VerificationResultSources {
   readonly record: unknown;
 }
 
-const checkLayers: readonly VerificationLayer[] = [
-  "lint",
-  "static",
-  "unit",
-  "integration",
-  "contract",
-  "e2e",
-  "architecture",
-];
 const checkStatuses: readonly VerificationCheckStatus[] = [
   "pass",
   "fail",
@@ -99,15 +93,6 @@ const evidenceStatuses: readonly VerificationEvidenceStatus[] = [
   "blocked",
   "skipped",
 ];
-const authorityOperations: readonly VerificationAuthorityOperation[] = [
-  "plan",
-  "modify",
-  "add_dependency",
-  "migration",
-  "commit",
-  "push",
-  "deploy",
-];
 const detailSeparator = " — ";
 
 function diagnostic(
@@ -119,7 +104,7 @@ function diagnostic(
 }
 
 function isCheckLayer(value: string): value is VerificationLayer {
-  return (checkLayers as readonly string[]).includes(value);
+  return (verificationLayers as readonly string[]).includes(value);
 }
 
 function isCheckStatus(value: string): value is VerificationCheckStatus {
@@ -130,12 +115,6 @@ function isEvidenceStatus(value: string): value is VerificationEvidenceStatus {
   return (evidenceStatuses as readonly string[]).includes(value);
 }
 
-function isAuthorityOperation(
-  value: string,
-): value is VerificationAuthorityOperation {
-  return (authorityOperations as readonly string[]).includes(value);
-}
-
 /** Splits `<status> — <detail>` on its first separator. */
 function splitObservation(value: string): {
   readonly status: string;
@@ -144,9 +123,9 @@ function splitObservation(value: string): {
   const separator = value.indexOf(detailSeparator);
 
   return separator < 0
-    ? { status: value.trim(), detail: "" }
+    ? { status: trimDeclarationText(value), detail: "" }
     : {
-        status: value.slice(0, separator).trim(),
+        status: trimDeclarationText(value.slice(0, separator)),
         detail: value.slice(separator + detailSeparator.length),
       };
 }

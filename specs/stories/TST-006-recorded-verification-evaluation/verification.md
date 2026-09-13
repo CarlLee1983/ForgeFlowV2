@@ -9,11 +9,11 @@ medium Architecture impact, so the required profile is
 
 * lint: pass — `make verify ran the root Prettier and zero-warning ESLint gates`
 * static: pass — `make verify ran TypeScript type checking, shell syntax checks, Story discovery, execution-plan resolution, and Action syntax validation`
-* unit: pass — `the complete make verify Node suite passed 160 tests, including the pure Core recorded-result evaluator, ordered diagnostics, status decision, declared-fact reporting, and acceptance-identity reading`
+* unit: pass — `the complete make verify Node suite passed 161 tests, including the pure Core recorded-result evaluator, ordered diagnostics, status decision, declared-fact reporting, and acceptance-identity reading`
 * integration: pass — `TST006-AC-001 through TST006-AC-005 exercised the built CLI --result command, record acquisition, discovery, the retained shell checker, the isolated differential harness, and the packed consumer; the package suites also passed on Node 20.19.5, 22.17.1, and 24.21.0`
 * contract: pass — `the shared result corpus of passing, partial, failing, silent, malformed, missing-evidence, authority, and residual-risk cases agreed with the retained checker on recorded facts, per-Story status, ordered issues, aggregate result, and exit; the record normalizer rejected every unrecognized diagnostic and the harness self-check proved it detects a divergent record`
 * e2e: pass — `make verify`
-* architecture: pass — `the two declared Core and CLI boundaries were checked against the Story's stated contracts: the evaluator is pure and reuses the existing declaration reader rather than adding a second parser, the CLI owns all filesystem and rendering concerns, and the retained shell checker, protocol/, and templates/ are unchanged; the check is this agent's own review because the two independent Standards and Spec reviewers dispatched for it returned no report`
+* architecture: pass — `independent Standards and Spec review of this working tree found two real parity defects, each fixed and covered by a new corpus case: the recorded status was trimmed with the JavaScript Unicode trim instead of the checker's carriage-return, tab, and space trim, and a symlinked verification.md suppressed the Story's resolved plan block and its plan issues; the reviewed duplication of the authority operations and verification layers was consolidated onto the plan module`
 
 ## Evidence
 
@@ -33,5 +33,4 @@ medium Architecture impact, so the required profile is
 ## Residual Risks
 
 * `the configured GitHub Actions tooling matrix has not run remotely because this Story grants no push authority; all three supported runtime lines were covered locally by running the package suites on Node 20.19.5, 22.17.1, and 24.21.0`
-* `the independent Standards and Spec review agents dispatched for this Story never returned a report, so the architecture observation rests on this agent's own review and human review has not yet been given a second opinion on the new Core and CLI boundaries`
 * `the machine result envelope distinguishes PASS from the negative outcomes but cannot distinguish PARTIAL, FAIL, and VERIFICATION_RESULT_INCOMPLETE by status alone; those four names stay distinct in the command's reported outcome, its human output, and its issue codes, exactly as the retained checker reports them`

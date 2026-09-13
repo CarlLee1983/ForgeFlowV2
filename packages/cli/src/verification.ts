@@ -57,6 +57,16 @@ export type VerificationStoryEntry =
       readonly evaluation: VerificationResultEvaluation;
     }
   | {
+      // The retained checker resolves and prints the plan before it guards the
+      // record, so an unsafe record never hides the Story's resolved contract.
+      readonly kind: "record-error";
+      readonly label: string;
+      readonly plan: VerificationPlan;
+      readonly issues: readonly ResultIssue[];
+      readonly issue: ResultIssue;
+      readonly diagnostic: string;
+    }
+  | {
       readonly kind: "error";
       readonly label?: string;
       readonly issue: ResultIssue;
@@ -263,13 +273,21 @@ async function checkStory(
   // A symlinked record is unsafe to read at all; any other unusable record is
   // a defect of the record itself, not of the run.
   const read = await reader.readStoryFile(`${label}/${RECORD_FILE}`);
-  if (!read.ok && read.reason === "symlink")
-    return acquisitionError(
+  if (!read.ok && read.reason === "symlink") {
+    const resolved = resolveVerificationPlan(story);
+    const path = `${label}/${RECORD_FILE}`;
+    return {
+      kind: "record-error",
       label,
-      read,
-      `${label}/${RECORD_FILE}`,
-      "verification record",
-    );
+      plan: resolved.plan,
+      issues: resolved.result.issues,
+      issue: issue(
+        "VERIFICATION_STORY_FILE_SYMLINK",
+        "a verification record is a symlink",
+      ),
+      diagnostic: `ERROR ${label}: verification record is a symlink: ${path}\n`,
+    };
+  }
 
   return {
     kind: "record",
@@ -286,12 +304,17 @@ function outcomeOf(
   record: boolean,
   entries: readonly VerificationStoryEntry[],
 ): VerificationOutcomeName {
-  if (entries.some((entry) => entry.kind === "error")) return "ERROR";
+  if (
+    entries.some(
+      (entry) => entry.kind === "error" || entry.kind === "record-error",
+    )
+  )
+    return "ERROR";
 
   const planIncomplete = entries.some((entry) =>
-    entry.kind === "plan"
-      ? entry.issues.length > 0
-      : entry.kind === "record" && entry.evaluation.planIssues.length > 0,
+    entry.kind === "record"
+      ? entry.evaluation.planIssues.length > 0
+      : entry.kind === "plan" && entry.issues.length > 0,
   );
 
   if (!record)
@@ -324,6 +347,7 @@ function aggregate(
   const issues = entries.flatMap((entry) => {
     if (entry.kind === "error") return [entry.issue];
     if (entry.kind === "plan") return [...entry.issues];
+    if (entry.kind === "record-error") return [...entry.issues, entry.issue];
     return [...entry.evaluation.result.issues];
   });
   const outcome = outcomeOf(record, entries);
@@ -541,10 +565,11 @@ export function renderVerificationHuman(
       stderr += entry.diagnostic;
       continue;
     }
-    if (entry.kind === "plan") {
+    if (entry.kind === "plan" || entry.kind === "record-error") {
       for (const planIssue of entry.issues)
         stdout += `FAIL  ${entry.label}: plan: ${planIssue.message}\n`;
       stdout += renderPlan(entry.label, entry.plan);
+      if (entry.kind === "record-error") stderr += entry.diagnostic;
       continue;
     }
     for (const planIssue of entry.evaluation.planIssues)

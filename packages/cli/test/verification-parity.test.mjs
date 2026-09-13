@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -774,6 +774,10 @@ function issueForLegacyRecordMessage(text) {
 
 const recordResults = new Map([
   [
+    "Result: ERROR",
+    { status: "error", outcome: "configuration-error", exit: 2 },
+  ],
+  [
     "Result: VERIFICATION_PASS",
     { status: "pass", outcome: "success", exit: 0 },
   ],
@@ -810,6 +814,21 @@ function normalizeLegacyRecordDiagnostic(diagnostic) {
       issues.push(mapped);
       continue;
     }
+    if (line.startsWith("ERROR ")) {
+      const separator = line.indexOf(": ");
+      if (separator < 0) return { ok: false };
+      if (
+        !/^verification record is a symlink: \S+$/.test(
+          line.slice(separator + 2),
+        )
+      )
+        return { ok: false };
+      issues.push({
+        code: "VERIFICATION_STORY_FILE_SYMLINK",
+        message: "a verification record is a symlink",
+      });
+      continue;
+    }
     if (line.startsWith("Plan: ")) {
       if (
         planLine !== undefined ||
@@ -829,7 +848,10 @@ function normalizeLegacyRecordDiagnostic(diagnostic) {
   }
 
   const mapped = recordResults.get(resultLine);
-  if (mapped === undefined || planLine === undefined) return { ok: false };
+  if (mapped === undefined) return { ok: false };
+  // The retained checker prints no Plan line once a run is an operational
+  // error, and prints one for every other recorded outcome.
+  if ((planLine === undefined) !== (mapped.exit === 2)) return { ok: false };
   if (mapped.exit === 0 && issues.length > 0) return { ok: false };
 
   return { ok: true, value: { ...resultBase, ...mapped, issues } };
@@ -886,11 +908,12 @@ async function legacyRecordOutcome(fixture, args, observe) {
   let output;
   let exit = 0;
   try {
-    ({ stdout: output } = await execFile(verificationCheck, args, {
+    const completed = await execFile(verificationCheck, args, {
       cwd: fixture,
       encoding: "utf8",
       env: { ...globalThis.process.env, LC_ALL: "C" },
-    }));
+    });
+    output = `${completed.stdout}${completed.stderr}`;
   } catch (error) {
     output = `${error.stdout ?? ""}${error.stderr ?? ""}`;
     exit = error.code;
@@ -913,7 +936,8 @@ async function typescriptRecordOutcome(fixture, args, observe) {
     args,
     createNodeStoryReader(undefined, fixture),
   );
-  observe.evidence(recordEvidence(renderVerificationHuman(execution).stdout));
+  const rendered = renderVerificationHuman(execution);
+  observe.evidence(recordEvidence(`${rendered.stdout}${rendered.stderr}`));
   return {
     result: execution.result,
     issues: execution.result.issues,
@@ -931,6 +955,12 @@ async function writeRecordCase(fixture, sources) {
   );
   if (sources.record !== undefined)
     await writeFile(join(directory, "verification.md"), sources.record);
+  if (sources.link !== undefined) {
+    // The link target is relative so both private fixture copies hold the
+    // byte-identical symlink.
+    await writeFile(join(fixture, "elsewhere.md"), sources.link);
+    await symlink("../../../elsewhere.md", join(directory, "verification.md"));
+  }
 }
 
 async function assertRecordParity(name, sources, args = [caseStory]) {
@@ -953,17 +983,17 @@ function recorded(...sections) {
   return ["# Verification Result: TST-901", "", ...sections].join("\n");
 }
 
-const observed = "—";
+const detailSeparator = "—";
 const passingRecord = recorded(
   "## Checks",
   "",
-  `* lint: pass ${observed} \`pnpm run lint\``,
-  `* static: pass ${observed} \`pnpm run typecheck\``,
-  `* unit: pass ${observed} \`pnpm test\``,
+  `* lint: pass ${detailSeparator} \`pnpm run lint\``,
+  `* static: pass ${detailSeparator} \`pnpm run typecheck\``,
+  `* unit: pass ${detailSeparator} \`pnpm test\``,
   "",
   "## Evidence",
   "",
-  `* \`AC-001\`: pass ${observed} \`the unit suite proved the happy path\``,
+  `* \`AC-001\`: pass ${detailSeparator} \`the unit suite proved the happy path\``,
   "",
   "## Authority Used",
   "",
@@ -971,7 +1001,7 @@ const passingRecord = recorded(
   "* modify",
   "",
 );
-const passingUnit = `* unit: pass ${observed} \`pnpm test\``;
+const passingUnit = `* unit: pass ${detailSeparator} \`pnpm test\``;
 
 test("TST006-AC-002: passing and partial records have retained-checker parity", async () => {
   await assertRecordParity("pass", { record: passingRecord });
@@ -983,7 +1013,7 @@ test("TST006-AC-002: passing and partial records have retained-checker parity", 
     await assertRecordParity(`unit-${status}`, {
       record: passingRecord.replace(
         passingUnit,
-        `* unit: ${status} ${observed} \`the runner is unavailable\``,
+        `* unit: ${status} ${detailSeparator} \`the runner is unavailable\``,
       ),
     });
 
@@ -1005,13 +1035,16 @@ test("TST006-AC-002: passing and partial records have retained-checker parity", 
 test("TST006-AC-002: malformed records have retained-checker parity", async () => {
   const checks = [
     ["* lint pass"],
-    [`* smoke: pass ${observed} \`run\``],
-    [`* lint: pass ${observed} \`run\``, `* lint: pass ${observed} \`run\``],
-    [`* lint: done ${observed} \`run\``],
-    [`* lint: pass ${observed} TBD`],
+    [`* smoke: pass ${detailSeparator} \`run\``],
+    [
+      `* lint: pass ${detailSeparator} \`run\``,
+      `* lint: pass ${detailSeparator} \`run\``,
+    ],
+    [`* lint: done ${detailSeparator} \`run\``],
+    [`* lint: pass ${detailSeparator} TBD`],
     ["* lint: pass"],
-    [`- lint: pass ${observed} \`run\``],
-    [`*   lint:   pass   ${observed}   \`run\`   `],
+    [`- lint: pass ${detailSeparator} \`run\``],
+    [`*   lint:   pass   ${detailSeparator}   \`run\`   `],
   ];
 
   for (const [index, entries] of checks.entries())
@@ -1023,7 +1056,7 @@ test("TST006-AC-002: malformed records have retained-checker parity", async () =
         "",
         "## Evidence",
         "",
-        `* \`AC-001\`: pass ${observed} \`observed\``,
+        `* \`AC-001\`: pass ${detailSeparator} \`observed\``,
         "",
         "## Residual Risks",
         "",
@@ -1034,16 +1067,20 @@ test("TST006-AC-002: malformed records have retained-checker parity", async () =
 
   const evidence = [
     ["* an evidence note"],
-    [`* AC-001: pass ${observed} \`observed\``],
-    [`* \`AC-009\`: pass ${observed} \`observed\``],
+    [`* AC-001: pass ${detailSeparator} \`observed\``],
+    [`* \`AC-009\`: pass ${detailSeparator} \`observed\``],
     [
-      `* \`AC-001\`: pass ${observed} \`observed\``,
-      `* \`AC-001\`: pass ${observed} \`observed\``,
+      `* \`AC-001\`: pass ${detailSeparator} \`observed\``,
+      `* \`AC-001\`: pass ${detailSeparator} \`observed\``,
     ],
-    [`* \`AC-001\`: partial ${observed} \`observed\``],
-    [`* \`AC-001\`: pass ${observed} n/a`],
-    [`* \`AC-001\`: blocked ${observed} \`the environment is unavailable\``],
-    [`* \`AC-001\`: fail ${observed} \`the unit suite refuted the path\``],
+    [`* \`AC-001\`: partial ${detailSeparator} \`observed\``],
+    [`* \`AC-001\`: pass ${detailSeparator} n/a`],
+    [
+      `* \`AC-001\`: blocked ${detailSeparator} \`the environment is unavailable\``,
+    ],
+    [
+      `* \`AC-001\`: fail ${detailSeparator} \`the unit suite refuted the path\``,
+    ],
   ];
 
   for (const [index, entries] of evidence.entries())
@@ -1051,8 +1088,8 @@ test("TST006-AC-002: malformed records have retained-checker parity", async () =
       record: recorded(
         "## Checks",
         "",
-        `* lint: pass ${observed} \`pnpm run lint\``,
-        `* static: pass ${observed} \`pnpm run typecheck\``,
+        `* lint: pass ${detailSeparator} \`pnpm run lint\``,
+        `* static: pass ${detailSeparator} \`pnpm run typecheck\``,
         passingUnit,
         "",
         "## Evidence",
@@ -1070,7 +1107,7 @@ test("TST006-AC-002: malformed records have retained-checker parity", async () =
     record: recorded(
       "## Evidence",
       "",
-      `* \`AC-001\`: pass ${observed} \`observed\``,
+      `* \`AC-001\`: pass ${detailSeparator} \`observed\``,
       "",
     ),
   });
@@ -1078,7 +1115,12 @@ test("TST006-AC-002: malformed records have retained-checker parity", async () =
     record: recorded("## Checks", "", "## Checks", "", "## Evidence", ""),
   });
   await assertRecordParity("evidence-missing", {
-    record: recorded("## Checks", "", `* lint: pass ${observed} \`run\``, ""),
+    record: recorded(
+      "## Checks",
+      "",
+      `* lint: pass ${detailSeparator} \`run\``,
+      "",
+    ),
   });
   await assertRecordParity("acceptance-without-checkbox", {
     acceptance: "# Acceptance Criteria\n\nNo checkbox here.\n",
@@ -1089,16 +1131,16 @@ test("TST006-AC-002: malformed records have retained-checker parity", async () =
       "## Checks",
       "",
       "```markdown",
-      `* smoke: perfect ${observed} nonsense`,
+      `* smoke: perfect ${detailSeparator} nonsense`,
       "```",
       "",
-      `* lint: pass ${observed} \`pnpm run lint\``,
-      `* static: pass ${observed} \`pnpm run typecheck\``,
+      `* lint: pass ${detailSeparator} \`pnpm run lint\``,
+      `* static: pass ${detailSeparator} \`pnpm run typecheck\``,
       passingUnit,
       "",
       "## Evidence",
       "",
-      `* \`AC-001\`: pass ${observed} \`observed\``,
+      `* \`AC-001\`: pass ${detailSeparator} \`observed\``,
       "",
     ),
   });
@@ -1136,9 +1178,16 @@ test("TST006-AC-002: authority and residual records have retained-checker parity
 });
 
 test("TST006-AC-002: the record normalizer fails closed outside its allow-list", () => {
-  assert.deepEqual(normalizeLegacyRecordDiagnostic("Result: ERROR"), {
-    ok: false,
-  });
+  assert.deepEqual(
+    normalizeLegacyRecordDiagnostic(
+      "Plan: VERIFICATION_PLAN_OK\nResult: ERROR",
+    ),
+    { ok: false },
+  );
+  assert.deepEqual(
+    normalizeLegacyRecordDiagnostic("ERROR x: something new\nResult: ERROR"),
+    { ok: false },
+  );
   assert.deepEqual(
     normalizeLegacyRecordDiagnostic(
       "Plan: VERIFICATION_PLAN_OK\nResult: VERIFICATION_PASS\nWARN  x: something new",
@@ -1183,4 +1232,42 @@ test("TST006-AC-002: the corpus comparison detects a divergent record", async ()
     "evidence",
     "mutation",
   ]);
+});
+
+test("TST006-AC-002: unsafe and non-ASCII records have retained-checker parity", async () => {
+  const verticalTab = "\v";
+  const nonBreakingSpace = "\u00a0";
+
+  for (const [name, blank] of [
+    ["vertical-tab", verticalTab],
+    ["non-breaking-space", nonBreakingSpace],
+  ]) {
+    await assertRecordParity(`status-${name}`, {
+      record: passingRecord.replace(
+        `* lint: pass ${detailSeparator}`,
+        `* lint: pass${blank} ${detailSeparator}`,
+      ),
+    });
+    await assertRecordParity(`evidence-status-${name}`, {
+      record: passingRecord.replace(
+        `* \`AC-001\`: pass ${detailSeparator}`,
+        `* \`AC-001\`: pass${blank} ${detailSeparator}`,
+      ),
+    });
+    await assertRecordParity(`authority-${name}`, {
+      record: passingRecord.replace("* modify\n", `* modify${blank}\n`),
+    });
+  }
+
+  // The retained checker resolves and prints the plan before it guards the
+  // record, so an unsafe record must not hide the resolved contract.
+  await assertRecordParity("record-symlink", {
+    record: undefined,
+    link: passingRecord,
+  });
+  await assertRecordParity("record-symlink-with-plan-defect", {
+    story: `${base}\n## Risk\n\n* Level: extreme\n`,
+    record: undefined,
+    link: passingRecord,
+  });
 });
