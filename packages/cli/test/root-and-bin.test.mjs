@@ -13,6 +13,7 @@ Usage:
 
 Commands:
   handoff check      Check immutable Handoff evidence
+  story check        Check the static Story contract
   verification check Resolve plans and check recorded results
   help, --help       Show this help
   version, --version Print the CLI version
@@ -57,7 +58,6 @@ for (const args of [["version"], ["--version"]]) {
 for (const args of [
   ["init"],
   ["--quiet"],
-  ["story", "check"],
   ["migrate", "orders"],
   ["help", "extra"],
   ["version", "extra"],

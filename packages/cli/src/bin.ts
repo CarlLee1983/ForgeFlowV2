@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 import { handoffHelp, renderHandoffHuman, runHandoffCheck } from "./handoff.js";
 import { serializeResultEnvelope } from "./machine.js";
+import { renderStoryHuman, runStoryCheck, storyHelp } from "./story.js";
 import {
   renderVerificationHuman,
   runVerificationCheck,
@@ -26,6 +27,7 @@ Usage:
 
 Commands:
   handoff check      Check immutable Handoff evidence
+  story check        Check the static Story contract
   verification check Resolve plans and check recorded results
   help, --help       Show this help
   version, --version Print the CLI version
@@ -53,6 +55,23 @@ if (
   args[2] === "--help"
 ) {
   process.stdout.write(handoffHelp);
+} else if (
+  args.length === 3 &&
+  args[0] === "story" &&
+  args[1] === "check" &&
+  args[2] === "--help"
+) {
+  process.stdout.write(storyHelp);
+} else if (args[0] === "story" && args[1] === "check") {
+  const execution = await runStoryCheck(args.slice(2));
+  if (execution.mode === "json") {
+    process.stdout.write(serializeResultEnvelope(execution.result));
+  } else {
+    const rendered = renderStoryHuman(execution);
+    process.stdout.write(rendered.stdout);
+    process.stderr.write(rendered.stderr);
+  }
+  process.exitCode = execution.result.exit;
 } else if (
   args.length === 3 &&
   args[0] === "verification" &&

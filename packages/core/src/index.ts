@@ -56,3 +56,11 @@ export type {
   VerificationResultEvaluation,
   VerificationResultSources,
 } from "./verification-result.js";
+
+export { evaluateStoryContract, readStoryDecisions } from "./story.js";
+export type {
+  StoryContractEvaluation,
+  StoryContractSources,
+  StoryDecisionRecord,
+  StoryFacts,
+} from "./story.js";
