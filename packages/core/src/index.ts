@@ -16,6 +16,9 @@ export type {
   ResultValidationIssue,
 } from "./result.js";
 
+export { evaluateHandoff } from "./handoff.js";
+export type { HandoffEvaluation, HandoffEvidence } from "./handoff.js";
+
 export {
   SUPPORTED_PROTOCOL_RANGE,
   getToolingCapabilities,

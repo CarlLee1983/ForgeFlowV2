@@ -230,9 +230,16 @@ node packages/cli/dist/bin.js --version
 ```
 
 The package version is the TypeScript tooling version, independent of the
-ForgeFlow Protocol version in `VERSION`. The foundation CLI supports only help
-and version output. Every migration command remains unavailable, writes a usage
-diagnostic to standard error, and exits `2`; run `forgeflow --help` for the
+ForgeFlow Protocol version in `VERSION`. The CLI supports help, version, and the
+first migrated domain command:
+
+```sh
+node packages/cli/dist/bin.js handoff check [--json] [handoff-file]
+```
+
+The Handoff command is static and read-only; JSON mode emits one canonical
+machine result. Other migration commands remain unavailable, write a usage
+diagnostic to standard error, and exit `2`; run `forgeflow --help` for the
 available forms. Neither package exposes implementation subpaths. Core has no
 runtime dependency, and CLI's only runtime dependency is Core.
 

@@ -10,6 +10,7 @@ test("AC-005: the Core package root exposes only the public contract", async () 
     "ResultEnvelopeValidationError",
     "SUPPORTED_PROTOCOL_RANGE",
     "assertResultEnvelope",
+    "evaluateHandoff",
     "getToolingCapabilities",
     "resolveProtocolSelector",
     "validateResultEnvelope",

@@ -12,10 +12,11 @@ Usage:
   forgeflow [command]
 
 Commands:
+  handoff check      Check immutable Handoff evidence
   help, --help       Show this help
   version, --version Print the CLI version
 
-Migration commands are unavailable.
+Other migration commands are unavailable.
 `;
 const unavailable =
   "forgeflow: command unavailable; migration commands are not yet available. Run forgeflow --help.\n";

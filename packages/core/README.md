@@ -3,6 +3,16 @@
 Dependency-free ForgeFlow contracts for machine results and Protocol selection.
 Only the package root is public.
 
+## Handoff evaluation
+
+`evaluateHandoff(source)` evaluates Handoff Markdown source using the
+line-oriented restricted YAML contract. It is pure and dependency-free: it does
+not inspect files, environment, time, Git, or processes. It returns a canonical
+`ResultEnvelope`; successful evaluations also include frozen historical
+`evidence` (`story`, `recordedAt`, `repository`, `revision`,
+`verificationCommand`, and `verificationResult`). Contract defects return `fail` / `failure` / `1` with stable ordered
+issues. Non-string runtime input is a typed failing result, not an exception.
+
 ## Result envelope
 
 `validateResultEnvelope(value)` returns either `{ ok: true, value }` or

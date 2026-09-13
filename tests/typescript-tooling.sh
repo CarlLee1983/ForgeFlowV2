@@ -58,7 +58,7 @@ built_cli_help_and_version_are_exact() {
   forgeflow_empty="$forgeflow_test_dir/empty"
 
   : >"$forgeflow_empty"
-  printf 'ForgeFlow CLI v%s\n\nUsage:\n  forgeflow [command]\n\nCommands:\n  help, --help       Show this help\n  version, --version Print the CLI version\n\nMigration commands are unavailable.\n' \
+  printf 'ForgeFlow CLI v%s\n\nUsage:\n  forgeflow [command]\n\nCommands:\n  handoff check      Check immutable Handoff evidence\n  help, --help       Show this help\n  version, --version Print the CLI version\n\nOther migration commands are unavailable.\n' \
     "$forgeflow_version" >"$forgeflow_help"
   printf '%s\n' "$forgeflow_version" >"$forgeflow_version_output"
 
@@ -97,6 +97,8 @@ packed_packages_have_the_bounded_public_contract() {
   printf '%s\n' \
     './LICENSE' \
     './README.md' \
+    './dist/handoff.d.ts' \
+    './dist/handoff.js' \
     './dist/index.d.ts' \
     './dist/index.js' \
     './dist/protocol.d.ts' \
@@ -119,6 +121,8 @@ packed_packages_have_the_bounded_public_contract() {
     './README.md' \
     './dist/bin.d.ts' \
     './dist/bin.js' \
+    './dist/handoff.d.ts' \
+    './dist/handoff.js' \
     './dist/index.d.ts' \
     './dist/index.js' \
     './dist/machine.d.ts' \
@@ -213,10 +217,14 @@ packed_machine_contract_is_consumable() {
     node --input-type=module <<'NODE'
 import assert from "node:assert/strict";
 import {
+  evaluateHandoff,
   getToolingCapabilities,
   validateResultEnvelope,
 } from "@forgeflow/core";
 import { serializeResultEnvelope } from "@forgeflow/cli";
+import { spawnSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 const envelope = {
   schemaVersion: "1.0.0",
@@ -234,6 +242,50 @@ assert.equal(
   serializeResultEnvelope(envelope),
   '{"schemaVersion":"1.0.0","protocolVersion":"0.9.0","status":"pass","outcome":"success","exit":0,"subject":"repository","issues":[]}\n',
 );
+const handoffSource = `# ForgeFlow Handoff Evidence
+
+\`\`\`yaml
+handoff:
+  story: TST-004
+  recorded_at: 2026-09-12T02:30:00Z
+  repository: example/repository
+  revision: 0123456789abcdef0123456789abcdef01234567
+
+verification:
+  command: make verify
+  result: pass
+\`\`\`
+`;
+assert.equal(evaluateHandoff(handoffSource).result.exit, 0);
+
+const handoffPath = join(process.cwd(), "handoff.md");
+const incompletePath = join(process.cwd(), "handoff-incomplete.md");
+const cli = join(process.cwd(), "node_modules", ".bin", "forgeflow");
+writeFileSync(handoffPath, handoffSource);
+writeFileSync(incompletePath, handoffSource.replace("  story: TST-004\n", ""));
+
+for (const [path, expectedExit, expectedStatus] of [
+  [handoffPath, 0, "pass"],
+  [incompletePath, 1, "fail"],
+  [join(process.cwd(), "absent.md"), 2, "error"],
+]) {
+  const command = spawnSync(cli, ["handoff", "check", "--json", path], {
+    encoding: "utf8",
+  });
+  assert.equal(command.status, expectedExit);
+  assert.equal(command.stderr, "");
+  const machine = JSON.parse(command.stdout);
+  assert.equal(validateResultEnvelope(machine).ok, true);
+  assert.equal(machine.status, expectedStatus);
+  assert.equal(machine.exit, expectedExit);
+}
+
+const human = spawnSync(cli, ["handoff", "check", handoffPath], {
+  encoding: "utf8",
+});
+assert.equal(human.status, 0);
+assert.equal(human.stderr, "");
+assert.match(human.stdout, /Result: HANDOFF_CONTRACT_OK/);
 await assert.rejects(import("@forgeflow/core/result"), {
   code: "ERR_PACKAGE_PATH_NOT_EXPORTED",
 });
