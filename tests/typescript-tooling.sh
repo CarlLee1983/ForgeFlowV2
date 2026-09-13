@@ -209,10 +209,40 @@ unavailable_arguments_fail_with_one_usage_result() {
   assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" version extra
 }
 
-workspace_lock_is_single_document() {
+workspace_lock_is_current_single_document_and_fails_closed() {
   if grep -Fqx -- '---' "$forgeflow_repo/pnpm-lock.yaml"; then
     fail 'the workspace lockfile contains an environment document'
   fi
+
+  forgeflow_stale_lock="$forgeflow_test_dir/stale-lock"
+  mkdir -p "$forgeflow_stale_lock/packages/core" \
+    "$forgeflow_stale_lock/packages/cli"
+  cp "$forgeflow_repo/package.json" \
+    "$forgeflow_repo/pnpm-workspace.yaml" \
+    "$forgeflow_repo/pnpm-lock.yaml" \
+    "$forgeflow_stale_lock/"
+  cp "$forgeflow_repo/packages/core/package.json" \
+    "$forgeflow_stale_lock/packages/core/"
+  cp "$forgeflow_repo/packages/cli/package.json" \
+    "$forgeflow_stale_lock/packages/cli/"
+
+  node --input-type=module - "$forgeflow_stale_lock/package.json" <<'NODE'
+import { readFileSync, writeFileSync } from "node:fs";
+
+const manifestPath = process.argv[2];
+const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+manifest.devDependencies["forgeflow-stale-lock-fixture"] = "1.0.0";
+writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+NODE
+
+  if pnpm --dir "$forgeflow_stale_lock" install \
+    --frozen-lockfile --lockfile-only --offline --ignore-scripts \
+    >"$forgeflow_test_dir/stale-lock-output" 2>&1; then
+    fail 'the frozen workspace gate accepted a stale lockfile'
+  fi
+  grep -Fq 'ERR_PNPM_OUTDATED_LOCKFILE' \
+    "$forgeflow_test_dir/stale-lock-output" ||
+    fail 'the stale lockfile did not fail with the documented pnpm result'
 }
 
 legacy_shell_commands_do_not_delegate_to_node() {
@@ -222,7 +252,7 @@ legacy_shell_commands_do_not_delegate_to_node() {
   fi
 }
 
-run_case 'TST001-AC-001' workspace_lock_is_single_document
+run_case 'TST001-AC-001' workspace_lock_is_current_single_document_and_fails_closed
 run_case 'TST001-AC-002' built_cli_help_and_version_are_exact
 run_case 'TST001-AC-003' packed_packages_have_the_bounded_public_contract
 run_case 'TST001-AC-004' unavailable_arguments_fail_with_one_usage_result

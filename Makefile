@@ -50,6 +50,7 @@ verify-typescript:
 
 verify-tooling:
 	test "pnpm@$$(pnpm --version)" = "$$(node -p 'require("./package.json").packageManager')"
+	pnpm install --frozen-lockfile --lockfile-only --offline --ignore-scripts
 	pnpm run format:check
 	pnpm run lint
 	pnpm run typecheck
