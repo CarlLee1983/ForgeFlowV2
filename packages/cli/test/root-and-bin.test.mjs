@@ -26,10 +26,10 @@ function runCli(...args) {
   });
 }
 
-test("the CLI package root imports from built output", async () => {
+test("AC-005: the CLI package root exposes only machine serialization", async () => {
   const cli = await import("@forgeflow/cli");
 
-  assert.equal(Object.keys(cli).length, 0);
+  assert.deepEqual(Object.keys(cli), ["serializeResultEnvelope"]);
 });
 
 for (const args of [[], ["help"], ["--help"]]) {

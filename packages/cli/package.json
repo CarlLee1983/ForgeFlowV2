@@ -1,7 +1,7 @@
 {
   "name": "@forgeflow/cli",
   "version": "0.1.0",
-  "description": "ForgeFlow command-line interface shell",
+  "description": "ForgeFlow CLI and machine-result serialization",
   "license": "MIT",
   "type": "module",
   "engines": {

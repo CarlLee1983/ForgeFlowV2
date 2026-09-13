@@ -1,7 +1,7 @@
 {
   "name": "@forgeflow/core",
   "version": "0.1.0",
-  "description": "ForgeFlow TypeScript core package shell",
+  "description": "ForgeFlow result and Protocol-selection contracts",
   "license": "MIT",
   "type": "module",
   "engines": {

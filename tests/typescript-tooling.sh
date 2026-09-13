@@ -99,6 +99,12 @@ packed_packages_have_the_bounded_public_contract() {
     './README.md' \
     './dist/index.d.ts' \
     './dist/index.js' \
+    './dist/protocol.d.ts' \
+    './dist/protocol.js' \
+    './dist/result.d.ts' \
+    './dist/result.js' \
+    './dist/version.d.ts' \
+    './dist/version.js' \
     './package.json' >"$forgeflow_test_dir/core-files.expected"
   cmp "$forgeflow_test_dir/core-files.expected" \
     "$forgeflow_test_dir/core-files" >/dev/null ||
@@ -115,6 +121,8 @@ packed_packages_have_the_bounded_public_contract() {
     './dist/bin.js' \
     './dist/index.d.ts' \
     './dist/index.js' \
+    './dist/machine.d.ts' \
+    './dist/machine.js' \
     './package.json' >"$forgeflow_test_dir/cli-files.expected"
   cmp "$forgeflow_test_dir/cli-files.expected" \
     "$forgeflow_test_dir/cli-files" >/dev/null ||
@@ -186,11 +194,53 @@ NODE
     --ignore-scripts >/dev/null
   (
     CDPATH='' cd "$forgeflow_consumer_dir"
-    node --input-type=module -e \
-      'await import("@forgeflow/core"); await import("@forgeflow/cli");'
+    node --input-type=module <<'NODE'
+await import("@forgeflow/core");
+await import("@forgeflow/cli");
+NODE
     forgeflow_installed_version=$(./node_modules/.bin/forgeflow --version)
     [ "$forgeflow_installed_version" = '0.1.0' ] ||
       fail 'installed CLI bin did not report the packed version'
+  )
+}
+
+packed_machine_contract_is_consumable() {
+  [ -d "$forgeflow_consumer_dir/node_modules" ] ||
+    fail 'packed-package consumer fixture is unavailable'
+
+  (
+    CDPATH='' cd "$forgeflow_consumer_dir"
+    node --input-type=module <<'NODE'
+import assert from "node:assert/strict";
+import {
+  getToolingCapabilities,
+  validateResultEnvelope,
+} from "@forgeflow/core";
+import { serializeResultEnvelope } from "@forgeflow/cli";
+
+const envelope = {
+  schemaVersion: "1.0.0",
+  protocolVersion: "0.9.0",
+  status: "pass",
+  outcome: "success",
+  exit: 0,
+  subject: "repository",
+  issues: [],
+};
+
+assert.equal(validateResultEnvelope(envelope).ok, true);
+assert.equal(getToolingCapabilities().implementedProtocolVersion, "0.9.0");
+assert.equal(
+  serializeResultEnvelope(envelope),
+  '{"schemaVersion":"1.0.0","protocolVersion":"0.9.0","status":"pass","outcome":"success","exit":0,"subject":"repository","issues":[]}\n',
+);
+await assert.rejects(import("@forgeflow/core/result"), {
+  code: "ERR_PACKAGE_PATH_NOT_EXPORTED",
+});
+await assert.rejects(import("@forgeflow/cli/machine"), {
+  code: "ERR_PACKAGE_PATH_NOT_EXPORTED",
+});
+NODE
   )
 }
 
@@ -255,6 +305,7 @@ legacy_shell_commands_do_not_delegate_to_node() {
 run_case 'TST001-AC-001' workspace_lock_is_current_single_document_and_fails_closed
 run_case 'TST001-AC-002' built_cli_help_and_version_are_exact
 run_case 'TST001-AC-003' packed_packages_have_the_bounded_public_contract
+run_case 'TST002-AC-005' packed_machine_contract_is_consumable
 run_case 'TST001-AC-004' unavailable_arguments_fail_with_one_usage_result
 run_case 'TST001-AC-005' legacy_shell_commands_do_not_delegate_to_node
 

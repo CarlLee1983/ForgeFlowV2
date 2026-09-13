@@ -1,8 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-test("the Core package root imports from built output", async () => {
+test("AC-005: the Core package root exposes only the public contract", async () => {
   const core = await import("@forgeflow/core");
 
-  assert.equal(Object.keys(core).length, 0);
+  assert.deepEqual(Object.keys(core).sort(), [
+    "IMPLEMENTED_PROTOCOL_VERSION",
+    "RESULT_SCHEMA_VERSION",
+    "ResultEnvelopeValidationError",
+    "SUPPORTED_PROTOCOL_RANGE",
+    "assertResultEnvelope",
+    "getToolingCapabilities",
+    "resolveProtocolSelector",
+    "validateResultEnvelope",
+  ]);
 });
