@@ -1,0 +1,25 @@
+{
+  "name": "@forgeflow/core",
+  "version": "0.1.0",
+  "description": "ForgeFlow result and Protocol-selection contracts",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "clean": "tsc --build --clean",
+    "build": "tsc --build"
+  }
+}

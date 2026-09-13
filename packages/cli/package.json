@@ -1,0 +1,31 @@
+{
+  "name": "@forgeflow/cli",
+  "version": "0.1.0",
+  "description": "ForgeFlow CLI and machine-result serialization",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "forgeflow": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "clean": "tsc --build --clean",
+    "build": "tsc --build"
+  },
+  "dependencies": {
+    "@forgeflow/core": "workspace:0.1.0"
+  }
+}

@@ -1,6 +1,6 @@
-.PHONY: verify verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-execution verify-release verify-typescript verify-go verify-actions verify-portability release-check
+.PHONY: verify verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-execution verify-release verify-typescript verify-go verify-actions verify-tooling verify-portability release-check
 
-verify: verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions verify-execution
+verify: verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions verify-execution verify-tooling
 
 release-check: verify
 	./scripts/release-check
@@ -47,6 +47,18 @@ verify-release:
 
 verify-typescript:
 	$(MAKE) -C examples/typescript verify
+
+verify-tooling:
+	test "pnpm@$$(pnpm --version)" = "$$(node -p 'require("./package.json").packageManager')"
+	pnpm install --frozen-lockfile --lockfile-only --offline --ignore-scripts
+	pnpm run format:check
+	pnpm run lint
+	pnpm run typecheck
+	pnpm run clean
+	pnpm run build
+	pnpm test
+	sh -n tests/typescript-tooling.sh
+	./tests/typescript-tooling.sh
 
 verify-go:
 	$(MAKE) -C examples/go verify

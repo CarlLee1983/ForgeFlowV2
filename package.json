@@ -1,0 +1,26 @@
+{
+  "name": "forgeflow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.0.0",
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  },
+  "scripts": {
+    "format:check": "prettier --check package.json pnpm-workspace.yaml tsconfig.json tsconfig.base.json eslint.config.js 'packages/**/*.{js,json,md,mjs,ts}'",
+    "lint": "eslint packages --max-warnings=0",
+    "typecheck": "tsc --build",
+    "clean": "pnpm --recursive run clean",
+    "build": "pnpm --recursive run build",
+    "test": "pnpm run build && node --test packages/core/test/*.test.mjs packages/cli/test/*.test.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "@types/node": "^20.19.0",
+    "eslint": "^10.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.0.0"
+  }
+}

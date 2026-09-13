@@ -526,8 +526,8 @@ for forgeflow_workflow_term in \
   'runs-on: ubuntu-latest' \
   'timeout-minutes:' \
   'node-version-file: .node-version' \
-  'working-directory: examples/typescript' \
   'require-lockfile: true' \
+  'pnpm --dir examples/typescript install --frozen-lockfile' \
   'go-version-file: examples/go/go.mod' \
   'go -C examples/go mod download' \
   'run: make verify'
@@ -535,6 +535,10 @@ do
   grep -Fq "$forgeflow_workflow_term" "$forgeflow_workflow" ||
     fail "repository workflow is missing: $forgeflow_workflow_term"
 done
+
+if grep -Fq 'working-directory: examples/typescript' "$forgeflow_workflow"; then
+  fail 'repository workflow does not install the root tooling workspace'
+fi
 
 forgeflow_node_version_line_count=$(
   wc -l <"$forgeflow_repo/.node-version" | tr -d '[:space:]'
