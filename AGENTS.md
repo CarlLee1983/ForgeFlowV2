@@ -114,3 +114,20 @@ immutable historical evidence only; create one only when its Story, UTC time,
 repository, exact committed revision, command, and observed result are known.
 Never write current/next/status/Gate/completion state into ForgeFlow files or
 attach dirty-worktree verification to an unchanged HEAD revision.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues for `CarlLee1983/ForgeFlowV2`. See
+`docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The repository uses the five canonical triage labels without aliases. See
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+The repository uses a single-context domain layout. See
+`docs/agents/domain.md`.
