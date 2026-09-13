@@ -20,7 +20,6 @@
   ],
   "scripts": {
     "clean": "tsc --build --clean",
-    "build": "tsc --build",
-    "typecheck": "tsc --build --noEmit"
+    "build": "tsc --build"
   }
 }
