@@ -202,6 +202,13 @@ function splitDeclaredList(value: string): readonly string[] {
   return value.split(/[ \t\n]+/).filter((entry) => entry !== "");
 }
 
+/** Every record the declared references name, expanded and deduplicated. */
+function referencedDecisions(architecture: {
+  readonly decisions: readonly string[];
+}): string[] {
+  return [...new Set(architecture.decisions.flatMap(splitDeclaredList))];
+}
+
 function readRisk(source: string, issues: ResultIssue[]): RiskFacts {
   const declared: string[] = [];
   const reasons: string[] = [];
@@ -438,25 +445,13 @@ function envelope(issues: readonly ResultIssue[]): ResultEnvelope {
 }
 
 /**
- * Reads the decision IDs a Story references, so a caller can resolve each
- * record before presenting the resolution to the evaluator. Reading reports
- * nothing: every diagnostic belongs to the evaluation itself.
+ * Reads the decision records a Story references, so a caller can resolve each
+ * one before presenting the resolution to the evaluator. Reading reports
+ * nothing: every diagnostic belongs to the evaluation itself, and the list is
+ * the one the evaluation reports back as a fact.
  */
 export function readStoryDecisions(story: string): readonly string[] {
-  const declared: string[] = [];
-  const decisions: string[] = [];
-
-  for (const entry of readDeclarationSection(story, "## Architecture")
-    .entries) {
-    if (entry.kind !== "declaration" || entry.label !== "Decision") continue;
-    const value = readExactValue(entry.value);
-    if (value === undefined || declared.includes(value)) continue;
-    declared.push(value);
-    for (const id of splitDeclaredList(value))
-      if (!decisions.includes(id)) decisions.push(id);
-  }
-
-  return Object.freeze(decisions);
+  return Object.freeze(referencedDecisions(readArchitecture(story, [])));
 }
 
 /**
@@ -485,10 +480,9 @@ export function evaluateStoryContract(
   const architecture = readArchitecture(story, issues);
   // One declared value can name several records, exactly as readStoryDecisions
   // reports them to the caller that resolves each one.
-  const decisions = architecture.decisions.flatMap(splitDeclaredList);
-  for (const id of decisions)
+  const referenced = referencedDecisions(architecture);
+  for (const id of architecture.decisions.flatMap(splitDeclaredList))
     checkDecision(id, taskMode, sources.decision, issues);
-  const referenced = [...new Set(decisions)];
   checkOwners(architecture, issues);
   const risk = readRisk(story, issues);
   for (const signal of risk.signals) {

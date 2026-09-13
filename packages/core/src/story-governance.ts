@@ -201,6 +201,7 @@ export function readArchitecture(
   const boundaries: string[] = [];
   const owners: string[] = [];
   const decisions: string[] = [];
+  let declaredDecisions = " ";
   let decisionCount = 0;
   let contractCount = 0;
 
@@ -244,7 +245,10 @@ export function readArchitecture(
         // The retained checker counts the reference before rejecting the
         // repeat, and still resolves the decision exactly once.
         decisionCount += 1;
-        if (decisions.includes(value)) {
+        // It accumulates references into one space-joined string and tests
+        // membership on it, so a value already present as a token is a repeat
+        // even when it was declared as part of a longer value.
+        if (` ${declaredDecisions} `.includes(` ${value} `)) {
           issues.push(
             issue(
               "STORY_ARCHITECTURE_DECISION_REPEATED",
@@ -253,6 +257,7 @@ export function readArchitecture(
           );
           return;
         }
+        declaredDecisions += `${value} `;
         decisions.push(value);
         return;
       case "Boundary":

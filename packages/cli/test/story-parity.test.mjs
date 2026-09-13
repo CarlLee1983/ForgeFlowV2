@@ -904,6 +904,28 @@ test("TST007-AC-002: independent review findings stay fixed", async () => {
     },
   );
 
+  // The checker tests repeat membership on its space-joined reference list, so
+  // a token already present is a repeat even when declared inside a longer
+  // value, while a mere prefix is not.
+  for (const [name, entries] of [
+    ["multi-then-single", ["* Decision: `ADR-1 ADR-2`", "* Decision: `ADR-1`"]],
+    ["single-then-multi", ["* Decision: `ADR-1`", "* Decision: `ADR-1 ADR-2`"]],
+    ["multi-then-second", ["* Decision: `ADR-1 ADR-2`", "* Decision: `ADR-2`"]],
+    [
+      "overlapping-multi",
+      ["* Decision: `ADR-1 ADR-2`", "* Decision: `ADR-2 ADR-3`"],
+    ],
+    ["prefix-is-not-a-token", ["* Decision: `ADR-1`", "* Decision: `ADR-11`"]],
+    [
+      "three-references",
+      ["* Decision: `ADR-1`", "* Decision: `ADR-2`", "* Decision: `ADR-1`"],
+    ],
+  ])
+    await assertParity(
+      `decision-repeat-${name}`,
+      withSection("## Architecture", ...entries),
+    );
+
   // A repeated risk contract section still reports its bullet defects, because
   // the checker scans every occurrence before judging the heading count.
   await assertParity(
