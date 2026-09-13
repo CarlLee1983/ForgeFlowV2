@@ -43,3 +43,16 @@ export type {
   ProtocolSelectorSource,
   ToolingCapabilities,
 } from "./protocol.js";
+
+export { evaluateVerificationResult } from "./verification-result.js";
+export type {
+  VerificationCheckStatus,
+  VerificationDiagnostic,
+  VerificationDiagnosticKind,
+  VerificationEvidenceStatus,
+  VerificationRecord,
+  VerificationRecordStatus,
+  VerificationRecordedCheck,
+  VerificationResultEvaluation,
+  VerificationResultSources,
+} from "./verification-result.js";

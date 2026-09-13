@@ -21,6 +21,7 @@ import { validateResultEnvelope } from "@forgeflow/core";
 
 import {
   createNodeStoryReader,
+  nodeStoryFileAccess,
   renderVerificationHuman,
   runVerificationCheck,
 } from "../dist/verification.js";
@@ -391,17 +392,12 @@ test("TST005-AC-004: JSON mode survives invalid options", async (t) => {
   for (const args of [
     ["verification", "check", "--json", "--unknown"],
     ["verification", "check", "--json", "--json"],
-    ["verification", "check", "--json", "--result"],
+    ["verification", "check", "--json", "--result", "--result"],
   ]) {
     const envelope = parseMachineResult(runCli(args, root), 2);
     assert.equal(envelope.outcome, "usage-error");
     assert.equal(envelope.issues[0].code, "INVALID_ARGUMENTS");
   }
-
-  const resultMode = runCli(["verification", "check", "--result"], root);
-  assert.equal(resultMode.status, 2);
-  assert.equal(resultMode.stdout, "\nResult: ERROR\nStories checked: 0\n");
-  assert.match(resultMode.stderr, /^ERROR Invalid arguments\n/);
 
   const misplaced = runCli(["verification", "check", "story", "--json"], root);
   assert.equal(misplaced.status, 2);
@@ -416,7 +412,7 @@ test("TST005-AC-004: the verification subcommand exposes focused help", () => {
   assert.match(result.stdout, /^ForgeFlow Verification Check\n\n/);
   assert.match(
     result.stdout,
-    /forgeflow verification check \[--json\] \[story-directory \.\.\.\]/,
+    /forgeflow verification check \[--result\] \[--json\] \[story-directory \.\.\.\]/,
   );
   assert.match(result.stdout, /static and read-only/);
 });
@@ -532,4 +528,214 @@ test("TST005-AC-005: production verification modules contain no process or write
       /\b(?:writeFile|appendFile|truncate|rename|unlink|rm|mkdir|cp)\b/,
     );
   }
+});
+
+const recordSource = `# Verification Result: TST-006
+
+## Checks
+
+* lint: pass — \`pnpm run lint\`
+* static: pass — \`pnpm run typecheck\`
+* unit: pass — \`pnpm test\`
+
+## Evidence
+
+* \`AC-001\`: pass — \`the unit suite proved the happy path\`
+
+## Authority Used
+
+* plan
+* modify
+`;
+
+async function newRecordedStory(root, name, record = recordSource) {
+  const directory = await newStory(root, name);
+  if (record !== undefined)
+    await writeFile(join(directory, "verification.md"), record);
+  return directory;
+}
+
+test("TST006-AC-001: a complete record has exact human output and exit 0", async (t) => {
+  const root = await sandbox(t);
+  await newRecordedStory(root, "TST-600-fixture");
+
+  const human = runCli(["verification", "check", "--result"], root);
+  assert.equal(human.status, 0);
+  assert.equal(human.stderr, "");
+  assert.equal(
+    human.stdout,
+    `ForgeFlow Verification Check
+
+specs/stories/TST-600-fixture:
+  Task mode: execution
+  Authority: plan=yes modify=yes add_dependency=no migration=no commit=no push=no deploy=no
+  Risk level: low
+  Architecture impact: low
+  Required checks: lint static unit
+  Checks: lint=pass static=pass unit=pass
+  Evidence traced: 1 of 1
+  Status: PASS
+
+Plan: VERIFICATION_PLAN_OK
+Result: VERIFICATION_PASS
+Stories checked: 1
+
+Next:
+Declared evidence only. Human Review still decides product, design,
+and architecture acceptance.
+`,
+  );
+
+  const machine = parseMachineResult(
+    runCli(["verification", "check", "--result", "--json"], root),
+    0,
+  );
+  assert.deepEqual(machine.issues, []);
+  assert.equal(machine.status, "pass");
+
+  const reordered = parseMachineResult(
+    runCli(["verification", "check", "--json", "--result"], root),
+    0,
+  );
+  assert.deepEqual(reordered, machine);
+});
+
+test("TST006-AC-004: a partial record reports its unproven observations", async (t) => {
+  const root = await sandbox(t);
+  await newRecordedStory(
+    root,
+    "TST-601-fixture",
+    recordSource.replace("* unit: pass — `pnpm test`\n", ""),
+  );
+
+  const human = runCli(["verification", "check", "--result"], root);
+  assert.equal(human.status, 1);
+  assert.equal(human.stderr, "");
+  assert.match(
+    human.stdout,
+    /^WARN {2}specs\/stories\/TST-601-fixture: required check is not recorded: unit$/m,
+  );
+  assert.match(
+    human.stdout,
+    /^FAIL {2}specs\/stories\/TST-601-fixture: result: incomplete verification must record at least one residual risk$/m,
+  );
+  assert.match(human.stdout, /^ {2}Status: PARTIAL$/m);
+  assert.match(human.stdout, /^Result: VERIFICATION_RESULT_INCOMPLETE$/m);
+
+  const machine = parseMachineResult(
+    runCli(["verification", "check", "--result", "--json"], root),
+    1,
+  );
+  assert.deepEqual(
+    machine.issues.map((entry) => entry.code),
+    [
+      "VERIFICATION_REQUIRED_CHECK_NOT_RECORDED",
+      "VERIFICATION_RESIDUAL_RISK_REQUIRED",
+    ],
+  );
+});
+
+test("TST006-AC-004: record outcomes stay distinct across Stories", async (t) => {
+  const root = await sandbox(t);
+  await newRecordedStory(root, "TST-602-pass");
+  await newRecordedStory(
+    root,
+    "TST-603-fail",
+    recordSource.replace("* unit: pass", "* unit: fail"),
+  );
+
+  const failing = runCli(["verification", "check", "--result"], root);
+  assert.equal(failing.status, 1);
+  assert.match(failing.stdout, /^Result: VERIFICATION_FAIL$/m);
+  assert.match(failing.stdout, /^ {2}Status: PASS$/m);
+  assert.match(failing.stdout, /^ {2}Status: FAIL$/m);
+
+  await rm(join(root, "specs", "stories", "TST-603-fail"), {
+    recursive: true,
+    force: true,
+  });
+  await newRecordedStory(
+    root,
+    "TST-604-partial",
+    `${recordSource.replace("* unit: pass — `pnpm test`\n", "")}
+## Residual Risks
+
+* \`the unit layer is unproven\`
+`,
+  );
+
+  const partial = runCli(["verification", "check", "--result"], root);
+  assert.equal(partial.status, 1);
+  assert.match(partial.stdout, /^Result: VERIFICATION_PARTIAL$/m);
+  assert.doesNotMatch(partial.stdout, /^FAIL /m);
+});
+
+test("TST006-AC-005: an unsafe record is an operational error", async (t) => {
+  const root = await sandbox(t);
+  const directory = await newStory(root, "TST-605-fixture");
+  const target = join(root, "elsewhere.md");
+  await writeFile(target, recordSource);
+  await symlink(target, join(directory, "verification.md"));
+
+  const human = runCli(["verification", "check", "--result"], root);
+  assert.equal(human.status, 2);
+  assert.match(human.stdout, /^Result: ERROR$/m);
+  assert.doesNotMatch(human.stdout, /^Plan: /m);
+  assert.equal(
+    human.stderr,
+    "ERROR specs/stories/TST-605-fixture: verification record is a symlink: specs/stories/TST-605-fixture/verification.md\n",
+  );
+
+  const machine = parseMachineResult(
+    runCli(["verification", "check", "--result", "--json"], root),
+    2,
+  );
+  assert.equal(machine.issues[0].code, "VERIFICATION_STORY_FILE_SYMLINK");
+});
+
+test("TST006-AC-005: result mode reads only, and reports declared facts", async (t) => {
+  const root = await sandbox(t);
+  const directory = await newRecordedStory(root, "TST-606-fixture");
+  const before = await readFile(join(directory, "verification.md"), "utf8");
+  const reads = [];
+  const reader = createNodeStoryReader(
+    {
+      ...nodeStoryFileAccess,
+      open(path, flags) {
+        reads.push([path, flags]);
+        return nodeStoryFileAccess.open(path, flags);
+      },
+    },
+    root,
+  );
+
+  const execution = await runVerificationCheck(["--result"], reader);
+  const entry = execution.entries[0];
+
+  assert.equal(entry.kind, "record");
+  assert.deepEqual(entry.evaluation.record, {
+    checks: [
+      { layer: "lint", status: "pass" },
+      { layer: "static", status: "pass" },
+      { layer: "unit", status: "pass" },
+    ],
+    evidenceTraced: 1,
+    acceptanceCount: 1,
+    authorityUsed: ["plan", "modify"],
+    residualRisks: 0,
+  });
+  assert.deepEqual(
+    reads.map(([path]) => path.slice(root.length + 1)),
+    [
+      "specs/stories/TST-606-fixture/story.md",
+      "specs/stories/TST-606-fixture/acceptance.md",
+      "specs/stories/TST-606-fixture/verification.md",
+    ],
+  );
+  for (const [, flags] of reads)
+    assert.equal((flags & constants.O_NOFOLLOW) !== 0, true);
+  assert.equal(
+    await readFile(join(directory, "verification.md"), "utf8"),
+    before,
+  );
 });

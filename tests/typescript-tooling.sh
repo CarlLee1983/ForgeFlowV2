@@ -58,7 +58,7 @@ built_cli_help_and_version_are_exact() {
   forgeflow_empty="$forgeflow_test_dir/empty"
 
   : >"$forgeflow_empty"
-  printf 'ForgeFlow CLI v%s\n\nUsage:\n  forgeflow [command]\n\nCommands:\n  handoff check      Check immutable Handoff evidence\n  verification check Resolve declared Story verification plans\n  help, --help       Show this help\n  version, --version Print the CLI version\n\nOther migration commands are unavailable.\n' \
+  printf 'ForgeFlow CLI v%s\n\nUsage:\n  forgeflow [command]\n\nCommands:\n  handoff check      Check immutable Handoff evidence\n  verification check Resolve plans and check recorded results\n  help, --help       Show this help\n  version, --version Print the CLI version\n\nOther migration commands are unavailable.\n' \
     "$forgeflow_version" >"$forgeflow_help"
   printf '%s\n' "$forgeflow_version" >"$forgeflow_version_output"
 
@@ -107,6 +107,8 @@ packed_packages_have_the_bounded_public_contract() {
     './dist/protocol.js' \
     './dist/result.d.ts' \
     './dist/result.js' \
+    './dist/verification-result.d.ts' \
+    './dist/verification-result.js' \
     './dist/verification.d.ts' \
     './dist/verification.js' \
     './dist/version.d.ts' \
@@ -312,9 +314,37 @@ assert.equal(plan.stderr, "");
 assert.match(plan.stdout, /Result: VERIFICATION_PLAN_OK/);
 assert.match(plan.stdout, /^ {2}Authority: plan=yes modify=no /m);
 
+writeFileSync(
+  join(storyDirectory, "verification.md"),
+  [
+    "# Verification Result: TST-005",
+    "",
+    "## Checks",
+    "",
+    "* lint: pass \u2014 `pnpm run lint`",
+    "* static: pass \u2014 `pnpm run typecheck`",
+    "* unit: pass \u2014 `pnpm test`",
+    "",
+    "## Evidence",
+    "",
+    "* `AC-001`: pass \u2014 `the packed fixture proved the happy path`",
+    "",
+  ].join("\n"),
+);
+
+const recorded = spawnSync(cli, ["verification", "check", "--result"], {
+  encoding: "utf8",
+});
+assert.equal(recorded.status, 0);
+assert.equal(recorded.stderr, "");
+assert.match(recorded.stdout, /^ {2}Checks: lint=pass static=pass unit=pass$/m);
+assert.match(recorded.stdout, /^ {2}Status: PASS$/m);
+assert.match(recorded.stdout, /Result: VERIFICATION_PASS/);
+
 for (const [args, expectedExit, expectedStatus] of [
   [["verification", "check", "--json"], 0, "pass"],
   [["verification", "check", "--json", "specs/stories/absent"], 2, "error"],
+  [["verification", "check", "--result", "--json"], 0, "pass"],
 ]) {
   const command = spawnSync(cli, args, { encoding: "utf8" });
   assert.equal(command.status, expectedExit);

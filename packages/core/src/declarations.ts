@@ -43,7 +43,8 @@ function fenceRun(line: string, character: string): number {
   return run;
 }
 
-function splitBullet(bullet: string): Declaration {
+/** Splits one raw bullet into a `label: value` declaration, or an entry. */
+export function splitDeclaration(bullet: string): Declaration {
   const separator = bullet.indexOf(": ");
   let label: string;
   let value: string;
@@ -64,14 +65,11 @@ function splitBullet(bullet: string): Declaration {
     : { kind: "declaration", label, value: trim(value) };
 }
 
-/** Reads the bullets of one Markdown section, ignoring fenced examples. */
-export function readDeclarationSection(
-  source: string,
-  heading: string,
-): DeclarationSection {
-  const entries: Declaration[] = [];
-  let count = 0;
-  let inSection = false;
+/**
+ * Yields every trimmed source line that is neither inside nor part of a fenced
+ * block. Every declaration reader shares this one fence subset.
+ */
+export function* readContentLines(source: string): Generator<string> {
   let fenceCharacter = "";
   let fenceLength = 0;
 
@@ -95,14 +93,32 @@ export function readDeclarationSection(
     } else {
       if (line.startsWith(fenceCharacter)) {
         const run = fenceRun(line, fenceCharacter);
-        if (run >= fenceLength && line.length === run) {
-          fenceLength = 0;
-          continue;
-        }
+        if (run >= fenceLength && line.length === run) fenceLength = 0;
       }
       continue;
     }
 
+    yield line;
+  }
+}
+
+export interface BulletSection {
+  /** How many times the heading itself was declared. */
+  readonly count: number;
+  /** Every non-empty bullet of every occurrence, trimmed, in document order. */
+  readonly bullets: readonly string[];
+}
+
+/** Reads the raw bullets of one Markdown section, ignoring fenced examples. */
+export function readSectionBullets(
+  source: string,
+  heading: string,
+): BulletSection {
+  const bullets: string[] = [];
+  let count = 0;
+  let inSection = false;
+
+  for (const line of readContentLines(source)) {
     if (line.startsWith("#")) {
       inSection = line === heading;
       if (inSection) count += 1;
@@ -114,10 +130,23 @@ export function readDeclarationSection(
       line.startsWith("* ") || line.startsWith("- ") ? trim(line.slice(2)) : "";
     if (bullet === "") continue;
 
-    entries.push(splitBullet(bullet));
+    bullets.push(bullet);
   }
 
-  return Object.freeze({ count, entries: Object.freeze(entries) });
+  return Object.freeze({ count, bullets: Object.freeze(bullets) });
+}
+
+/** Reads the declarations of one Markdown section, ignoring fenced examples. */
+export function readDeclarationSection(
+  source: string,
+  heading: string,
+): DeclarationSection {
+  const section = readSectionBullets(source, heading);
+
+  return Object.freeze({
+    count: section.count,
+    entries: Object.freeze(section.bullets.map(splitDeclaration)),
+  });
 }
 
 /**

@@ -13,7 +13,7 @@ Usage:
 
 Commands:
   handoff check      Check immutable Handoff evidence
-  verification check Resolve declared Story verification plans
+  verification check Resolve plans and check recorded results
   help, --help       Show this help
   version, --version Print the CLI version
 
