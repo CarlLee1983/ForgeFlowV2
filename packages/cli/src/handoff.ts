@@ -1,5 +1,9 @@
-import { constants } from "node:fs";
-import { lstat, open } from "node:fs/promises";
+import {
+  nodeFileAccess,
+  readSafeSource,
+  type FileAccess,
+  type SafeSourceRead,
+} from "./source.js";
 
 import {
   IMPLEMENTED_PROTOCOL_VERSION,
@@ -10,30 +14,13 @@ import {
 
 export type HandoffOutputMode = "human" | "json";
 
-export type HandoffSourceRead =
-  | { readonly ok: true; readonly source: string }
-  | { readonly ok: false; readonly reason: "symlink" | "unavailable" };
+export type HandoffSourceRead = SafeSourceRead;
 
 export interface HandoffSourceReader {
   read(path: string): Promise<HandoffSourceRead>;
 }
 
-interface HandoffPathStats {
-  readonly size: number;
-  isFile(): boolean;
-  isSymbolicLink(): boolean;
-}
-
-interface OpenedHandoffFile {
-  stat(): Promise<HandoffPathStats>;
-  readFile(options: { readonly encoding: "utf8" }): Promise<string>;
-  close(): Promise<void>;
-}
-
-export interface HandoffFileAccess {
-  lstat(path: string): Promise<HandoffPathStats>;
-  open(path: string, flags: number): Promise<OpenedHandoffFile>;
-}
+export type HandoffFileAccess = FileAccess;
 
 export interface HandoffCommandExecution {
   readonly mode: HandoffOutputMode;
@@ -79,52 +66,11 @@ function issueResult(
   };
 }
 
-const nodeHandoffFileAccess: HandoffFileAccess = { lstat, open };
-
 export function createNodeHandoffSourceReader(
-  fileAccess: HandoffFileAccess = nodeHandoffFileAccess,
+  fileAccess: HandoffFileAccess = nodeFileAccess,
 ): HandoffSourceReader {
   return Object.freeze({
-    async read(path: string): Promise<HandoffSourceRead> {
-      let pathStats;
-      try {
-        pathStats = await fileAccess.lstat(path);
-      } catch {
-        return { ok: false, reason: "unavailable" };
-      }
-
-      if (pathStats.isSymbolicLink()) {
-        return { ok: false, reason: "symlink" };
-      }
-      if (!pathStats.isFile()) {
-        return { ok: false, reason: "unavailable" };
-      }
-
-      let handle;
-      try {
-        handle = await fileAccess.open(
-          path,
-          constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
-        );
-      } catch {
-        return { ok: false, reason: "unavailable" };
-      }
-
-      try {
-        const openedStats = await handle.stat();
-        if (!openedStats.isFile() || openedStats.size === 0) {
-          return { ok: false, reason: "unavailable" };
-        }
-        const source = await handle.readFile({ encoding: "utf8" });
-        return source.length === 0
-          ? { ok: false, reason: "unavailable" }
-          : { ok: true, source };
-      } catch {
-        return { ok: false, reason: "unavailable" };
-      } finally {
-        await handle.close().catch(() => undefined);
-      }
-    },
+    read: (path: string) => readSafeSource(fileAccess, path),
   });
 }
 

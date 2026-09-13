@@ -231,14 +231,17 @@ node packages/cli/dist/bin.js --version
 
 The package version is the TypeScript tooling version, independent of the
 ForgeFlow Protocol version in `VERSION`. The CLI supports help, version, and the
-first migrated domain command:
+migrated domain commands:
 
 ```sh
 node packages/cli/dist/bin.js handoff check [--json] [handoff-file]
+node packages/cli/dist/bin.js verification check [--json] [story-directory ...]
 ```
 
-The Handoff command is static and read-only; JSON mode emits one canonical
-machine result. Other migration commands remain unavailable, write a usage
+Both commands are static and read-only; JSON mode emits one canonical machine
+result. `verification check` resolves the execution contract and required
+verification profile a Story declares; it does not read `verification.md`.
+Other migration commands remain unavailable, write a usage
 diagnostic to standard error, and exit `2`; run `forgeflow --help` for the
 available forms. Neither package exposes implementation subpaths. Core has no
 runtime dependency, and CLI's only runtime dependency is Core.

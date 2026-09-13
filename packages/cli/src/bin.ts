@@ -4,6 +4,11 @@ import { readFileSync } from "node:fs";
 
 import { handoffHelp, renderHandoffHuman, runHandoffCheck } from "./handoff.js";
 import { serializeResultEnvelope } from "./machine.js";
+import {
+  renderVerificationHuman,
+  runVerificationCheck,
+  verificationHelp,
+} from "./verification.js";
 
 const manifestUrl = new URL("../package.json", import.meta.url);
 const manifest = JSON.parse(readFileSync(manifestUrl, "utf8")) as {
@@ -21,6 +26,7 @@ Usage:
 
 Commands:
   handoff check      Check immutable Handoff evidence
+  verification check Resolve declared Story verification plans
   help, --help       Show this help
   version, --version Print the CLI version
 
@@ -47,6 +53,23 @@ if (
   args[2] === "--help"
 ) {
   process.stdout.write(handoffHelp);
+} else if (
+  args.length === 3 &&
+  args[0] === "verification" &&
+  args[1] === "check" &&
+  args[2] === "--help"
+) {
+  process.stdout.write(verificationHelp);
+} else if (args[0] === "verification" && args[1] === "check") {
+  const execution = await runVerificationCheck(args.slice(2));
+  if (execution.mode === "json") {
+    process.stdout.write(serializeResultEnvelope(execution.result));
+  } else {
+    const rendered = renderVerificationHuman(execution);
+    process.stdout.write(rendered.stdout);
+    process.stderr.write(rendered.stderr);
+  }
+  process.exitCode = execution.result.exit;
 } else if (args[0] === "handoff" && args[1] === "check") {
   const execution = await runHandoffCheck(args.slice(2));
   if (execution.mode === "json") {

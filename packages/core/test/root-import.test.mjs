@@ -13,6 +13,7 @@ test("AC-005: the Core package root exposes only the public contract", async () 
     "evaluateHandoff",
     "getToolingCapabilities",
     "resolveProtocolSelector",
+    "resolveVerificationPlan",
     "validateResultEnvelope",
   ]);
 });

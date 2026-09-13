@@ -19,6 +19,17 @@ export type {
 export { evaluateHandoff } from "./handoff.js";
 export type { HandoffEvaluation, HandoffEvidence } from "./handoff.js";
 
+export { resolveVerificationPlan } from "./verification.js";
+export type {
+  VerificationAuthority,
+  VerificationAuthorityOperation,
+  VerificationLayer,
+  VerificationLevel,
+  VerificationPlan,
+  VerificationPlanEvaluation,
+  VerificationTaskMode,
+} from "./verification.js";
+
 export {
   SUPPORTED_PROTOCOL_RANGE,
   getToolingCapabilities,

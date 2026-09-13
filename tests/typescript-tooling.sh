@@ -58,7 +58,7 @@ built_cli_help_and_version_are_exact() {
   forgeflow_empty="$forgeflow_test_dir/empty"
 
   : >"$forgeflow_empty"
-  printf 'ForgeFlow CLI v%s\n\nUsage:\n  forgeflow [command]\n\nCommands:\n  handoff check      Check immutable Handoff evidence\n  help, --help       Show this help\n  version, --version Print the CLI version\n\nOther migration commands are unavailable.\n' \
+  printf 'ForgeFlow CLI v%s\n\nUsage:\n  forgeflow [command]\n\nCommands:\n  handoff check      Check immutable Handoff evidence\n  verification check Resolve declared Story verification plans\n  help, --help       Show this help\n  version, --version Print the CLI version\n\nOther migration commands are unavailable.\n' \
     "$forgeflow_version" >"$forgeflow_help"
   printf '%s\n' "$forgeflow_version" >"$forgeflow_version_output"
 
@@ -97,6 +97,8 @@ packed_packages_have_the_bounded_public_contract() {
   printf '%s\n' \
     './LICENSE' \
     './README.md' \
+    './dist/declarations.d.ts' \
+    './dist/declarations.js' \
     './dist/handoff.d.ts' \
     './dist/handoff.js' \
     './dist/index.d.ts' \
@@ -105,6 +107,8 @@ packed_packages_have_the_bounded_public_contract() {
     './dist/protocol.js' \
     './dist/result.d.ts' \
     './dist/result.js' \
+    './dist/verification.d.ts' \
+    './dist/verification.js' \
     './dist/version.d.ts' \
     './dist/version.js' \
     './package.json' >"$forgeflow_test_dir/core-files.expected"
@@ -127,6 +131,10 @@ packed_packages_have_the_bounded_public_contract() {
     './dist/index.js' \
     './dist/machine.d.ts' \
     './dist/machine.js' \
+    './dist/source.d.ts' \
+    './dist/source.js' \
+    './dist/verification.d.ts' \
+    './dist/verification.js' \
     './package.json' >"$forgeflow_test_dir/cli-files.expected"
   cmp "$forgeflow_test_dir/cli-files.expected" \
     "$forgeflow_test_dir/cli-files" >/dev/null ||
@@ -223,7 +231,7 @@ import {
 } from "@forgeflow/core";
 import { serializeResultEnvelope } from "@forgeflow/cli";
 import { spawnSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const envelope = {
@@ -286,6 +294,36 @@ const human = spawnSync(cli, ["handoff", "check", handoffPath], {
 assert.equal(human.status, 0);
 assert.equal(human.stderr, "");
 assert.match(human.stdout, /Result: HANDOFF_CONTRACT_OK/);
+
+const storyDirectory = join(process.cwd(), "specs", "stories", "TST-005-packed");
+mkdirSync(storyDirectory, { recursive: true });
+writeFileSync(
+  join(storyDirectory, "story.md"),
+  "# Story: TST-005 Packed\n\n## Classification\n\n* Task mode: evidence\n",
+);
+writeFileSync(
+  join(storyDirectory, "acceptance.md"),
+  "# Acceptance Criteria\n\n* [ ] AC-001: Packed fixture.\n",
+);
+
+const plan = spawnSync(cli, ["verification", "check"], { encoding: "utf8" });
+assert.equal(plan.status, 0);
+assert.equal(plan.stderr, "");
+assert.match(plan.stdout, /Result: VERIFICATION_PLAN_OK/);
+assert.match(plan.stdout, /^ {2}Authority: plan=yes modify=no /m);
+
+for (const [args, expectedExit, expectedStatus] of [
+  [["verification", "check", "--json"], 0, "pass"],
+  [["verification", "check", "--json", "specs/stories/absent"], 2, "error"],
+]) {
+  const command = spawnSync(cli, args, { encoding: "utf8" });
+  assert.equal(command.status, expectedExit);
+  assert.equal(command.stderr, "");
+  const envelope = JSON.parse(command.stdout);
+  assert.equal(validateResultEnvelope(envelope).ok, true);
+  assert.equal(envelope.status, expectedStatus);
+  assert.equal(envelope.subject, "verification");
+}
 await assert.rejects(import("@forgeflow/core/result"), {
   code: "ERR_PACKAGE_PATH_NOT_EXPORTED",
 });
@@ -307,6 +345,7 @@ unavailable_arguments_fail_with_one_usage_result() {
   assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" doctor
   assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" --json
   assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" story check
+  assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" verification lint
   assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" help extra
   assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" version extra
 }
