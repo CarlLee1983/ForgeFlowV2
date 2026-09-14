@@ -23,6 +23,8 @@ export type DoctorOutputMode = "human" | "json";
 
 export interface DoctorCommandExecution {
   readonly mode: DoctorOutputMode;
+  /** Resolved physical target root when static acquisition succeeded. */
+  readonly root?: string;
   readonly evaluation: RepositoryDoctorEvaluation;
 }
 
@@ -40,11 +42,13 @@ export const doctorHelp = `ForgeFlow Repository Doctor
 
 Usage:
   forgeflow doctor [--json] [repository-directory]
+  forgeflow doctor --run-verify [--json] [repository-directory]
   forgeflow doctor --help
 
 Doctor performs static, read-only Repository Contract inspection. It never
-executes repository-owned code, runs verification, or repairs a repository.
-Static success does not mean make verify or human review passed.
+executes repository-owned code, runs verification, or repairs a repository
+unless --run-verify is explicitly selected. Static success does not mean make
+verify or human review passed. Execution mode is not read-only or sandboxed.
 `;
 
 const missing: RepositoryPathObservation = Object.freeze({ kind: "missing" });
@@ -100,6 +104,12 @@ function usageError(mode: DoctorOutputMode): DoctorCommandExecution {
       result,
     }),
   });
+}
+
+export function doctorUsageError(
+  mode: DoctorOutputMode,
+): DoctorCommandExecution {
+  return usageError(mode);
 }
 
 async function canAccess(path: string, mode: number): Promise<boolean> {
@@ -206,6 +216,21 @@ function structural(evaluation: RepositoryDoctorEvaluation): boolean {
   return (
     evaluation.outcome === "ERROR" ||
     evaluation.outcome === "STRUCTURE_INCOMPLETE"
+  );
+}
+
+export function hasStructuralFailure(
+  evaluation: RepositoryDoctorEvaluation,
+): boolean {
+  return structural(evaluation);
+}
+
+/** Required paths alone authorize canonical verification execution. */
+export function hasConfirmedRequiredStructure(
+  evaluation: RepositoryDoctorEvaluation,
+): boolean {
+  return ["agents", "stories", "makefile"].every(
+    (name) => fact(evaluation, name, "INCOMPLETE") === "OK",
   );
 }
 
@@ -323,7 +348,9 @@ function parseArguments(args: readonly string[]): {
   return Object.freeze({
     mode,
     ...(tail.length === 1 ? { target: tail[0] } : {}),
-    valid: tail.length <= 1 && tail.every((value) => !value.startsWith("-")),
+    valid:
+      tail.length <= 1 &&
+      tail.every((value) => value.length > 0 && !value.startsWith("-")),
   });
 }
 
@@ -423,12 +450,6 @@ export async function runDoctor(
 
   let root: string;
   try {
-    if ((await lstat(requested)).isSymbolicLink())
-      return configurationError(
-        parsed.mode,
-        "REPOSITORY_ROOT_INVALID",
-        "Repository is not a directory",
-      );
     root = await realpath(requested);
     if (!(await lstat(root)).isDirectory())
       return configurationError(
@@ -445,6 +466,7 @@ export async function runDoctor(
   }
   return Object.freeze({
     mode: parsed.mode,
+    root,
     evaluation: await filesystem.inspect(root),
   });
 }

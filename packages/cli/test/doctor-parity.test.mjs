@@ -183,3 +183,24 @@ test("TST009-AC-002/003: retained static Doctor corpus has result, effect, and m
     assert.deepEqual(observation, { ok: true, mismatches: [] }, name);
   }
 });
+
+test("TST010-AC-001: explicit Doctor verification retains the shell success result and exit", async (t) => {
+  const source = await mkdtemp(
+    join(tmpdir(), "forgeflow-doctor-execution-parity-"),
+  );
+  t.after(() => rm(source, { recursive: true, force: true }));
+  const fixture = join(source, "conformant");
+  await writeFixture(fixture);
+
+  const legacy = await command(doctor, ["--run-verify", fixture], source);
+  const typescript = await command(
+    globalThis.process.execPath,
+    [bin, "doctor", "--run-verify", fixture],
+    source,
+  );
+
+  assert.equal(typescript.exit, legacy.exit);
+  assert.equal(outcomeFrom(typescript.stdout), outcomeFrom(legacy.stdout));
+  assert.match(typescript.stdout, /^Verification: PASS$/m);
+  assert.match(typescript.stdout, /^Verification exit: 0$/m);
+});

@@ -2,10 +2,21 @@
 
 import { readFileSync } from "node:fs";
 
+import {
+  renderDoctorVerificationHuman,
+  renderDoctorVerificationStart,
+  runDoctorVerification,
+} from "./doctor-execution.js";
 import { doctorHelp, renderDoctorHuman, runDoctor } from "./doctor.js";
 import { handoffHelp, renderHandoffHuman, runHandoffCheck } from "./handoff.js";
 import { serializeResultEnvelope } from "./machine.js";
 import { renderStoryHuman, runStoryCheck, storyHelp } from "./story.js";
+import {
+  renderVerifyHuman,
+  renderVerifyStart,
+  runVerify,
+  verifyHelp,
+} from "./verify.js";
 import {
   renderVerificationHuman,
   runVerificationCheck,
@@ -28,6 +39,7 @@ Usage:
 
 Commands:
   doctor             Inspect the static Repository Contract
+  verify             Run the canonical repository verification target
   handoff check      Check immutable Handoff evidence
   story check        Check the static Story contract
   verification check Resolve plans and check recorded results
@@ -39,6 +51,16 @@ Other migration commands are unavailable.
 const unavailable =
   "forgeflow: command unavailable; migration commands are not yet available. Run forgeflow --help.\n";
 const args = process.argv.slice(2);
+
+function executionObserver(mode: "human" | "json") {
+  return Object.freeze({
+    onStdout: (chunk: string) => {
+      if (mode === "human") process.stdout.write(chunk);
+      else process.stderr.write(chunk);
+    },
+    onStderr: (chunk: string) => process.stderr.write(chunk),
+  });
+}
 
 if (
   args.length === 0 ||
@@ -52,6 +74,34 @@ if (
   process.stdout.write(`${manifest.version}\n`);
 } else if (args.length === 2 && args[0] === "doctor" && args[1] === "--help") {
   process.stdout.write(doctorHelp);
+} else if (args[0] === "doctor" && args[1] === "--run-verify") {
+  const mode = args[2] === "--json" ? "json" : "human";
+  const execution = await runDoctorVerification(
+    args.slice(1),
+    process.cwd(),
+    undefined,
+    undefined,
+    executionObserver(mode),
+    (staticExecution) => {
+      if (mode === "human")
+        process.stdout.write(renderDoctorVerificationStart(staticExecution));
+    },
+  );
+  if (execution.mode === "json") {
+    const result =
+      execution.kind === "executed"
+        ? execution.execution.result
+        : execution.static.evaluation.result;
+    process.stdout.write(serializeResultEnvelope(result));
+  } else {
+    const rendered = renderDoctorVerificationHuman(execution);
+    process.stdout.write(rendered.stdout);
+    process.stderr.write(rendered.stderr);
+  }
+  process.exitCode =
+    execution.kind === "executed"
+      ? execution.execution.result.exit
+      : execution.static.evaluation.result.exit;
 } else if (args[0] === "doctor") {
   const execution = await runDoctor(args.slice(1));
   if (execution.mode === "json") {
@@ -62,6 +112,28 @@ if (
     process.stderr.write(rendered.stderr);
   }
   process.exitCode = execution.evaluation.result.exit;
+} else if (args.length === 2 && args[0] === "verify" && args[1] === "--help") {
+  process.stdout.write(verifyHelp);
+} else if (args[0] === "verify") {
+  const mode = args[1] === "--json" ? "json" : "human";
+  const execution = await runVerify(
+    args.slice(1),
+    process.cwd(),
+    undefined,
+    undefined,
+    executionObserver(mode),
+    () => {
+      if (mode === "human") process.stdout.write(renderVerifyStart());
+    },
+  );
+  if (execution.mode === "json") {
+    process.stdout.write(serializeResultEnvelope(execution.result));
+  } else {
+    const rendered = renderVerifyHuman(execution);
+    process.stdout.write(rendered.stdout);
+    process.stderr.write(rendered.stderr);
+  }
+  process.exitCode = execution.result.exit;
 } else if (
   args.length === 3 &&
   args[0] === "handoff" &&

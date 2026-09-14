@@ -58,7 +58,7 @@ built_cli_help_and_version_are_exact() {
   forgeflow_empty="$forgeflow_test_dir/empty"
 
   : >"$forgeflow_empty"
-  printf 'ForgeFlow CLI v%s\n\nUsage:\n  forgeflow [command]\n\nCommands:\n  doctor             Inspect the static Repository Contract\n  handoff check      Check immutable Handoff evidence\n  story check        Check the static Story contract\n  verification check Resolve plans and check recorded results\n  help, --help       Show this help\n  version, --version Print the CLI version\n\nOther migration commands are unavailable.\n' \
+  printf 'ForgeFlow CLI v%s\n\nUsage:\n  forgeflow [command]\n\nCommands:\n  doctor             Inspect the static Repository Contract\n  verify             Run the canonical repository verification target\n  handoff check      Check immutable Handoff evidence\n  story check        Check the static Story contract\n  verification check Resolve plans and check recorded results\n  help, --help       Show this help\n  version, --version Print the CLI version\n\nOther migration commands are unavailable.\n' \
     "$forgeflow_version" >"$forgeflow_help"
   printf '%s\n' "$forgeflow_version" >"$forgeflow_version_output"
 
@@ -145,6 +145,10 @@ packed_packages_have_the_bounded_public_contract() {
     './README.md' \
     './dist/bin.d.ts' \
     './dist/bin.js' \
+    './dist/canonical-verification.d.ts' \
+    './dist/canonical-verification.js' \
+    './dist/doctor-execution.d.ts' \
+    './dist/doctor-execution.js' \
     './dist/doctor.d.ts' \
     './dist/doctor.js' \
     './dist/handoff.d.ts' \
@@ -159,6 +163,8 @@ packed_packages_have_the_bounded_public_contract() {
     './dist/story.js' \
     './dist/verification.d.ts' \
     './dist/verification.js' \
+    './dist/verify.d.ts' \
+    './dist/verify.js' \
     './package.json' >"$forgeflow_test_dir/cli-files.expected"
   cmp "$forgeflow_test_dir/cli-files.expected" \
     "$forgeflow_test_dir/cli-files" >/dev/null ||
@@ -293,6 +299,8 @@ assert.equal(evaluateHandoff(handoffSource).result.exit, 0);
 const handoffPath = join(process.cwd(), "handoff.md");
 const incompletePath = join(process.cwd(), "handoff-incomplete.md");
 const cli = join(process.cwd(), "node_modules", ".bin", "forgeflow");
+writeFileSync(join(process.cwd(), "AGENTS.md"), "agent guide\n");
+writeFileSync(join(process.cwd(), "Makefile"), "verify:\n\t@:\n");
 writeFileSync(handoffPath, handoffSource);
 writeFileSync(incompletePath, handoffSource.replace("  story: TST-004\n", ""));
 
@@ -329,6 +337,18 @@ writeFileSync(
   join(storyDirectory, "acceptance.md"),
   "# Acceptance Criteria\n\n* [ ] AC-001: Packed fixture.\n",
 );
+
+for (const args of [
+  ["verify", "--json"],
+  ["doctor", "--run-verify", "--json"],
+]) {
+  const command = spawnSync(cli, args, { encoding: "utf8" });
+  assert.equal(command.status, 0);
+  assert.equal(command.stdout.trimEnd().split("\n").length, 1);
+  const envelope = JSON.parse(command.stdout);
+  assert.equal(validateResultEnvelope(envelope).ok, true);
+  assert.equal(envelope.status, "pass");
+}
 
 const plan = spawnSync(cli, ["verification", "check"], { encoding: "utf8" });
 assert.equal(plan.status, 0);

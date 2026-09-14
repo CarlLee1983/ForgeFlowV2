@@ -18,6 +18,7 @@ Usage:
 
 Commands:
   doctor             Inspect the static Repository Contract
+  verify             Run the canonical repository verification target
   handoff check      Check immutable Handoff evidence
   story check        Check the static Story contract
   verification check Resolve plans and check recorded results

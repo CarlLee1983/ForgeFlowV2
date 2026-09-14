@@ -34,6 +34,18 @@ executes target-owned code or writes a target. `STRUCTURE_OK` and advisory
 `CONTRACT_DRIFT` exit `0`; structural incompleteness exits `1`; unsafe or
 unconfirmable acquisition exits `2`.
 
+Canonical verification is available through:
+
+```text
+forgeflow verify [--json] [repository-directory]
+```
+
+It resolves a trusted target's physical root and invokes its `make verify`
+target exactly once. This command and `forgeflow doctor --run-verify` execute
+repository-owned code, are not read-only or sandboxed, and may write files,
+start services, or use the network. JSON mode reserves stdout for one result
+envelope; child output is forwarded to standard error.
+
 The second migrated domain command resolves declared verification plans:
 
 ```text
