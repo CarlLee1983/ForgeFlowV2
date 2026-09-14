@@ -23,7 +23,8 @@
   ],
   "scripts": {
     "clean": "tsc --build --clean",
-    "build": "tsc --build"
+    "build": "tsc --build && node ./scripts/copy-snapshot.mjs",
+    "prepack": "pnpm run build"
   },
   "dependencies": {
     "@forgeflow/core": "workspace:0.1.0"

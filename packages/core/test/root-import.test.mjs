@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-test("AC-005: the Core package root exposes only the public contract", async () => {
+test("AC-005/TST012-AC-004: the Core package root exposes only the public contract", async () => {
   const core = await import("@forgeflow/core");
 
   assert.deepEqual(Object.keys(core).sort(), [
@@ -9,14 +9,20 @@ test("AC-005: the Core package root exposes only the public contract", async () 
     "RESULT_SCHEMA_VERSION",
     "ResultEnvelopeValidationError",
     "SUPPORTED_PROTOCOL_RANGE",
+    "adoptionMarkerPath",
     "assertResultEnvelope",
+    "createAdoptionMarker",
     "evaluateHandoff",
+    "evaluateInitMutation",
     "evaluateReleaseReadiness",
     "evaluateRepositoryDoctor",
     "evaluateStoryContract",
     "evaluateStoryReadiness",
     "evaluateVerificationResult",
+    "findInitPreconditionMismatches",
+    "getInitObservationScope",
     "getToolingCapabilities",
+    "planMutation",
     "readStoryDecisions",
     "resolveProtocolSelector",
     "resolveVerificationPlan",
