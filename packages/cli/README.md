@@ -62,6 +62,20 @@ cannot acquire safely. It reads only `story.md` and `acceptance.md` from each
 Story, never evaluates a recorded result, and never executes a declared
 verification command.
 
+Local release readiness is available through:
+
+```text
+forgeflow release check [--json] [repository-directory]
+```
+
+It resolves the selected directory physically and accepts only a Git worktree
+root. The command observes local `HEAD`, index, committed and working
+`VERSION`, worktree status, and local tags twice, then reports `RELEASE_READY`
+or `RELEASE_INCOMPLETE`. It never fetches, contacts a remote, runs hooks, or
+changes the candidate. Every handled result records
+`data.remoteChecks: "not-performed"`; JSON writes one canonical envelope to
+stdout and human mode renders the same typed result.
+
 Other migration commands are unavailable; every other argument sequence prints
 the following one-line diagnostic to standard error and exits two:
 

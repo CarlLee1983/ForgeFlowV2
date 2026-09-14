@@ -10,6 +10,7 @@ import {
 import { doctorHelp, renderDoctorHuman, runDoctor } from "./doctor.js";
 import { handoffHelp, renderHandoffHuman, runHandoffCheck } from "./handoff.js";
 import { serializeResultEnvelope } from "./machine.js";
+import { releaseHelp, renderReleaseHuman, runReleaseCheck } from "./release.js";
 import { renderStoryHuman, runStoryCheck, storyHelp } from "./story.js";
 import {
   renderVerifyHuman,
@@ -41,6 +42,7 @@ Commands:
   doctor             Inspect the static Repository Contract
   verify             Run the canonical repository verification target
   handoff check      Check immutable Handoff evidence
+  release check      Inspect local Git release readiness
   story check        Check the static Story contract
   verification check Resolve plans and check recorded results
   help, --help       Show this help
@@ -130,6 +132,23 @@ if (
     process.stdout.write(serializeResultEnvelope(execution.result));
   } else {
     const rendered = renderVerifyHuman(execution);
+    process.stdout.write(rendered.stdout);
+    process.stderr.write(rendered.stderr);
+  }
+  process.exitCode = execution.result.exit;
+} else if (
+  args.length === 3 &&
+  args[0] === "release" &&
+  args[1] === "check" &&
+  args[2] === "--help"
+) {
+  process.stdout.write(releaseHelp);
+} else if (args[0] === "release" && args[1] === "check") {
+  const execution = await runReleaseCheck(args.slice(2), process.cwd());
+  if (execution.mode === "json") {
+    process.stdout.write(serializeResultEnvelope(execution.result));
+  } else {
+    const rendered = renderReleaseHuman(execution);
     process.stdout.write(rendered.stdout);
     process.stderr.write(rendered.stderr);
   }

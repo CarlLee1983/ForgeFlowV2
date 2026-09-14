@@ -20,6 +20,7 @@ Commands:
   doctor             Inspect the static Repository Contract
   verify             Run the canonical repository verification target
   handoff check      Check immutable Handoff evidence
+  release check      Inspect local Git release readiness
   story check        Check the static Story contract
   verification check Resolve plans and check recorded results
   help, --help       Show this help

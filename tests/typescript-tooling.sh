@@ -58,7 +58,7 @@ built_cli_help_and_version_are_exact() {
   forgeflow_empty="$forgeflow_test_dir/empty"
 
   : >"$forgeflow_empty"
-  printf 'ForgeFlow CLI v%s\n\nUsage:\n  forgeflow [command]\n\nCommands:\n  doctor             Inspect the static Repository Contract\n  verify             Run the canonical repository verification target\n  handoff check      Check immutable Handoff evidence\n  story check        Check the static Story contract\n  verification check Resolve plans and check recorded results\n  help, --help       Show this help\n  version, --version Print the CLI version\n\nOther migration commands are unavailable.\n' \
+  printf 'ForgeFlow CLI v%s\n\nUsage:\n  forgeflow [command]\n\nCommands:\n  doctor             Inspect the static Repository Contract\n  verify             Run the canonical repository verification target\n  handoff check      Check immutable Handoff evidence\n  release check      Inspect local Git release readiness\n  story check        Check the static Story contract\n  verification check Resolve plans and check recorded results\n  help, --help       Show this help\n  version, --version Print the CLI version\n\nOther migration commands are unavailable.\n' \
     "$forgeflow_version" >"$forgeflow_help"
   printf '%s\n' "$forgeflow_version" >"$forgeflow_version_output"
 
@@ -105,6 +105,8 @@ packed_packages_have_the_bounded_public_contract() {
     './dist/index.js' \
     './dist/protocol.d.ts' \
     './dist/protocol.js' \
+    './dist/release.d.ts' \
+    './dist/release.js' \
     './dist/repository.d.ts' \
     './dist/repository.js' \
     './dist/result.d.ts' \
@@ -157,6 +159,10 @@ packed_packages_have_the_bounded_public_contract() {
     './dist/index.js' \
     './dist/machine.d.ts' \
     './dist/machine.js' \
+    './dist/release-git.d.ts' \
+    './dist/release-git.js' \
+    './dist/release.d.ts' \
+    './dist/release.js' \
     './dist/source.d.ts' \
     './dist/source.js' \
     './dist/story.d.ts' \

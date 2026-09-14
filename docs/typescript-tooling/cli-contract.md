@@ -363,7 +363,7 @@ Rules:
 | Doctor / verify                       | Incomplete structure or nonzero child verification                                                      | Invalid argv, unsafe/unreadable root, composed-checker acquisition error, or missing `make` | Unexpected internal failure                           |
 | Init                                  | Conflict, diagnosed unsafe managed path/source snapshot, unavailable upgrade, or apply/recovery failure | Invalid argv or target argument is not a directory                                          | Unexpected failure outside a handled recovery outcome |
 | Codex activation                      | Diagnosed adoption/content/path safety refusal or apply/recovery failure                                | Invalid argv                                                                                | Unexpected failure outside a handled recovery outcome |
-| Release check                         | Any diagnosed local release-readiness or guarded Git inspection failure                                 | Invalid argv                                                                                | Unexpected internal failure                           |
+| Release check                         | Any diagnosed local release-readiness or guarded Git inspection failure                                 | Invalid argv, unsafe/missing/unreadable/non-directory target, or physical non-root target | Unexpected internal failure                           |
 
 This table is part of parity. It avoids silently reclassifying current init,
 activation, or release failures as exit `2` merely to make the new taxonomy look

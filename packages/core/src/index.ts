@@ -8,13 +8,28 @@ export {
 
 export type {
   ResultEnvelope,
+  ResultError,
   ResultEnvelopeValidation,
   ResultExit,
+  ResultDataValue,
   ResultIssue,
   ResultOutcome,
   ResultStatus,
   ResultValidationIssue,
 } from "./result.js";
+
+export { evaluateReleaseReadiness } from "./release.js";
+export type {
+  ReleaseIndexFlags,
+  ReleaseReadinessEvaluation,
+  ReleaseReadinessInput,
+  ReleaseReadinessOutcome,
+  ReleaseReadinessState,
+  ReleaseTagState,
+  ReleaseVersionObject,
+  ReleaseWorkingVersion,
+  ReleaseWorktree,
+} from "./release.js";
 
 export { evaluateRepositoryDoctor } from "./repository.js";
 export type {
