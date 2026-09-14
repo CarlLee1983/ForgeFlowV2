@@ -183,8 +183,8 @@ export const nodeInitFilesystemAdapter: InitFilesystemAdapter = Object.freeze({
     let bundle;
     try {
       bundle = await loadPackagedInitBundle();
-    } catch {
-      throw new InitSnapshotUnavailableError();
+    } catch (error: unknown) {
+      throw new InitSnapshotUnavailableError(error);
     }
     const paths = await captureInitObservations(root, mode);
     return Object.freeze({
@@ -253,7 +253,11 @@ export async function runInit(
   }
 }
 
-class InitSnapshotUnavailableError extends Error {}
+class InitSnapshotUnavailableError extends Error {
+  constructor(cause: unknown) {
+    super("Bundled Protocol snapshot unavailable", { cause });
+  }
+}
 
 export function renderInitHuman(
   execution: InitCommandExecution,

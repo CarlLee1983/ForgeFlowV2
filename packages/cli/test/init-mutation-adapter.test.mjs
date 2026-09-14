@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  cp,
   lstat,
   mkdir,
   mkdtemp,
@@ -14,7 +15,7 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { setImmediate as waitImmediate } from "node:timers/promises";
 import { TextEncoder } from "node:util";
-import { fileURLToPath, URL } from "node:url";
+import { fileURLToPath, pathToFileURL, URL } from "node:url";
 import test from "node:test";
 
 import { evaluateInitMutation, planMutation } from "@forgeflow/core";
@@ -26,8 +27,15 @@ import {
   nodeInitMutationOperations,
 } from "../dist/init-mutation.js";
 
-async function planned(root, mode = "safe") {
-  const inspection = await nodeInitFilesystemAdapter.inspect(root, mode);
+async function planned(root, mode = "safe", context = mode) {
+  let inspection;
+  try {
+    inspection = await nodeInitFilesystemAdapter.inspect(root, mode);
+  } catch (error) {
+    assert.fail(`Could not inspect packaged snapshot for ${context}`, {
+      cause: error,
+    });
+  }
   const evaluation = planMutation({
     mode,
     rootIdentity: inspection.rootIdentity,
@@ -79,6 +87,42 @@ function withOperation(name, implementation) {
     [name]: implementation,
   });
 }
+
+test("TST012-AC-006: a validated packaged snapshot is reused within one process", async () => {
+  const root = await mkdtemp(join(tmpdir(), "forgeflow-init-snapshot-cache-"));
+  try {
+    const dist = fileURLToPath(new URL("../dist/", import.meta.url));
+    const modulePath = join(root, "init-snapshot.mjs");
+    await cp(join(dist, "init-snapshot.js"), modulePath);
+    await cp(join(dist, "snapshot"), join(root, "snapshot"), {
+      recursive: true,
+    });
+
+    const { loadPackagedInitBundle } = await import(
+      pathToFileURL(modulePath).href
+    );
+    const first = await loadPackagedInitBundle();
+    const expectedPayloads = first.payloads.map((payload) => ({
+      ...payload,
+      bytes: new Uint8Array(payload.bytes),
+    }));
+    first.payloads[0].bytes[0] ^= 1;
+    await rename(
+      join(root, "snapshot", "templates", "story", "acceptance.md"),
+      join(root, "snapshot", "templates", "story", "unavailable.md"),
+    );
+
+    const [second, third] = await Promise.all([
+      loadPackagedInitBundle(),
+      loadPackagedInitBundle(),
+    ]);
+    assert.notEqual(second, third);
+    assert.deepEqual(second.payloads, expectedPayloads);
+    assert.deepEqual(third.payloads, expectedPayloads);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("TST013-AC-003: changed content and a new symlink make the original plan stale before executor mutation", async () => {
   const root = await mkdtemp(join(tmpdir(), "forgeflow-init-stale-"));
@@ -568,7 +612,8 @@ test("TST013-AC-005: before/after rename faults recover fresh, force, and upgrad
         await mkdir(target);
         if (mode !== "safe") await apply(target);
         const before = await manifest(target);
-        const { inspection, plan } = await planned(target, mode);
+        const variant = `${mode}/${afterEffect ? "after" : "before"}`;
+        const { inspection, plan } = await planned(target, mode, variant);
         const failedPath = "specs/stories/_template/acceptance.md";
         let triggered = false;
         const operations = withOperation(
@@ -597,17 +642,9 @@ test("TST013-AC-005: before/after rename faults recover fresh, force, and upgrad
         );
         const result = evaluateInitMutation(plan, execution).result;
 
-        assert.equal(triggered, true, `${mode}/${afterEffect}`);
-        assert.equal(
-          result.outcome,
-          "INIT_APPLY_FAILED_RECOVERED",
-          `${mode}/${afterEffect}`,
-        );
-        assert.deepEqual(
-          await manifest(target),
-          before,
-          `${mode}/${afterEffect}`,
-        );
+        assert.equal(triggered, true, variant);
+        assert.equal(result.outcome, "INIT_APPLY_FAILED_RECOVERED", variant);
+        assert.deepEqual(await manifest(target), before, variant);
       }
     }
   } finally {
