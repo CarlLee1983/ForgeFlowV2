@@ -35,6 +35,8 @@ export interface PackagedInitBundle {
   readonly payloads: readonly PackagedInitPayload[];
 }
 
+let validatedBundle: Promise<PackagedInitBundle> | undefined;
+
 function isProvenance(value: unknown): value is SnapshotProvenance {
   return (
     typeof value === "object" &&
@@ -83,8 +85,19 @@ async function readBundledText(path: URL): Promise<string> {
   return (await readBundledFile(path)).toString("utf8");
 }
 
+function copyBundle(bundle: PackagedInitBundle): PackagedInitBundle {
+  return Object.freeze({
+    snapshot: bundle.snapshot,
+    payloads: Object.freeze(
+      bundle.payloads.map((payload) =>
+        Object.freeze({ ...payload, bytes: new Uint8Array(payload.bytes) }),
+      ),
+    ),
+  });
+}
+
 /** Reads only assets bundled beside the compiled CLI entrypoint. */
-export async function loadPackagedInitBundle(): Promise<PackagedInitBundle> {
+async function readPackagedInitBundle(): Promise<PackagedInitBundle> {
   const root = new URL("./snapshot/", import.meta.url);
   const [provenanceText, versionText] = await Promise.all([
     readBundledText(new URL("provenance.json", root)),
@@ -145,7 +158,21 @@ export async function loadPackagedInitBundle(): Promise<PackagedInitBundle> {
       contents.map(({ path, digest }) => Object.freeze({ path, digest })),
     ),
   });
-  return Object.freeze({ snapshot, payloads: Object.freeze(contents) });
+  return Object.freeze({
+    snapshot,
+    payloads: Object.freeze(contents),
+  });
+}
+
+export function loadPackagedInitBundle(): Promise<PackagedInitBundle> {
+  if (validatedBundle === undefined) {
+    const pending = readPackagedInitBundle();
+    validatedBundle = pending;
+    void pending.catch(() => {
+      if (validatedBundle === pending) validatedBundle = undefined;
+    });
+  }
+  return validatedBundle.then(copyBundle);
 }
 
 /** Reads and validates the packaged snapshot without exposing payload bytes. */

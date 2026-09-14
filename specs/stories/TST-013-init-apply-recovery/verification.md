@@ -21,9 +21,9 @@ repository gate on this working tree.
 * `AC-002`: pass — `Core fixtures proved content-addressed deterministic plans and results while contradictory traces failed closed; the CLI adapter source contains no semantic Init outcome assignment`
 * `AC-003`: pass — `content, existence, root-identity, leaf-link, directory-link, wrong-type, mixed-stale, invalid-payload, and stage-collision fixtures refused before executor-owned target mutation`
 * `AC-004`: pass — `directory, stage, backup, payload, and marker preparation faults preserved prior managed state; ownership-race and substituted-stage fixtures deleted no unowned entry`
-* `AC-005`: pass — `before/after rename faults in all modes, real SIGTERM, sibling restore failure, fresh absent marker, marker restore failure, and invalidation failure fixtures proved reverse recovery and exact retained evidence`
+* `AC-005`: pass — `before/after rename faults in all modes, real SIGTERM, sibling restore failure, fresh absent marker, marker restore failure, and invalidation failure fixtures proved reverse recovery and exact retained evidence; the mode/fault matrix names its exact variant when fixture setup cannot inspect the packaged snapshot`
 * `AC-006`: pass — `all four exit-1 outcomes remained distinct valid envelopes with equal human semantics; exact EACCES, absolute-path, and secret-token diagnostics were omitted`
-* `AC-007`: pass — `make verify exited 0 with 297 package tests, retained bootstrap checks, packed safe/force/upgrade apply, examples, portability, and repository gates passing`
+* `AC-007`: pass — `make verify exited 0 with 298 package tests, retained bootstrap checks, packed safe/force/upgrade apply, examples, portability, and repository gates passing`
 
 ## Authority Used
 
