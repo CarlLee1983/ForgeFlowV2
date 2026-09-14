@@ -181,6 +181,8 @@ packed_packages_have_the_bounded_public_contract() {
     './dist/init.js' \
     './dist/machine.d.ts' \
     './dist/machine.js' \
+    './dist/packaged-snapshot.d.ts' \
+    './dist/packaged-snapshot.js' \
     './dist/release-git.d.ts' \
     './dist/release-git.js' \
     './dist/release.d.ts' \

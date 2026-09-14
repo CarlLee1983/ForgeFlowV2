@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { Buffer } from "node:buffer";
+import { createHash } from "node:crypto";
 import {
   cp,
   lstat,
@@ -93,7 +95,12 @@ test("TST012-AC-006: a validated packaged snapshot is reused within one process"
   try {
     const dist = fileURLToPath(new URL("../dist/", import.meta.url));
     const modulePath = join(root, "init-snapshot.mjs");
+    await writeFile(join(root, "package.json"), '{"type":"module"}\n');
     await cp(join(dist, "init-snapshot.js"), modulePath);
+    await cp(
+      join(dist, "packaged-snapshot.js"),
+      join(root, "packaged-snapshot.js"),
+    );
     await cp(join(dist, "snapshot"), join(root, "snapshot"), {
       recursive: true,
     });
@@ -119,6 +126,115 @@ test("TST012-AC-006: a validated packaged snapshot is reused within one process"
     assert.notEqual(second, third);
     assert.deepEqual(second.payloads, expectedPayloads);
     assert.deepEqual(third.payloads, expectedPayloads);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("TST014-AC-008: activation-only package changes do not perturb Init plan identity", async () => {
+  const root = await mkdtemp(join(tmpdir(), "forgeflow-init-source-scope-"));
+  try {
+    const dist = fileURLToPath(new URL("../dist/", import.meta.url));
+
+    async function loadFixture(name, mutateActivation) {
+      const fixture = join(root, name);
+      const modulePath = join(fixture, "init-snapshot.mjs");
+      const snapshotRoot = join(fixture, "snapshot");
+      await mkdir(fixture);
+      await writeFile(join(fixture, "package.json"), '{"type":"module"}\n');
+      await cp(join(dist, "init-snapshot.js"), modulePath);
+      await cp(
+        join(dist, "packaged-snapshot.js"),
+        join(fixture, "packaged-snapshot.js"),
+      );
+      await cp(join(dist, "snapshot"), snapshotRoot, { recursive: true });
+      if (mutateActivation) {
+        const assetPath = join(snapshotRoot, "skills", "forgeflow", "SKILL.md");
+        const bytes = Buffer.concat([
+          await readFile(assetPath),
+          Buffer.from("\nactivation-only change\n"),
+        ]);
+        await writeFile(assetPath, bytes);
+        const provenancePath = join(snapshotRoot, "provenance.json");
+        const provenance = JSON.parse(await readFile(provenancePath, "utf8"));
+        const entry = provenance.payloads.find(
+          ({ destination }) => destination === "skills/forgeflow/SKILL.md",
+        );
+        assert.ok(entry);
+        entry.sha256 = createHash("sha256").update(bytes).digest("hex");
+        provenance.snapshotDigest = createHash("sha256")
+          .update(JSON.stringify(provenance.payloads))
+          .digest("hex");
+        await writeFile(provenancePath, `${JSON.stringify(provenance)}\n`);
+      }
+      const { loadPackagedInitBundle } = await import(
+        pathToFileURL(modulePath).href
+      );
+      return loadPackagedInitBundle();
+    }
+
+    const [baseline, changed] = await Promise.all([
+      loadFixture("baseline", false),
+      loadFixture("changed", true),
+    ]);
+    const provenance = JSON.parse(
+      await readFile(
+        join(root, "baseline", "snapshot", "provenance.json"),
+        "utf8",
+      ),
+    );
+    const initDestinations = new Set([
+      "AGENTS.md",
+      "templates/story/story.md",
+      "templates/story/acceptance.md",
+      "templates/story/task.md",
+      "guidance/ENTRY.md",
+      "guidance/PRINCIPLES.md",
+      "guidance/DECISIONS.md",
+      "guidance/PRACTICES.md",
+    ]);
+    const expectedInitDigest = createHash("sha256")
+      .update(
+        JSON.stringify(
+          provenance.payloads.filter(({ destination }) =>
+            initDestinations.has(destination),
+          ),
+        ),
+      )
+      .digest("hex");
+    const paths = [
+      "specs",
+      "specs/stories",
+      "specs/stories/_template",
+      "guidance",
+      ...baseline.snapshot.payloads.map(({ path }) => path),
+      "specs/.forgeflow-adoption",
+    ].map((path) => ({ path, kind: "missing" }));
+    const first = planMutation({
+      mode: "safe",
+      rootIdentity: "fixture-root:1",
+      snapshot: baseline.snapshot,
+      paths,
+    });
+    const second = planMutation({
+      mode: "safe",
+      rootIdentity: "fixture-root:1",
+      snapshot: changed.snapshot,
+      paths,
+    });
+
+    assert.equal(first.result.outcome, "INIT_PREVIEW");
+    assert.equal(second.result.outcome, "INIT_PREVIEW");
+    assert.equal(baseline.snapshot.snapshotDigest, expectedInitDigest);
+    assert.equal(
+      changed.snapshot.snapshotDigest,
+      baseline.snapshot.snapshotDigest,
+    );
+    assert.equal(second.plan.planId, first.plan.planId);
+    assert.deepEqual(
+      second.plan.stagePreconditions,
+      first.plan.stagePreconditions,
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

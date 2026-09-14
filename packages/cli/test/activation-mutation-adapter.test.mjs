@@ -417,6 +417,52 @@ test("TST014-AC-007: committed stage cleanup residue has its distinct result", a
   }
 });
 
+test("TST014-AC-006/007: complete reverse recovery with cleanup residue stays cleanup-incomplete", async () => {
+  const root = await mkdtemp(
+    join(tmpdir(), "forgeflow-activation-recovery-cleanup-"),
+  );
+  try {
+    const target = await adopted(root, "target");
+    const { plan, payloads } = await planned(target);
+    const originalAgents = await readFile(join(target, "AGENTS.md"));
+    let applyFailed = false;
+    let cleanupFailed = false;
+    const operations = Object.freeze({
+      ...nodeInitMutationOperations,
+      async rename(source, destination) {
+        if (!applyFailed && destination === join(target, "AGENTS.md")) {
+          applyFailed = true;
+          await nodeInitMutationOperations.rename(source, destination);
+          throw new Error("injected after-effect failure");
+        }
+        return nodeInitMutationOperations.rename(source, destination);
+      },
+      async removeDirectory(path) {
+        if (!cleanupFailed && path.includes(".forgeflow-activate.")) {
+          cleanupFailed = true;
+          throw new Error("injected cleanup failure");
+        }
+        return nodeInitMutationOperations.removeDirectory(path);
+      },
+    });
+    const observation = await executeActivationMutation(
+      target,
+      plan,
+      payloads,
+      operations,
+    );
+    const result = evaluateActivationMutation(plan, observation).result;
+
+    assert.equal(result.outcome, "ACTIVATION_CLEANUP_INCOMPLETE");
+    assert.deepEqual(observation.unrecovered, []);
+    assert.deepEqual(observation.restored, ["AGENTS.md"]);
+    assert.ok(result.data.cleanupResidue.length > 0);
+    assert.deepEqual(await readFile(join(target, "AGENTS.md")), originalAgents);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("TST014-AC-006/007: preparation directory cleanup failure reports every retained owned directory", async () => {
   const root = await mkdtemp(
     join(tmpdir(), "forgeflow-activation-directory-cleanup-"),
@@ -482,6 +528,7 @@ test("TST014-AC-003/008: production adapters report facts without activation out
     "../src/activation-mutation.ts",
     "../src/activation-observation.ts",
     "../src/activation-snapshot.ts",
+    "../src/packaged-snapshot.ts",
   ]) {
     const source = await readFile(
       fileURLToPath(new URL(path, import.meta.url)),

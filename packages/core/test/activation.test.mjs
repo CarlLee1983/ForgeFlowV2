@@ -283,6 +283,22 @@ test("TST014-AC-003/006: one observation contract maps activation mutation outco
     [
       "ACTIVATION_CLEANUP_INCOMPLETE",
       trace(plan, {
+        prepared: paths,
+        attempted: [paths[0]],
+        applied: [paths[0]],
+        recoveryAttempted: [paths[0]],
+        restored: [paths[0]],
+        cleanupResidue: [stage],
+        failure: {
+          stage: "apply",
+          code: "ACTIVATION_REPLACEMENT_FAILED",
+          path: paths[0],
+        },
+      }),
+    ],
+    [
+      "ACTIVATION_CLEANUP_INCOMPLETE",
+      trace(plan, {
         committed: true,
         prepared: paths,
         attempted: paths,

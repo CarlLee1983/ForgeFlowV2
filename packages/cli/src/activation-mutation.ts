@@ -540,10 +540,7 @@ export async function executeActivationMutation(
       recoveryAttempted,
       restored,
       cleanupResidue: residue,
-      failure:
-        residue.length === 0
-          ? applyFailure
-          : failure("recovery", "ACTIVATION_CLEANUP_FAILED", residue[0]),
+      failure: applyFailure,
     });
   }
 

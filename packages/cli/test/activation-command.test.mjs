@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
   chmod,
+  cp,
   copyFile,
   lstat,
   mkdir,
@@ -14,7 +15,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
-import { fileURLToPath, URL } from "node:url";
+import { fileURLToPath, pathToFileURL, URL } from "node:url";
 import test from "node:test";
 
 import { validateResultEnvelope } from "@forgeflow/core";
@@ -164,6 +165,47 @@ test("TST014-AC-001/002/008: packed preview, apply, and unchanged have retained 
     assert.equal(unchanged.status, 0, unchanged.stderr);
     assert.equal(JSON.parse(unchanged.stdout).outcome, "ACTIVATION_UNCHANGED");
     assert.deepEqual(await manifest(cliTarget), installed);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("TST014-AC-005/008: packaged activation provenance is internally consistent", async () => {
+  const root = await mkdtemp(join(tmpdir(), "forgeflow-activation-source-"));
+  try {
+    const dist = fileURLToPath(new URL("../dist/", import.meta.url));
+    const modulePath = join(root, "activation-snapshot.mjs");
+    const snapshotRoot = join(root, "snapshot");
+    await writeFile(join(root, "package.json"), '{"type":"module"}\n');
+    await cp(join(dist, "activation-snapshot.js"), modulePath);
+    await cp(
+      join(dist, "packaged-snapshot.js"),
+      join(root, "packaged-snapshot.js"),
+    );
+    await cp(join(dist, "snapshot"), snapshotRoot, { recursive: true });
+    const { loadPackagedActivationSource } = await import(
+      pathToFileURL(modulePath).href
+    );
+    const provenancePath = join(snapshotRoot, "provenance.json");
+    const provenance = JSON.parse(await readFile(provenancePath, "utf8"));
+
+    await writeFile(
+      provenancePath,
+      `${JSON.stringify({ ...provenance, protocolVersion: "0.9.1" })}\n`,
+    );
+    await assert.rejects(
+      loadPackagedActivationSource(),
+      /version does not match provenance/,
+    );
+
+    await writeFile(
+      provenancePath,
+      `${JSON.stringify({ ...provenance, snapshotDigest: "0".repeat(64) })}\n`,
+    );
+    await assert.rejects(
+      loadPackagedActivationSource(),
+      /manifest digest is invalid/,
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
