@@ -17,6 +17,7 @@ Usage:
   forgeflow [command]
 
 Commands:
+  init               Preview ForgeFlow initialization
   doctor             Inspect the static Repository Contract
   verify             Run the canonical repository verification target
   handoff check      Check immutable Handoff evidence
@@ -26,10 +27,10 @@ Commands:
   help, --help       Show this help
   version, --version Print the CLI version
 
-Other migration commands are unavailable.
+Init apply and other migration commands are unavailable.
 `;
 const unavailable =
-  "forgeflow: command unavailable; migration commands are not yet available. Run forgeflow --help.\n";
+  "forgeflow: command unavailable; this command is not available. Run forgeflow --help.\n";
 
 function runCli(args, cwd) {
   return spawnSync(globalThis.process.execPath, [bin, ...args], {
@@ -141,8 +142,18 @@ for (const args of [["version"], ["--version"]]) {
   });
 }
 
+test("TST012-AC-009: init apply is explicitly unavailable until TST-013", () => {
+  const result = runCli(["init"]);
+
+  assert.equal(result.status, 2);
+  assert.equal(result.stdout, "");
+  assert.equal(
+    result.stderr,
+    "FAIL init: INIT_APPLY_UNAVAILABLE: Init apply mode is not available; use --dry-run.\n",
+  );
+});
+
 for (const args of [
-  ["init"],
   ["--quiet"],
   ["migrate", "orders"],
   ["help", "extra"],

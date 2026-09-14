@@ -10,6 +10,15 @@ forgeflow [command]
 `forgeflow version` and `forgeflow --version` print the package version and exit
 zero. The first migrated domain command checks immutable Handoff evidence:
 
+`forgeflow init --dry-run [--force | --upgrade] [--json] [repository-directory]`
+plans an offline initialization from the Protocol snapshot bundled in the CLI
+package. It performs no target writes, staging, recovery, network access, or
+prompts. Safe mode refuses managed conflicts; force covers the exact fresh
+managed surface; upgrade covers templates and the marker only. Apply mode is
+deferred.
+
+The Handoff command checks immutable evidence:
+
 ```text
 forgeflow handoff check [--json] [handoff-file]
 ```
@@ -76,11 +85,11 @@ changes the candidate. Every handled result records
 `data.remoteChecks: "not-performed"`; JSON writes one canonical envelope to
 stdout and human mode renders the same typed result.
 
-Other migration commands are unavailable; every other argument sequence prints
+Init apply and other unavailable commands print
 the following one-line diagnostic to standard error and exits two:
 
 ```text
-forgeflow: command unavailable; migration commands are not yet available. Run forgeflow --help.
+forgeflow: command unavailable; this command is not available. Run forgeflow --help.
 ```
 
 ## Machine results

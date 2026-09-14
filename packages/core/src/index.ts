@@ -31,6 +31,19 @@ export type {
   ReleaseWorktree,
 } from "./release.js";
 
+export { adoptionMarkerPath, planMutation } from "./init.js";
+export type {
+  InitChangeKind,
+  InitMode,
+  InitPathKind,
+  InitPathObservation,
+  InitPlanEvaluation,
+  InitPlanRequest,
+  InitPlannedChange,
+  InitSnapshot,
+  InitSnapshotPayload,
+} from "./init.js";
+
 export { evaluateRepositoryDoctor } from "./repository.js";
 export type {
   RepositoryComposedObservation,
