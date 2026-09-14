@@ -17,6 +17,10 @@ const canonicalResults = [
   { status: "error", outcome: "usage-error", exit: 2 },
   { status: "error", outcome: "configuration-error", exit: 2 },
   { status: "error", outcome: "internal-error", exit: 2 },
+  { status: "pass", outcome: "RELEASE_READY", exit: 0 },
+  { status: "fail", outcome: "RELEASE_INCOMPLETE", exit: 1 },
+  { status: "error", outcome: "ERROR", exit: 2 },
+  { status: "error", outcome: "ERROR", exit: 3 },
 ];
 
 test("AC-001: canonical result outcomes satisfy the public envelope contract", () => {
@@ -28,6 +32,60 @@ test("AC-001: canonical result outcomes satisfy the public envelope contract", (
       value: envelope,
     });
   }
+});
+
+test("TST011-AC-001/004: release envelopes retain only structured public data", () => {
+  const envelope = {
+    ...base,
+    status: "pass",
+    outcome: "RELEASE_READY",
+    exit: 0,
+    subject: "release",
+    data: {
+      remoteChecks: "not-performed",
+      version: "0.2.1",
+      expectedTag: "v0.2.1",
+      localTag: "absent",
+    },
+  };
+
+  assert.deepEqual(validateResultEnvelope(envelope), {
+    ok: true,
+    value: envelope,
+  });
+  assert.deepEqual(
+    validateResultEnvelope({
+      ...envelope,
+      data: undefined,
+    }),
+    { ok: false, issues: [{ code: "INVALID_RESULT_DATA", field: "data" }] },
+  );
+});
+
+test("TST011-AC-004: typed release errors are additive machine fields", () => {
+  const envelope = {
+    ...base,
+    status: "error",
+    outcome: "ERROR",
+    exit: 2,
+    subject: "release",
+    error: { code: "RELEASE_USAGE", message: "Invalid arguments" },
+  };
+
+  assert.deepEqual(validateResultEnvelope(envelope), {
+    ok: true,
+    value: envelope,
+  });
+  assert.deepEqual(
+    validateResultEnvelope({
+      ...envelope,
+      error: { code: "bad", message: "x" },
+    }),
+    {
+      ok: false,
+      issues: [{ code: "INVALID_ERROR_CODE", field: "error.code" }],
+    },
+  );
 });
 
 test("AC-001: canonical paths, subjects, and issues validate", () => {
@@ -122,7 +180,7 @@ const invalidEnvelopes = [
     "INVALID_OUTCOME",
     "outcome",
   ],
-  ["invalid exit", { ...validEnvelope, exit: 3 }, "INVALID_EXIT", "exit"],
+  ["invalid exit", { ...validEnvelope, exit: 4 }, "INVALID_EXIT", "exit"],
   [
     "inconsistent result combination",
     { ...validEnvelope, status: "fail", outcome: "failure", exit: 0 },

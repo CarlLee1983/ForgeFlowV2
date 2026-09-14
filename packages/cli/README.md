@@ -10,6 +10,16 @@ forgeflow [command]
 `forgeflow version` and `forgeflow --version` print the package version and exit
 zero. The first migrated domain command checks immutable Handoff evidence:
 
+`forgeflow init [--force | --upgrade] [--dry-run] [--json] [repository-directory]`
+plans or applies an offline initialization from the Protocol snapshot bundled
+in the CLI package. Safe mode refuses managed conflicts; force covers the exact
+fresh managed surface; upgrade covers templates and the marker only. Apply
+revalidates its content-addressed plan, prepares private sibling stages, writes
+the marker last, and reverse-recovers detected failures. `--dry-run` performs
+no target writes, staging, or recovery. Init never uses the network or prompts.
+
+The Handoff command checks immutable evidence:
+
 ```text
 forgeflow handoff check [--json] [handoff-file]
 ```
@@ -62,11 +72,25 @@ cannot acquire safely. It reads only `story.md` and `acceptance.md` from each
 Story, never evaluates a recorded result, and never executes a declared
 verification command.
 
-Other migration commands are unavailable; every other argument sequence prints
-the following one-line diagnostic to standard error and exits two:
+Local release readiness is available through:
 
 ```text
-forgeflow: command unavailable; migration commands are not yet available. Run forgeflow --help.
+forgeflow release check [--json] [repository-directory]
+```
+
+It resolves the selected directory physically and accepts only a Git worktree
+root. The command observes local `HEAD`, index, committed and working
+`VERSION`, worktree status, and local tags twice, then reports `RELEASE_READY`
+or `RELEASE_INCOMPLETE`. It never fetches, contacts a remote, runs hooks, or
+changes the candidate. Every handled result records
+`data.remoteChecks: "not-performed"`; JSON writes one canonical envelope to
+stdout and human mode renders the same typed result.
+
+Unavailable commands print the following one-line diagnostic to standard error
+and exit two:
+
+```text
+forgeflow: command unavailable; this command is not available. Run forgeflow --help.
 ```
 
 ## Machine results

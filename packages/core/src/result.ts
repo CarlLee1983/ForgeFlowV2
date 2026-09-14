@@ -11,15 +11,39 @@ export type ResultOutcome =
   | "warning"
   | "usage-error"
   | "configuration-error"
-  | "internal-error";
+  | "internal-error"
+  | "RELEASE_READY"
+  | "RELEASE_INCOMPLETE"
+  | "INIT_APPLIED"
+  | "INIT_PREVIEW"
+  | "INIT_CONFLICT"
+  | "INIT_OPERATION_REFUSED"
+  | "INIT_APPLY_FAILED_RECOVERED"
+  | "INIT_RECOVERY_INCOMPLETE"
+  | "INIT_CLEANUP_INCOMPLETE"
+  | "ERROR";
 
-export type ResultExit = 0 | 1 | 2;
+export type ResultExit = 0 | 1 | 2 | 3;
+
+export type ResultDataValue =
+  | null
+  | boolean
+  | number
+  | string
+  | readonly ResultDataValue[]
+  | { readonly [key: string]: ResultDataValue };
 
 export interface ResultIssue {
   readonly code: string;
   readonly message: string;
   readonly path?: string;
   readonly subject?: string;
+}
+
+/** A typed command error safe to expose in machine-readable output. */
+export interface ResultError {
+  readonly code: string;
+  readonly message: string;
 }
 
 export interface ResultEnvelope {
@@ -30,6 +54,8 @@ export interface ResultEnvelope {
   readonly exit: ResultExit;
   readonly subject: string;
   readonly path?: string;
+  readonly data?: Readonly<Record<string, ResultDataValue>>;
+  readonly error?: ResultError;
   readonly issues: readonly ResultIssue[];
 }
 
@@ -62,6 +88,17 @@ const resultMappings = new Set([
   "error|usage-error|2",
   "error|configuration-error|2",
   "error|internal-error|2",
+  "pass|RELEASE_READY|0",
+  "fail|RELEASE_INCOMPLETE|1",
+  "pass|INIT_APPLIED|0",
+  "pass|INIT_PREVIEW|0",
+  "fail|INIT_CONFLICT|1",
+  "fail|INIT_OPERATION_REFUSED|1",
+  "fail|INIT_APPLY_FAILED_RECOVERED|1",
+  "fail|INIT_RECOVERY_INCOMPLETE|1",
+  "fail|INIT_CLEANUP_INCOMPLETE|1",
+  "error|ERROR|2",
+  "error|ERROR|3",
 ]);
 
 const envelopeFields = new Set([
@@ -72,6 +109,8 @@ const envelopeFields = new Set([
   "exit",
   "subject",
   "path",
+  "data",
+  "error",
   "issues",
 ]);
 const requiredEnvelopeFields = [
@@ -84,6 +123,7 @@ const requiredEnvelopeFields = [
   "issues",
 ];
 const issueFields = new Set(["code", "message", "path", "subject"]);
+const errorFields = new Set(["code", "message"]);
 const statuses: ReadonlySet<unknown> = new Set([
   "pass",
   "fail",
@@ -97,8 +137,18 @@ const outcomes: ReadonlySet<unknown> = new Set([
   "usage-error",
   "configuration-error",
   "internal-error",
+  "RELEASE_READY",
+  "RELEASE_INCOMPLETE",
+  "INIT_APPLIED",
+  "INIT_PREVIEW",
+  "INIT_CONFLICT",
+  "INIT_OPERATION_REFUSED",
+  "INIT_APPLY_FAILED_RECOVERED",
+  "INIT_RECOVERY_INCOMPLETE",
+  "INIT_CLEANUP_INCOMPLETE",
+  "ERROR",
 ]);
-const exits: ReadonlySet<unknown> = new Set([0, 1, 2]);
+const exits: ReadonlySet<unknown> = new Set([0, 1, 2, 3]);
 const subjectPattern = /^[a-z][a-z0-9-]*(?::[A-Za-z0-9][A-Za-z0-9._-]*)?$/;
 const issueCodePattern = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$/;
 const lineBreakPattern = /[\r\n\u0085\u2028\u2029]/;
@@ -153,6 +203,19 @@ function isPath(value: unknown): value is string {
   });
 }
 
+function isDataValue(value: unknown): value is ResultDataValue {
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "boolean" ||
+    (typeof value === "number" && Number.isFinite(value))
+  )
+    return true;
+  if (Array.isArray(value)) return value.every(isDataValue);
+  if (!isRecord(value)) return false;
+  return Object.values(value).every(isDataValue);
+}
+
 export function validateResultEnvelope(
   input: unknown,
 ): ResultEnvelopeValidation {
@@ -204,6 +267,30 @@ export function validateResultEnvelope(
   }
   if (hasOwn(value, "path") && !isPath(value.path)) {
     return invalid("INVALID_PATH", "path");
+  }
+  if (hasOwn(value, "data") && !isDataValue(value.data)) {
+    return invalid("INVALID_RESULT_DATA", "data");
+  }
+  if (hasOwn(value, "error")) {
+    if (!isRecord(value.error)) return invalid("INVALID_ERROR", "error");
+    const extraErrorField = unknownField(value.error, errorFields);
+    if (extraErrorField !== undefined)
+      return invalid("UNKNOWN_FIELD", `error.${extraErrorField}`);
+    if (
+      !hasOwn(value.error, "code") ||
+      typeof value.error.code !== "string" ||
+      !issueCodePattern.test(value.error.code)
+    ) {
+      return invalid("INVALID_ERROR_CODE", "error.code");
+    }
+    if (
+      !hasOwn(value.error, "message") ||
+      typeof value.error.message !== "string" ||
+      value.error.message.length === 0 ||
+      lineBreakPattern.test(value.error.message)
+    ) {
+      return invalid("INVALID_ERROR_MESSAGE", "error.message");
+    }
   }
   if (!Array.isArray(value.issues)) {
     return invalid("INVALID_ISSUES", "issues");

@@ -8,13 +8,54 @@ export {
 
 export type {
   ResultEnvelope,
+  ResultError,
   ResultEnvelopeValidation,
   ResultExit,
+  ResultDataValue,
   ResultIssue,
   ResultOutcome,
   ResultStatus,
   ResultValidationIssue,
 } from "./result.js";
+
+export { evaluateReleaseReadiness } from "./release.js";
+export type {
+  ReleaseIndexFlags,
+  ReleaseReadinessEvaluation,
+  ReleaseReadinessInput,
+  ReleaseReadinessOutcome,
+  ReleaseReadinessState,
+  ReleaseTagState,
+  ReleaseVersionObject,
+  ReleaseWorkingVersion,
+  ReleaseWorktree,
+} from "./release.js";
+
+export {
+  adoptionMarkerPath,
+  createAdoptionMarker,
+  evaluateInitMutation,
+  findInitPreconditionMismatches,
+  getInitObservationScope,
+  planMutation,
+} from "./init.js";
+export type {
+  InitChangeKind,
+  InitMode,
+  InitMutationExecutionObservation,
+  InitMutationFailure,
+  InitMutationFailureStage,
+  InitMutationPlan,
+  InitPathKind,
+  InitPathObservation,
+  InitPlanEvaluation,
+  InitPlanRequest,
+  InitPlannedChange,
+  InitSnapshot,
+  InitSnapshotPayload,
+  InitStagePrecondition,
+  InitStageObservation,
+} from "./init.js";
 
 export { evaluateRepositoryDoctor } from "./repository.js";
 export type {

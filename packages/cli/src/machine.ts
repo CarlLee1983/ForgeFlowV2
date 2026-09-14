@@ -26,6 +26,8 @@ function canonicalEnvelope(envelope: ResultEnvelope): Record<string, unknown> {
     exit: envelope.exit,
     subject: envelope.subject,
     ...(hasOwn(envelope, "path") ? { path: envelope.path } : {}),
+    ...(hasOwn(envelope, "data") ? { data: envelope.data } : {}),
+    ...(hasOwn(envelope, "error") ? { error: envelope.error } : {}),
     issues: envelope.issues.map(canonicalIssue),
   };
 }

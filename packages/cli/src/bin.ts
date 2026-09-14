@@ -9,7 +9,9 @@ import {
 } from "./doctor-execution.js";
 import { doctorHelp, renderDoctorHuman, runDoctor } from "./doctor.js";
 import { handoffHelp, renderHandoffHuman, runHandoffCheck } from "./handoff.js";
+import { initHelp, renderInitHuman, runInit } from "./init.js";
 import { serializeResultEnvelope } from "./machine.js";
+import { releaseHelp, renderReleaseHuman, runReleaseCheck } from "./release.js";
 import { renderStoryHuman, runStoryCheck, storyHelp } from "./story.js";
 import {
   renderVerifyHuman,
@@ -38,9 +40,11 @@ Usage:
   forgeflow [command]
 
 Commands:
+  init               Plan or apply ForgeFlow initialization
   doctor             Inspect the static Repository Contract
   verify             Run the canonical repository verification target
   handoff check      Check immutable Handoff evidence
+  release check      Inspect local Git release readiness
   story check        Check the static Story contract
   verification check Resolve plans and check recorded results
   help, --help       Show this help
@@ -49,7 +53,7 @@ Commands:
 Other migration commands are unavailable.
 `;
 const unavailable =
-  "forgeflow: command unavailable; migration commands are not yet available. Run forgeflow --help.\n";
+  "forgeflow: command unavailable; this command is not available. Run forgeflow --help.\n";
 const args = process.argv.slice(2);
 
 function executionObserver(mode: "human" | "json") {
@@ -72,6 +76,18 @@ if (
   (args[0] === "version" || args[0] === "--version")
 ) {
   process.stdout.write(`${manifest.version}\n`);
+} else if (args.length === 2 && args[0] === "init" && args[1] === "--help") {
+  process.stdout.write(initHelp);
+} else if (args[0] === "init") {
+  const execution = await runInit(args.slice(1));
+  if (execution.mode === "json") {
+    process.stdout.write(serializeResultEnvelope(execution.result));
+  } else {
+    const rendered = renderInitHuman(execution);
+    process.stdout.write(rendered.stdout);
+    process.stderr.write(rendered.stderr);
+  }
+  process.exitCode = execution.result.exit;
 } else if (args.length === 2 && args[0] === "doctor" && args[1] === "--help") {
   process.stdout.write(doctorHelp);
 } else if (args[0] === "doctor" && args[1] === "--run-verify") {
@@ -130,6 +146,23 @@ if (
     process.stdout.write(serializeResultEnvelope(execution.result));
   } else {
     const rendered = renderVerifyHuman(execution);
+    process.stdout.write(rendered.stdout);
+    process.stderr.write(rendered.stderr);
+  }
+  process.exitCode = execution.result.exit;
+} else if (
+  args.length === 3 &&
+  args[0] === "release" &&
+  args[1] === "check" &&
+  args[2] === "--help"
+) {
+  process.stdout.write(releaseHelp);
+} else if (args[0] === "release" && args[1] === "check") {
+  const execution = await runReleaseCheck(args.slice(2), process.cwd());
+  if (execution.mode === "json") {
+    process.stdout.write(serializeResultEnvelope(execution.result));
+  } else {
+    const rendered = renderReleaseHuman(execution);
     process.stdout.write(rendered.stdout);
     process.stderr.write(rendered.stderr);
   }

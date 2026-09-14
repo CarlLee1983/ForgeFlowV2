@@ -58,7 +58,7 @@ built_cli_help_and_version_are_exact() {
   forgeflow_empty="$forgeflow_test_dir/empty"
 
   : >"$forgeflow_empty"
-  printf 'ForgeFlow CLI v%s\n\nUsage:\n  forgeflow [command]\n\nCommands:\n  doctor             Inspect the static Repository Contract\n  verify             Run the canonical repository verification target\n  handoff check      Check immutable Handoff evidence\n  story check        Check the static Story contract\n  verification check Resolve plans and check recorded results\n  help, --help       Show this help\n  version, --version Print the CLI version\n\nOther migration commands are unavailable.\n' \
+  printf 'ForgeFlow CLI v%s\n\nUsage:\n  forgeflow [command]\n\nCommands:\n  init               Plan or apply ForgeFlow initialization\n  doctor             Inspect the static Repository Contract\n  verify             Run the canonical repository verification target\n  handoff check      Check immutable Handoff evidence\n  release check      Inspect local Git release readiness\n  story check        Check the static Story contract\n  verification check Resolve plans and check recorded results\n  help, --help       Show this help\n  version, --version Print the CLI version\n\nOther migration commands are unavailable.\n' \
     "$forgeflow_version" >"$forgeflow_help"
   printf '%s\n' "$forgeflow_version" >"$forgeflow_version_output"
 
@@ -103,8 +103,12 @@ packed_packages_have_the_bounded_public_contract() {
     './dist/handoff.js' \
     './dist/index.d.ts' \
     './dist/index.js' \
+    './dist/init.d.ts' \
+    './dist/init.js' \
     './dist/protocol.d.ts' \
     './dist/protocol.js' \
+    './dist/release.d.ts' \
+    './dist/release.js' \
     './dist/repository.d.ts' \
     './dist/repository.js' \
     './dist/result.d.ts' \
@@ -155,8 +159,30 @@ packed_packages_have_the_bounded_public_contract() {
     './dist/handoff.js' \
     './dist/index.d.ts' \
     './dist/index.js' \
+    './dist/init-mutation.d.ts' \
+    './dist/init-mutation.js' \
+    './dist/init-observation.d.ts' \
+    './dist/init-observation.js' \
+    './dist/init-snapshot.d.ts' \
+    './dist/init-snapshot.js' \
+    './dist/init.d.ts' \
+    './dist/init.js' \
     './dist/machine.d.ts' \
     './dist/machine.js' \
+    './dist/release-git.d.ts' \
+    './dist/release-git.js' \
+    './dist/release.d.ts' \
+    './dist/release.js' \
+    './dist/snapshot/AGENTS.md' \
+    './dist/snapshot/VERSION' \
+    './dist/snapshot/guidance/DECISIONS.md' \
+    './dist/snapshot/guidance/ENTRY.md' \
+    './dist/snapshot/guidance/PRACTICES.md' \
+    './dist/snapshot/guidance/PRINCIPLES.md' \
+    './dist/snapshot/provenance.json' \
+    './dist/snapshot/templates/story/acceptance.md' \
+    './dist/snapshot/templates/story/story.md' \
+    './dist/snapshot/templates/story/task.md' \
     './dist/source.d.ts' \
     './dist/source.js' \
     './dist/story.d.ts' \
@@ -261,7 +287,7 @@ import {
 } from "@forgeflow/core";
 import { serializeResultEnvelope } from "@forgeflow/cli";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const envelope = {
@@ -326,6 +352,24 @@ const human = spawnSync(cli, ["handoff", "check", handoffPath], {
 assert.equal(human.status, 0);
 assert.equal(human.stderr, "");
 assert.match(human.stdout, /Result: HANDOFF_CONTRACT_OK/);
+
+const initTarget = join(process.cwd(), "init-preview-target");
+mkdirSync(initTarget);
+const initPreview = spawnSync(cli, ["init", "--dry-run", "--json", initTarget], {
+  encoding: "utf8",
+});
+assert.equal(initPreview.status, 0);
+assert.equal(initPreview.stderr, "");
+const initMachine = JSON.parse(initPreview.stdout);
+assert.equal(validateResultEnvelope(initMachine).ok, true);
+assert.equal(initMachine.status, "pass");
+assert.equal(initMachine.outcome, "INIT_PREVIEW");
+assert.deepEqual(readdirSync(initTarget), []);
+assert.equal(initMachine.data.provenance, "@forgeflow/cli bundled Protocol snapshot");
+assert.equal(
+  initMachine.data.changes.map((change) => change.path).join(","),
+  "AGENTS.md,specs/stories/_template/story.md,specs/stories/_template/acceptance.md,specs/stories/_template/task.md,guidance/ENTRY.md,guidance/PRINCIPLES.md,guidance/DECISIONS.md,guidance/PRACTICES.md,specs/.forgeflow-adoption",
+);
 
 const storyDirectory = join(process.cwd(), "specs", "stories", "TST-005-packed");
 mkdirSync(storyDirectory, { recursive: true });
@@ -406,12 +450,69 @@ NODE
   )
 }
 
+packed_init_apply_is_consumable() {
+  [ -d "$forgeflow_consumer_dir/node_modules" ] ||
+    fail 'packed-package consumer fixture is unavailable'
+
+  (
+    CDPATH='' cd "$forgeflow_consumer_dir"
+    node --input-type=module <<'NODE'
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { validateResultEnvelope } from "@forgeflow/core";
+
+const cli = join(process.cwd(), "node_modules", ".bin", "forgeflow");
+function apply(target, args = []) {
+  const execution = spawnSync(cli, ["init", ...args, "--json", target], {
+    encoding: "utf8",
+  });
+  assert.equal(execution.status, 0, execution.stderr);
+  assert.equal(execution.stderr, "");
+  const result = JSON.parse(execution.stdout);
+  assert.equal(validateResultEnvelope(result).ok, true);
+  assert.equal(result.outcome, "INIT_APPLIED");
+  assert.equal(result.data.attempted.at(-1), "specs/.forgeflow-adoption");
+  assert.equal(
+    readdirSync(target, { recursive: true }).some((path) =>
+      String(path).includes(".forgeflow-install."),
+    ),
+    false,
+  );
+}
+
+for (const mode of ["safe", "force", "upgrade"]) {
+  const target = join(process.cwd(), `init-apply-${mode}`);
+  mkdirSync(target);
+  if (mode !== "safe") apply(target);
+  if (mode === "upgrade") {
+    writeFileSync(join(target, "AGENTS.md"), "repository guide\n");
+    writeFileSync(join(target, "guidance/ENTRY.md"), "repository guidance\n");
+  }
+  apply(target, mode === "safe" ? [] : [`--${mode}`]);
+  assert.equal(
+    readFileSync(join(target, "specs/.forgeflow-adoption"), "utf8"),
+    "version=0.9.0\nrevision=unknown\n",
+  );
+  if (mode === "upgrade") {
+    assert.equal(readFileSync(join(target, "AGENTS.md"), "utf8"), "repository guide\n");
+    assert.equal(
+      readFileSync(join(target, "guidance/ENTRY.md"), "utf8"),
+      "repository guidance\n",
+    );
+  }
+}
+NODE
+  )
+}
+
 unavailable_arguments_fail_with_one_usage_result() {
   forgeflow_empty="$forgeflow_test_dir/empty"
   forgeflow_unavailable="$forgeflow_test_dir/unavailable"
   : >"$forgeflow_empty"
   printf '%s\n' \
-    'forgeflow: command unavailable; migration commands are not yet available. Run forgeflow --help.' \
+    'forgeflow: command unavailable; this command is not available. Run forgeflow --help.' \
     >"$forgeflow_unavailable"
 
   assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" --json
@@ -468,6 +569,7 @@ run_case 'TST001-AC-001' workspace_lock_is_current_single_document_and_fails_clo
 run_case 'TST001-AC-002' built_cli_help_and_version_are_exact
 run_case 'TST001-AC-003' packed_packages_have_the_bounded_public_contract
 run_case 'TST002-AC-005' packed_machine_contract_is_consumable
+run_case 'TST013-AC-001' packed_init_apply_is_consumable
 run_case 'TST001-AC-004' unavailable_arguments_fail_with_one_usage_result
 run_case 'TST001-AC-005' legacy_shell_commands_do_not_delegate_to_node
 
