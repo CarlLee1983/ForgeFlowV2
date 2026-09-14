@@ -40,7 +40,7 @@ Usage:
   forgeflow [command]
 
 Commands:
-  init               Preview ForgeFlow initialization
+  init               Plan or apply ForgeFlow initialization
   doctor             Inspect the static Repository Contract
   verify             Run the canonical repository verification target
   handoff check      Check immutable Handoff evidence
@@ -50,7 +50,7 @@ Commands:
   help, --help       Show this help
   version, --version Print the CLI version
 
-Init apply and other migration commands are unavailable.
+Other migration commands are unavailable.
 `;
 const unavailable =
   "forgeflow: command unavailable; this command is not available. Run forgeflow --help.\n";

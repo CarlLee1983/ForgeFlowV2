@@ -25,6 +25,8 @@ function snapshot(overrides = {}) {
   return {
     protocolVersion: "0.9.0",
     provenance: "fixture bundled snapshot",
+    revision: "unknown",
+    snapshotDigest: "b".repeat(64),
     payloads: payloads.map((path) => ({ path, digest: "a".repeat(64) })),
     ...overrides,
   };
@@ -37,7 +39,12 @@ function request(mode = "safe", overrides = {}) {
   ]);
   for (const [path, entry] of Object.entries(overrides))
     entries.set(path, entry);
-  return { mode, snapshot: snapshot(), paths: [...entries.values()] };
+  return {
+    mode,
+    rootIdentity: "fixture-root:1",
+    snapshot: snapshot(),
+    paths: [...entries.values()],
+  };
 }
 
 test("TST012-AC-001/004: Core produces the ordered fresh preview from immutable observations", () => {
@@ -71,11 +78,17 @@ test("TST012-AC-002/005: force replaces exactly the fresh ownership surface", ()
   const entries = Object.fromEntries([
     ...directories.map((path) => [
       path,
-      { path, kind: "directory", readable: true, searchable: true },
+      {
+        path,
+        kind: "directory",
+        readable: true,
+        searchable: true,
+        identity: `fixture:${path}`,
+      },
     ]),
     ...[...payloads, marker].map((path) => [
       path,
-      { path, kind: "file", readable: true },
+      { path, kind: "file", readable: true, digest: "c".repeat(64) },
     ]),
   ]);
   const evaluation = planMutation(request("force", entries));
@@ -91,7 +104,13 @@ test("TST012-AC-003/004: markerless adoption upgrades only templates and marker"
   const entries = Object.fromEntries(
     ["specs", "specs/stories", "specs/stories/_template"].map((path) => [
       path,
-      { path, kind: "directory", readable: true, searchable: true },
+      {
+        path,
+        kind: "directory",
+        readable: true,
+        searchable: true,
+        identity: `fixture:${path}`,
+      },
     ]),
   );
   const evaluation = planMutation(request("upgrade", entries));
@@ -111,7 +130,12 @@ test("TST012-AC-003/004: markerless adoption upgrades only templates and marker"
 test("TST012-AC-007/008: conflicts and unsafe paths fail closed", () => {
   const conflict = planMutation(
     request("safe", {
-      "AGENTS.md": { path: "AGENTS.md", kind: "file", readable: true },
+      "AGENTS.md": {
+        path: "AGENTS.md",
+        kind: "file",
+        readable: true,
+        digest: "c".repeat(64),
+      },
     }),
   );
   const unsafe = planMutation(

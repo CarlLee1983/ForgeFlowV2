@@ -23,6 +23,18 @@ interface SnapshotProvenance {
   readonly payloads: unknown;
 }
 
+export interface PackagedInitPayload {
+  readonly path: string;
+  readonly digest: string;
+  readonly bytes: Uint8Array;
+  readonly mode: number;
+}
+
+export interface PackagedInitBundle {
+  readonly snapshot: InitSnapshot;
+  readonly payloads: readonly PackagedInitPayload[];
+}
+
 function isProvenance(value: unknown): value is SnapshotProvenance {
   return (
     typeof value === "object" &&
@@ -48,12 +60,31 @@ async function readBundledFile(path: URL): Promise<Buffer> {
   }
 }
 
+async function readBundledPayload(
+  path: URL,
+): Promise<{ readonly bytes: Buffer; readonly mode: number }> {
+  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const stats = await handle.stat();
+    if (!stats.isFile())
+      throw new Error(
+        "A bundled Protocol snapshot asset is not a regular file.",
+      );
+    return Object.freeze({
+      bytes: await handle.readFile(),
+      mode: stats.mode & 0o777,
+    });
+  } finally {
+    await handle.close();
+  }
+}
+
 async function readBundledText(path: URL): Promise<string> {
   return (await readBundledFile(path)).toString("utf8");
 }
 
 /** Reads only assets bundled beside the compiled CLI entrypoint. */
-export async function loadPackagedInitSnapshot(): Promise<InitSnapshot> {
+export async function loadPackagedInitBundle(): Promise<PackagedInitBundle> {
   const root = new URL("./snapshot/", import.meta.url);
   const [provenanceText, versionText] = await Promise.all([
     readBundledText(new URL("provenance.json", root)),
@@ -83,7 +114,7 @@ export async function loadPackagedInitSnapshot(): Promise<InitSnapshot> {
     );
   const contents = await Promise.all(
     payloads.map(async ([source, destination]) => {
-      const bytes = await readBundledFile(new URL(source, root));
+      const { bytes, mode } = await readBundledPayload(new URL(source, root));
       const digest = createHash("sha256").update(bytes).digest("hex");
       const entry = (parsed.payloads as readonly unknown[]).find(
         (value: unknown) =>
@@ -100,12 +131,24 @@ export async function loadPackagedInitSnapshot(): Promise<InitSnapshot> {
       return Object.freeze({
         path: destination,
         digest,
+        bytes: new Uint8Array(bytes),
+        mode,
       });
     }),
   );
-  return Object.freeze({
+  const snapshot = Object.freeze({
     protocolVersion: parsed.protocolVersion,
     provenance: parsed.provenance,
-    payloads: Object.freeze(contents),
+    revision: parsed.revision,
+    snapshotDigest: parsed.snapshotDigest,
+    payloads: Object.freeze(
+      contents.map(({ path, digest }) => Object.freeze({ path, digest })),
+    ),
   });
+  return Object.freeze({ snapshot, payloads: Object.freeze(contents) });
+}
+
+/** Reads and validates the packaged snapshot without exposing payload bytes. */
+export async function loadPackagedInitSnapshot(): Promise<InitSnapshot> {
+  return (await loadPackagedInitBundle()).snapshot;
 }

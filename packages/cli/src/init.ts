@@ -1,9 +1,7 @@
-import { constants } from "node:fs";
-import { access, lstat, realpath } from "node:fs/promises";
-import { resolve } from "node:path";
+import { lstat, realpath } from "node:fs/promises";
 
 import {
-  adoptionMarkerPath,
+  evaluateInitMutation,
   IMPLEMENTED_PROTOCOL_VERSION,
   planMutation,
   RESULT_SCHEMA_VERSION,
@@ -14,7 +12,18 @@ import {
   type ResultIssue,
 } from "@forgeflow/core";
 
-import { loadPackagedInitSnapshot } from "./init-snapshot.js";
+import {
+  captureInitObservations,
+  initFilesystemIdentity,
+} from "./init-observation.js";
+import {
+  executeInitMutation,
+  executeInitMutationWithSignals,
+} from "./init-mutation.js";
+import {
+  loadPackagedInitBundle,
+  type PackagedInitPayload,
+} from "./init-snapshot.js";
 
 export type InitOutputMode = "human" | "json";
 
@@ -30,8 +39,11 @@ export interface InitRenderedOutput {
 }
 
 export interface InitInspection {
+  readonly root: string;
+  readonly rootIdentity: string;
   readonly snapshot: InitSnapshot;
   readonly paths: readonly InitPathObservation[];
+  readonly payloads?: readonly PackagedInitPayload[];
 }
 
 export interface InitFilesystemAdapter {
@@ -41,34 +53,15 @@ export interface InitFilesystemAdapter {
   ): Promise<InitInspection>;
 }
 
-const directories = [
-  "specs",
-  "specs/stories",
-  "specs/stories/_template",
-  "guidance",
-] as const;
-const destinations = [
-  "AGENTS.md",
-  "specs/stories/_template/story.md",
-  "specs/stories/_template/acceptance.md",
-  "specs/stories/_template/task.md",
-  "guidance/ENTRY.md",
-  "guidance/PRINCIPLES.md",
-  "guidance/DECISIONS.md",
-  "guidance/PRACTICES.md",
-  adoptionMarkerPath,
-] as const;
-
-export const initHelp = `ForgeFlow Init Preview
+export const initHelp = `ForgeFlow Init
 
 Usage:
-  forgeflow init --dry-run [--force | --upgrade] [--json] [repository-directory]
+  forgeflow init [--force | --upgrade] [--dry-run] [--json] [repository-directory]
   forgeflow init --help
 
-Plans an offline ForgeFlow initialization from the Protocol snapshot bundled in
-this CLI package. --dry-run performs no target writes, staging, recovery,
-network access, prompts, or apply operation. --force and --upgrade are mutually
-exclusive. Apply mode is not available yet.
+Plans or applies an offline ForgeFlow initialization from the Protocol snapshot
+bundled in this CLI package. --dry-run performs no target writes, staging, or
+recovery. --force and --upgrade are mutually exclusive.
 `;
 
 function issue(code: string, message: string): ResultIssue {
@@ -89,6 +82,25 @@ function commandError(
       status: "error" as const,
       outcome: "ERROR" as const,
       exit: 2 as const,
+      subject: "init",
+      error: Object.freeze({ code, message }),
+      issues: problems,
+    }),
+  });
+}
+
+function internalError(mode: InitOutputMode): InitCommandExecution {
+  const code = "INIT_INTERNAL_ERROR";
+  const message = "Init could not complete because of an internal failure.";
+  const problems = Object.freeze([issue(code, message)]);
+  return Object.freeze({
+    mode,
+    result: Object.freeze({
+      schemaVersion: RESULT_SCHEMA_VERSION,
+      protocolVersion: IMPLEMENTED_PROTOCOL_VERSION,
+      status: "error" as const,
+      outcome: "ERROR" as const,
+      exit: 3 as const,
       subject: "init",
       error: Object.freeze({ code, message }),
       issues: problems,
@@ -159,44 +171,6 @@ function parse(args: readonly string[]):
   });
 }
 
-async function canAccess(path: string, mode: number): Promise<boolean> {
-  try {
-    await access(path, mode);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function observe(
-  path: string,
-  relativePath: string,
-): Promise<InitPathObservation> {
-  try {
-    const stats = await lstat(path);
-    if (stats.isSymbolicLink())
-      return Object.freeze({ path: relativePath, kind: "symlink" });
-    if (stats.isDirectory())
-      return Object.freeze({
-        path: relativePath,
-        kind: "directory",
-        readable: await canAccess(path, constants.R_OK),
-        searchable: await canAccess(path, constants.X_OK),
-      });
-    if (stats.isFile())
-      return Object.freeze({
-        path: relativePath,
-        kind: "file",
-        readable: await canAccess(path, constants.R_OK),
-      });
-    return Object.freeze({ path: relativePath, kind: "other" });
-  } catch (error: unknown) {
-    return (error as { code?: string }).code === "ENOENT"
-      ? Object.freeze({ path: relativePath, kind: "missing" })
-      : Object.freeze({ path: relativePath, kind: "unconfirmable" });
-  }
-}
-
 export const nodeInitFilesystemAdapter: InitFilesystemAdapter = Object.freeze({
   async inspect(
     candidate: string,
@@ -206,49 +180,20 @@ export const nodeInitFilesystemAdapter: InitFilesystemAdapter = Object.freeze({
     const rootStats = await lstat(root);
     if (!rootStats.isDirectory())
       throw new Error("The target is not a directory.");
-    let snapshot: InitSnapshot;
+    let bundle;
     try {
-      snapshot = await loadPackagedInitSnapshot();
+      bundle = await loadPackagedInitBundle();
     } catch {
       throw new InitSnapshotUnavailableError();
     }
-    const activeDirectories =
-      mode === "upgrade" ? directories.slice(0, 3) : directories;
-    const activeDestinations =
-      mode === "upgrade"
-        ? [
-            "specs/stories/_template/story.md",
-            "specs/stories/_template/acceptance.md",
-            "specs/stories/_template/task.md",
-            adoptionMarkerPath,
-          ]
-        : destinations;
-    const paths: InitPathObservation[] = [];
-    const blockedPrefixes: string[] = [];
-    for (const path of activeDirectories) {
-      if (blockedPrefixes.some((prefix) => path.startsWith(`${prefix}/`))) {
-        paths.push({ path, kind: "unconfirmable" });
-        continue;
-      }
-      const entry = await observe(resolve(root, path), path);
-      paths.push(entry);
-      if (
-        entry.kind !== "missing" &&
-        (entry.kind !== "directory" ||
-          entry.readable !== true ||
-          entry.searchable !== true)
-      )
-        blockedPrefixes.push(path);
-    }
-    for (const path of activeDestinations) {
-      if (!paths.some((entry) => entry.path === path))
-        paths.push(
-          blockedPrefixes.some((prefix) => path.startsWith(`${prefix}/`))
-            ? { path, kind: "unconfirmable" }
-            : await observe(resolve(root, path), path),
-        );
-    }
-    return Object.freeze({ snapshot, paths: Object.freeze(paths) });
+    const paths = await captureInitObservations(root, mode);
+    return Object.freeze({
+      root,
+      rootIdentity: initFilesystemIdentity(rootStats),
+      snapshot: bundle.snapshot,
+      paths,
+      payloads: bundle.payloads,
+    });
   },
 });
 
@@ -256,31 +201,17 @@ export async function runInit(
   args: readonly string[],
   cwd: string = process.cwd(),
   adapter: InitFilesystemAdapter = nodeInitFilesystemAdapter,
+  mutationExecutor: typeof executeInitMutation = executeInitMutationWithSignals,
 ): Promise<InitCommandExecution> {
   const invocation = parse(args);
   if (!invocation.valid)
     return commandError(invocation.mode, "INIT_USAGE", "Invalid arguments");
-  if (!invocation.dryRun)
-    return commandError(
-      invocation.mode,
-      "INIT_APPLY_UNAVAILABLE",
-      "Init apply mode is not available; use --dry-run.",
-    );
+  let inspection: InitInspection;
   try {
-    const inspection = await adapter.inspect(
+    inspection = await adapter.inspect(
       invocation.candidate ?? cwd,
       invocation.initMode,
     );
-    const evaluation = planMutation({
-      mode: invocation.initMode,
-      snapshot: inspection.snapshot,
-      paths: inspection.paths,
-    });
-    return Object.freeze({
-      mode: invocation.mode,
-      result: evaluation.result,
-      evaluation,
-    });
   } catch (error: unknown) {
     if (error instanceof InitSnapshotUnavailableError)
       return sourceRefusal(invocation.mode);
@@ -290,6 +221,36 @@ export async function runInit(
       "The init target or bundled Protocol snapshot could not be inspected.",
     );
   }
+  const evaluation = planMutation({
+    mode: invocation.initMode,
+    rootIdentity: inspection.rootIdentity,
+    snapshot: inspection.snapshot,
+    paths: inspection.paths,
+  });
+  if (invocation.dryRun || evaluation.result.outcome !== "INIT_PREVIEW")
+    return Object.freeze({
+      mode: invocation.mode,
+      result: evaluation.result,
+      evaluation,
+    });
+  if (evaluation.plan === undefined || inspection.payloads === undefined)
+    return sourceRefusal(invocation.mode);
+  try {
+    const mutation = await mutationExecutor(
+      inspection.root,
+      evaluation.plan,
+      inspection.snapshot,
+      inspection.payloads,
+    );
+    const applied = evaluateInitMutation(evaluation.plan, mutation);
+    return Object.freeze({
+      mode: invocation.mode,
+      result: applied.result,
+      evaluation: applied,
+    });
+  } catch {
+    return internalError(invocation.mode);
+  }
 }
 
 class InitSnapshotUnavailableError extends Error {}
@@ -297,27 +258,52 @@ class InitSnapshotUnavailableError extends Error {}
 export function renderInitHuman(
   execution: InitCommandExecution,
 ): InitRenderedOutput {
-  if (execution.result.outcome !== "INIT_PREVIEW") {
+  if (
+    execution.result.outcome !== "INIT_PREVIEW" &&
+    execution.result.outcome !== "INIT_APPLIED"
+  ) {
     const first = execution.result.issues[0];
     const detail =
-      first === undefined
-        ? "Init preview failed."
-        : `${first.code}: ${first.message}`;
-    return Object.freeze({ stdout: "", stderr: `FAIL init: ${detail}\n` });
+      first === undefined ? "Init failed." : `${first.code}: ${first.message}`;
+    const data = execution.result.data;
+    const unrecovered = Array.isArray(data?.unrecovered)
+      ? data.unrecovered
+      : [];
+    const retained = Array.isArray(data?.retained) ? data.retained : [];
+    const cleanupResidue = Array.isArray(data?.cleanupResidue)
+      ? data.cleanupResidue
+      : [];
+    const invalidationFailed = Array.isArray(data?.invalidationFailed)
+      ? data.invalidationFailed
+      : [];
+    const lines = [
+      `FAIL init: ${detail}`,
+      ...unrecovered.map((path) => `UNRESTORED: ${String(path)}`),
+      ...retained.map((path) => `Recovery copies retained: ${String(path)}`),
+      ...invalidationFailed.map(
+        (path) => `Marker invalidation failed: ${String(path)}`,
+      ),
+      ...cleanupResidue.map((path) => `Cleanup incomplete: ${String(path)}`),
+    ];
+    return Object.freeze({ stdout: "", stderr: `${lines.join("\n")}\n` });
   }
   const data = execution.result.data;
   const changes = Array.isArray(data?.changes) ? data.changes : [];
+  const preview = execution.result.outcome === "INIT_PREVIEW";
   const lines = [
-    "ForgeFlow init dry run",
+    preview ? "ForgeFlow init dry run" : "ForgeFlow init",
     `Protocol snapshot: ${String(data?.protocolVersion)}`,
     `Provenance: ${String(data?.provenance)}`,
     "",
     ...changes.map((change) => {
       const entry = change as { kind?: unknown; path?: unknown };
-      return `Would ${entry.kind === "replace" ? "replace" : "install"} ${String(entry.path)}`;
+      const verb = entry.kind === "replace" ? "replace" : "install";
+      return preview
+        ? `Would ${verb} ${String(entry.path)}`
+        : `${verb === "replace" ? "Replaced" : "Installed"} ${String(entry.path)}`;
     }),
     "",
-    "ForgeFlow init dry run completed",
+    preview ? "ForgeFlow init dry run completed" : "ForgeFlow init completed",
   ];
   return Object.freeze({ stdout: `${lines.join("\n")}\n`, stderr: "" });
 }

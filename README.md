@@ -235,6 +235,7 @@ migrated domain commands:
 
 ```sh
 node packages/cli/dist/bin.js handoff check [--json] [handoff-file]
+node packages/cli/dist/bin.js init [--force | --upgrade] [--dry-run] [--json] [repository-directory]
 node packages/cli/dist/bin.js doctor [--json] [repository-directory]
 node packages/cli/dist/bin.js verify [--json] [repository-directory]
 node packages/cli/dist/bin.js verification check [--json] [story-directory ...]
@@ -242,7 +243,9 @@ node packages/cli/dist/bin.js release check [--json] [repository-directory]
 ```
 
 Migrated inspection commands are static and read-only; JSON mode emits one
-canonical machine result. `doctor` inspects required and optional Repository Contract
+canonical machine result. `init` is an explicit effect boundary unless
+`--dry-run` is supplied; apply revalidates its plan and uses sibling staging,
+marker-last replacement, and reverse recovery. `doctor` inspects required and optional Repository Contract
 capabilities, limited Makefile clues, marker drift, and static Story/Handoff
 observations without executing target-owned code. `verification check` resolves the execution contract and required
 verification profile a Story declares; it does not read `verification.md`.

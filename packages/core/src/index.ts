@@ -31,10 +31,21 @@ export type {
   ReleaseWorktree,
 } from "./release.js";
 
-export { adoptionMarkerPath, planMutation } from "./init.js";
+export {
+  adoptionMarkerPath,
+  createAdoptionMarker,
+  evaluateInitMutation,
+  findInitPreconditionMismatches,
+  getInitObservationScope,
+  planMutation,
+} from "./init.js";
 export type {
   InitChangeKind,
   InitMode,
+  InitMutationExecutionObservation,
+  InitMutationFailure,
+  InitMutationFailureStage,
+  InitMutationPlan,
   InitPathKind,
   InitPathObservation,
   InitPlanEvaluation,
@@ -42,6 +53,8 @@ export type {
   InitPlannedChange,
   InitSnapshot,
   InitSnapshotPayload,
+  InitStagePrecondition,
+  InitStageObservation,
 } from "./init.js";
 
 export { evaluateRepositoryDoctor } from "./repository.js";

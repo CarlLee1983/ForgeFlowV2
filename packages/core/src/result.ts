@@ -14,9 +14,13 @@ export type ResultOutcome =
   | "internal-error"
   | "RELEASE_READY"
   | "RELEASE_INCOMPLETE"
+  | "INIT_APPLIED"
   | "INIT_PREVIEW"
   | "INIT_CONFLICT"
   | "INIT_OPERATION_REFUSED"
+  | "INIT_APPLY_FAILED_RECOVERED"
+  | "INIT_RECOVERY_INCOMPLETE"
+  | "INIT_CLEANUP_INCOMPLETE"
   | "ERROR";
 
 export type ResultExit = 0 | 1 | 2 | 3;
@@ -86,9 +90,13 @@ const resultMappings = new Set([
   "error|internal-error|2",
   "pass|RELEASE_READY|0",
   "fail|RELEASE_INCOMPLETE|1",
+  "pass|INIT_APPLIED|0",
   "pass|INIT_PREVIEW|0",
   "fail|INIT_CONFLICT|1",
   "fail|INIT_OPERATION_REFUSED|1",
+  "fail|INIT_APPLY_FAILED_RECOVERED|1",
+  "fail|INIT_RECOVERY_INCOMPLETE|1",
+  "fail|INIT_CLEANUP_INCOMPLETE|1",
   "error|ERROR|2",
   "error|ERROR|3",
 ]);
@@ -131,9 +139,13 @@ const outcomes: ReadonlySet<unknown> = new Set([
   "internal-error",
   "RELEASE_READY",
   "RELEASE_INCOMPLETE",
+  "INIT_APPLIED",
   "INIT_PREVIEW",
   "INIT_CONFLICT",
   "INIT_OPERATION_REFUSED",
+  "INIT_APPLY_FAILED_RECOVERED",
+  "INIT_RECOVERY_INCOMPLETE",
+  "INIT_CLEANUP_INCOMPLETE",
   "ERROR",
 ]);
 const exits: ReadonlySet<unknown> = new Set([0, 1, 2, 3]);

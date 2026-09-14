@@ -17,7 +17,7 @@ Usage:
   forgeflow [command]
 
 Commands:
-  init               Preview ForgeFlow initialization
+  init               Plan or apply ForgeFlow initialization
   doctor             Inspect the static Repository Contract
   verify             Run the canonical repository verification target
   handoff check      Check immutable Handoff evidence
@@ -27,7 +27,7 @@ Commands:
   help, --help       Show this help
   version, --version Print the CLI version
 
-Init apply and other migration commands are unavailable.
+Other migration commands are unavailable.
 `;
 const unavailable =
   "forgeflow: command unavailable; this command is not available. Run forgeflow --help.\n";
@@ -142,15 +142,17 @@ for (const args of [["version"], ["--version"]]) {
   });
 }
 
-test("TST012-AC-009: init apply is explicitly unavailable until TST-013", () => {
-  const result = runCli(["init"]);
+test("TST013-AC-001: init apply is available from the root command", async () => {
+  const root = await mkdtemp(join(tmpdir(), "packed-init-apply-"));
+  try {
+    const result = runCli(["init", "--json", root]);
 
-  assert.equal(result.status, 2);
-  assert.equal(result.stdout, "");
-  assert.equal(
-    result.stderr,
-    "FAIL init: INIT_APPLY_UNAVAILABLE: Init apply mode is not available; use --dry-run.\n",
-  );
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, "");
+    assert.equal(JSON.parse(result.stdout).outcome, "INIT_APPLIED");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 for (const args of [
