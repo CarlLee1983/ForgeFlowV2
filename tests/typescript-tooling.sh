@@ -58,7 +58,7 @@ built_cli_help_and_version_are_exact() {
   forgeflow_empty="$forgeflow_test_dir/empty"
 
   : >"$forgeflow_empty"
-  printf 'ForgeFlow CLI v%s\n\nUsage:\n  forgeflow [command]\n\nCommands:\n  handoff check      Check immutable Handoff evidence\n  story check        Check the static Story contract\n  verification check Resolve plans and check recorded results\n  help, --help       Show this help\n  version, --version Print the CLI version\n\nOther migration commands are unavailable.\n' \
+  printf 'ForgeFlow CLI v%s\n\nUsage:\n  forgeflow [command]\n\nCommands:\n  doctor             Inspect the static Repository Contract\n  handoff check      Check immutable Handoff evidence\n  story check        Check the static Story contract\n  verification check Resolve plans and check recorded results\n  help, --help       Show this help\n  version, --version Print the CLI version\n\nOther migration commands are unavailable.\n' \
     "$forgeflow_version" >"$forgeflow_help"
   printf '%s\n' "$forgeflow_version" >"$forgeflow_version_output"
 
@@ -105,6 +105,8 @@ packed_packages_have_the_bounded_public_contract() {
     './dist/index.js' \
     './dist/protocol.d.ts' \
     './dist/protocol.js' \
+    './dist/repository.d.ts' \
+    './dist/repository.js' \
     './dist/result.d.ts' \
     './dist/result.js' \
     './dist/story-decision.d.ts' \
@@ -117,6 +119,10 @@ packed_packages_have_the_bounded_public_contract() {
     './dist/story-literals.js' \
     './dist/story-matrix.d.ts' \
     './dist/story-matrix.js' \
+    './dist/story-readiness.d.ts' \
+    './dist/story-readiness.js' \
+    './dist/story-table.d.ts' \
+    './dist/story-table.js' \
     './dist/story.d.ts' \
     './dist/story.js' \
     './dist/verification-result.d.ts' \
@@ -139,6 +145,8 @@ packed_packages_have_the_bounded_public_contract() {
     './README.md' \
     './dist/bin.d.ts' \
     './dist/bin.js' \
+    './dist/doctor.d.ts' \
+    './dist/doctor.js' \
     './dist/handoff.d.ts' \
     './dist/handoff.js' \
     './dist/index.d.ts' \
@@ -386,7 +394,6 @@ unavailable_arguments_fail_with_one_usage_result() {
     'forgeflow: command unavailable; migration commands are not yet available. Run forgeflow --help.' \
     >"$forgeflow_unavailable"
 
-  assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" doctor
   assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" --json
   assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" story lint
   assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" verification lint

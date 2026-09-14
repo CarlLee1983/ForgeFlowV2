@@ -235,11 +235,14 @@ migrated domain commands:
 
 ```sh
 node packages/cli/dist/bin.js handoff check [--json] [handoff-file]
+node packages/cli/dist/bin.js doctor [--json] [repository-directory]
 node packages/cli/dist/bin.js verification check [--json] [story-directory ...]
 ```
 
-Both commands are static and read-only; JSON mode emits one canonical machine
-result. `verification check` resolves the execution contract and required
+All migrated commands are static and read-only; JSON mode emits one canonical
+machine result. `doctor` inspects required and optional Repository Contract
+capabilities, limited Makefile clues, marker drift, and static Story/Handoff
+observations without executing target-owned code. `verification check` resolves the execution contract and required
 verification profile a Story declares; it does not read `verification.md`.
 Other migration commands remain unavailable, write a usage
 diagnostic to standard error, and exit `2`; run `forgeflow --help` for the

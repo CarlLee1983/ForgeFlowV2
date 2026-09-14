@@ -2,6 +2,7 @@
 
 import { readFileSync } from "node:fs";
 
+import { doctorHelp, renderDoctorHuman, runDoctor } from "./doctor.js";
 import { handoffHelp, renderHandoffHuman, runHandoffCheck } from "./handoff.js";
 import { serializeResultEnvelope } from "./machine.js";
 import { renderStoryHuman, runStoryCheck, storyHelp } from "./story.js";
@@ -26,6 +27,7 @@ Usage:
   forgeflow [command]
 
 Commands:
+  doctor             Inspect the static Repository Contract
   handoff check      Check immutable Handoff evidence
   story check        Check the static Story contract
   verification check Resolve plans and check recorded results
@@ -48,6 +50,18 @@ if (
   (args[0] === "version" || args[0] === "--version")
 ) {
   process.stdout.write(`${manifest.version}\n`);
+} else if (args.length === 2 && args[0] === "doctor" && args[1] === "--help") {
+  process.stdout.write(doctorHelp);
+} else if (args[0] === "doctor") {
+  const execution = await runDoctor(args.slice(1));
+  if (execution.mode === "json") {
+    process.stdout.write(serializeResultEnvelope(execution.evaluation.result));
+  } else {
+    const rendered = renderDoctorHuman(execution);
+    process.stdout.write(rendered.stdout);
+    process.stderr.write(rendered.stderr);
+  }
+  process.exitCode = execution.evaluation.result.exit;
 } else if (
   args.length === 3 &&
   args[0] === "handoff" &&

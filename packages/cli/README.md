@@ -22,6 +22,18 @@ human diagnostic. The command reads one regular non-symlink file and performs
 no target write, verification command, Git lookup, clock check, or lifecycle
 inference.
 
+The static Repository Doctor is available through:
+
+```text
+forgeflow doctor [--json] [repository-directory]
+```
+
+It observes required Repository Contract paths, optional capabilities, marker
+drift, limited Makefile clues, and static Story/Handoff results. It never
+executes target-owned code or writes a target. `STRUCTURE_OK` and advisory
+`CONTRACT_DRIFT` exit `0`; structural incompleteness exits `1`; unsafe or
+unconfirmable acquisition exits `2`.
+
 The second migrated domain command resolves declared verification plans:
 
 ```text
