@@ -117,6 +117,10 @@ packed_packages_have_the_bounded_public_contract() {
     './dist/story-literals.js' \
     './dist/story-matrix.d.ts' \
     './dist/story-matrix.js' \
+    './dist/story-readiness.d.ts' \
+    './dist/story-readiness.js' \
+    './dist/story-table.d.ts' \
+    './dist/story-table.js' \
     './dist/story.d.ts' \
     './dist/story.js' \
     './dist/verification-result.d.ts' \
