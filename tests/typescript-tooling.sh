@@ -58,7 +58,7 @@ built_cli_help_and_version_are_exact() {
   forgeflow_empty="$forgeflow_test_dir/empty"
 
   : >"$forgeflow_empty"
-  printf 'ForgeFlow CLI v%s\n\nUsage:\n  forgeflow [command]\n\nCommands:\n  handoff check      Check immutable Handoff evidence\n  verification check Resolve plans and check recorded results\n  help, --help       Show this help\n  version, --version Print the CLI version\n\nOther migration commands are unavailable.\n' \
+  printf 'ForgeFlow CLI v%s\n\nUsage:\n  forgeflow [command]\n\nCommands:\n  handoff check      Check immutable Handoff evidence\n  story check        Check the static Story contract\n  verification check Resolve plans and check recorded results\n  help, --help       Show this help\n  version, --version Print the CLI version\n\nOther migration commands are unavailable.\n' \
     "$forgeflow_version" >"$forgeflow_help"
   printf '%s\n' "$forgeflow_version" >"$forgeflow_version_output"
 
@@ -107,6 +107,22 @@ packed_packages_have_the_bounded_public_contract() {
     './dist/protocol.js' \
     './dist/result.d.ts' \
     './dist/result.js' \
+    './dist/story-decision.d.ts' \
+    './dist/story-decision.js' \
+    './dist/story-governance.d.ts' \
+    './dist/story-governance.js' \
+    './dist/story-id.d.ts' \
+    './dist/story-id.js' \
+    './dist/story-literals.d.ts' \
+    './dist/story-literals.js' \
+    './dist/story-matrix.d.ts' \
+    './dist/story-matrix.js' \
+    './dist/story-readiness.d.ts' \
+    './dist/story-readiness.js' \
+    './dist/story-table.d.ts' \
+    './dist/story-table.js' \
+    './dist/story.d.ts' \
+    './dist/story.js' \
     './dist/verification-result.d.ts' \
     './dist/verification-result.js' \
     './dist/verification.d.ts' \
@@ -135,6 +151,8 @@ packed_packages_have_the_bounded_public_contract() {
     './dist/machine.js' \
     './dist/source.d.ts' \
     './dist/source.js' \
+    './dist/story.d.ts' \
+    './dist/story.js' \
     './dist/verification.d.ts' \
     './dist/verification.js' \
     './package.json' >"$forgeflow_test_dir/cli-files.expected"
@@ -374,7 +392,7 @@ unavailable_arguments_fail_with_one_usage_result() {
 
   assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" doctor
   assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" --json
-  assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" story check
+  assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" story lint
   assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" verification lint
   assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" help extra
   assert_cli_result 2 "$forgeflow_empty" "$forgeflow_unavailable" version extra

@@ -1,3 +1,4 @@
+import { isStoryId } from "./story-id.js";
 import {
   IMPLEMENTED_PROTOCOL_VERSION,
   RESULT_SCHEMA_VERSION,
@@ -37,8 +38,6 @@ const fieldNames: readonly FieldName[] = [
   "verification.command",
   "verification.result",
 ];
-const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-const digits = "0123456789";
 const hexadecimal = "0123456789abcdef";
 const embeddedLineBreak = /[\r\u0085\u2028\u2029]/;
 
@@ -62,31 +61,6 @@ function incomplete(issues: readonly ResultIssue[]): HandoffEvaluation {
 
 function hasOnly(value: string, allowed: string): boolean {
   return [...value].every((character) => allowed.includes(character));
-}
-
-function isStoryId(value: string): boolean {
-  const segments = value.split("-");
-  if (segments.length < 2) return false;
-  const [first, ...following] = segments;
-  const last = following.at(-1);
-  if (
-    first === undefined ||
-    last === undefined ||
-    first.length === 0 ||
-    !upper.includes(first[0] ?? "") ||
-    !hasOnly(first, upper + digits) ||
-    last.length === 0 ||
-    !hasOnly(last, digits)
-  )
-    return false;
-  return following
-    .slice(0, -1)
-    .every(
-      (segment) =>
-        segment.length > 0 &&
-        hasOnly(segment, upper + digits) &&
-        [...segment].some((character) => upper.includes(character)),
-    );
 }
 
 function isTimestamp(value: string): boolean {
