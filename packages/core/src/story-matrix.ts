@@ -6,9 +6,14 @@
  * cells are split with the same escape rule the retained checker applies.
  */
 
-import { readContentLines, trimDeclarationText } from "./declarations.js";
+import { readContentLines } from "./declarations.js";
 import type { ResultIssue } from "./result.js";
 import { hasLiteral, isPlaceholder } from "./story-literals.js";
+import {
+  countTablePipes,
+  isFiveColumnTableSeparator,
+  splitTableCells,
+} from "./story-table.js";
 
 const matrixHeaderRow =
   "| Source field | Payload | Expected result | Persisted locations | Verification |";
@@ -24,64 +29,6 @@ function issue(code: string, message: string): ResultIssue {
   return Object.freeze({ code, message });
 }
 
-/** Counts the pipes a row declares, ignoring backslash-escaped ones. */
-function countPipes(row: string): number {
-  let count = 0;
-  let backslashes = 0;
-
-  for (const character of row) {
-    if (character === "\\") {
-      backslashes += 1;
-      continue;
-    }
-    if (character === "|" && backslashes % 2 === 0) count += 1;
-    backslashes = 0;
-  }
-
-  return count;
-}
-
-/** Splits one table row into its cells, honouring escaped pipes. */
-function readCells(row: string): readonly string[] {
-  const cells: string[] = [];
-  let cell = "";
-  let backslashes = 0;
-
-  for (const character of row) {
-    if (character === "|" && backslashes % 2 === 0) {
-      cells.push(trimDeclarationText(cell));
-      cell = "";
-      backslashes = 0;
-      continue;
-    }
-    cell += character;
-    backslashes = character === "\\" ? backslashes + 1 : 0;
-  }
-
-  cells.push(trimDeclarationText(cell));
-  return cells;
-}
-
-function isSeparatorCell(cell: string): boolean {
-  return /^ *:?-+:? *$/.test(cell);
-}
-
-/** Recognizes the five-column separator row that must follow the header. */
-function isFiveColumnSeparator(row: string): boolean {
-  if (!row.startsWith("|")) return false;
-
-  const rest = row.slice(1);
-  if (rest === "") return false;
-  if (!rest.includes("|")) return false;
-
-  const cells = rest.split("|");
-  // A trailing pipe leaves one empty trailing cell, which is not a column.
-  if (cells[cells.length - 1] !== "") return false;
-
-  const columns = cells.slice(0, -1);
-  return columns.length === 5 && columns.every(isSeparatorCell);
-}
-
 /** The four matrix columns that must state an exact value, in check order. */
 const matrixLiteralColumns: readonly (readonly [number, string])[] = [
   [0, "source field"],
@@ -95,7 +42,7 @@ function checkMatrixRow(
   number: number,
   issues: ResultIssue[],
 ): void {
-  if (countPipes(row) !== 6) {
+  if (countTablePipes(row) !== 6) {
     issues.push(
       issue(
         "STORY_MATRIX_ROW_COLUMNS",
@@ -105,7 +52,7 @@ function checkMatrixRow(
     return;
   }
 
-  const cells = readCells(row.slice(1));
+  const cells = splitTableCells(row.slice(1));
 
   for (const [index, name] of matrixLiteralColumns) {
     const value = cells[index] ?? "";
@@ -173,7 +120,7 @@ export function checkMatrix(
 
     if (!separator) {
       separator = true;
-      if (!isFiveColumnSeparator(line))
+      if (!isFiveColumnTableSeparator(line))
         issues.push(
           issue(
             "STORY_MATRIX_SEPARATOR",

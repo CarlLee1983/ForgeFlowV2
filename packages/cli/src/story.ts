@@ -5,6 +5,7 @@ import {
   IMPLEMENTED_PROTOCOL_VERSION,
   RESULT_SCHEMA_VERSION,
   evaluateStoryContract,
+  evaluateStoryReadiness,
   readStoryDecisions,
   type ResultEnvelope,
   type ResultIssue,
@@ -55,6 +56,7 @@ export type StoryEntry =
       readonly label: string;
       readonly facts: StoryFacts;
       readonly issues: readonly ResultIssue[];
+      readonly structureIssues: readonly ResultIssue[];
     }
   | {
       readonly kind: "error";
@@ -65,10 +67,15 @@ export type StoryEntry =
 
 /** The stable result name the command reports, as the retained checker names it. */
 export type StoryOutcomeName =
-  "STORY_CONTRACT_OK" | "STORY_CONTRACT_INCOMPLETE" | "ERROR";
+  | "STORY_CONTRACT_OK"
+  | "STORY_CONTRACT_INCOMPLETE"
+  | "STORY_READINESS_OK"
+  | "STORY_READINESS_INCOMPLETE"
+  | "ERROR";
 
 export interface StoryCommandExecution {
   readonly mode: StoryOutputMode;
+  readonly ready: boolean;
   readonly entries: readonly StoryEntry[];
   readonly checked: number;
   readonly outcome: StoryOutcomeName;
@@ -89,7 +96,7 @@ const BANNER = "ForgeFlow Story Contract Check\n";
 export const storyHelp = `ForgeFlow Story Contract Check
 
 Usage:
-  forgeflow story check [--json] [story-directory ...]
+  forgeflow story check [--ready] [--json] [story-directory ...]
   forgeflow story check --help
 
 Without a story directory, every directory under specs/stories/ except
@@ -98,6 +105,9 @@ _template/ is checked relative to the current directory.
 The command checks the Story ID, classification, governance declarations,
 referenced decisions, risk signals and their contracts, the security
 fixture matrix, trust boundaries, and superseded behavior.
+
+--ready additionally checks Goal and Scope content, checkbox acceptance
+criteria, Acceptance Evidence, placeholders, and risk-evidence links.
 
 The check is static and read-only. It never executes repository code and
 never replaces make verify or human review.
@@ -217,14 +227,17 @@ export function createNodeStoryReader(
 
 function parseArguments(args: readonly string[]): {
   readonly mode: StoryOutputMode;
+  readonly ready: boolean;
   readonly stories: readonly string[];
   readonly valid: boolean;
 } {
   let mode: StoryOutputMode = "human";
+  let ready = false;
   let index = 0;
 
   for (; index < args.length; index += 1) {
     if (args[index] === "--json" && mode === "human") mode = "json";
+    else if (args[index] === "--ready" && !ready) ready = true;
     else break;
   }
 
@@ -232,6 +245,7 @@ function parseArguments(args: readonly string[]): {
 
   return {
     mode,
+    ready,
     stories,
     valid: stories.every((argument) => !argument.startsWith("-")),
   };
@@ -240,8 +254,9 @@ function parseArguments(args: readonly string[]): {
 async function checkStory(
   reader: StoryReader,
   label: string,
+  ready: boolean,
 ): Promise<StoryEntry> {
-  const sources: string[] = [];
+  const sourceTexts: string[] = [];
 
   for (const name of REQUIRED_STORY_FILES) {
     const path = `${label}/${name}`;
@@ -267,28 +282,41 @@ async function checkStory(
             diagnostic: `ERROR ${label}: required Story file is missing or unreadable: ${path}`,
           };
     }
-    sources.push(read.source);
+    sourceTexts.push(read.source);
   }
 
   // Core is pure, so every referenced decision is resolved up front and the
   // resolution is presented to it as a plain lookup.
-  const [story = "", acceptance = ""] = sources;
+  const [story = "", acceptance = ""] = sourceTexts;
   const resolved = new Map<string, StoryDecisionRecord>();
   for (const id of readStoryDecisions(story))
     resolved.set(id, await reader.readDecision(label, id));
 
-  const evaluation = evaluateStoryContract({
+  const sources = {
     directory: label,
     story,
     acceptance,
-    decision: (id) => resolved.get(id) ?? { kind: "missing" },
-  });
+    decision: (id: string) => resolved.get(id) ?? { kind: "missing" },
+  } as const;
+  if (ready) {
+    const evaluation = evaluateStoryReadiness(sources);
+    return {
+      kind: "story",
+      label,
+      facts: evaluation.facts,
+      issues: evaluation.result.issues,
+      structureIssues: evaluation.structure.issues,
+    };
+  }
+
+  const evaluation = evaluateStoryContract(sources);
 
   return {
     kind: "story",
     label,
     facts: evaluation.facts,
     issues: evaluation.result.issues,
+    structureIssues: evaluation.result.issues,
   };
 }
 
@@ -302,6 +330,7 @@ export async function runStoryCheck(
   if (!parsed.valid) {
     return Object.freeze({
       mode: parsed.mode,
+      ready: parsed.ready,
       entries: Object.freeze([]),
       checked: 0,
       outcome: "ERROR" as const,
@@ -319,6 +348,7 @@ export async function runStoryCheck(
     if (!discovery.ok) {
       return Object.freeze({
         mode: parsed.mode,
+        ready: parsed.ready,
         entries: Object.freeze([
           {
             kind: "error" as const,
@@ -358,7 +388,7 @@ export async function runStoryCheck(
       continue;
     }
     checked += 1;
-    entries.push(await checkStory(reader, subject));
+    entries.push(await checkStory(reader, subject, parsed.ready));
   }
 
   const operationalError = entries.some((entry) => entry.kind === "error");
@@ -369,6 +399,7 @@ export async function runStoryCheck(
   if (operationalError)
     return Object.freeze({
       mode: parsed.mode,
+      ready: parsed.ready,
       entries: Object.freeze(entries),
       checked,
       outcome: "ERROR" as const,
@@ -378,6 +409,7 @@ export async function runStoryCheck(
   if (checked === 0)
     return Object.freeze({
       mode: parsed.mode,
+      ready: parsed.ready,
       entries: Object.freeze([
         ...entries,
         {
@@ -397,11 +429,16 @@ export async function runStoryCheck(
 
   return Object.freeze({
     mode: parsed.mode,
+    ready: parsed.ready,
     entries: Object.freeze(entries),
     checked,
-    outcome: incomplete
-      ? ("STORY_CONTRACT_INCOMPLETE" as const)
-      : ("STORY_CONTRACT_OK" as const),
+    outcome: parsed.ready
+      ? incomplete
+        ? ("STORY_READINESS_INCOMPLETE" as const)
+        : ("STORY_READINESS_OK" as const)
+      : incomplete
+        ? ("STORY_CONTRACT_INCOMPLETE" as const)
+        : ("STORY_CONTRACT_OK" as const),
     result: incomplete
       ? envelope("fail", "failure", 1, issues)
       : envelope("pass", "success", 0, []),
@@ -419,7 +456,7 @@ export function renderStoryHuman(
       stdout: "\nResult: ERROR\nStories checked: 0\n",
       stderr:
         "ERROR Invalid arguments\n" +
-        "Usage: forgeflow story check [--json] [story-directory ...]\n" +
+        "Usage: forgeflow story check [--ready] [--json] [story-directory ...]\n" +
         "       forgeflow story check --help\n",
     });
 
@@ -438,7 +475,7 @@ export function renderStoryHuman(
     for (const reported of entry.issues)
       stdout.push(`FAIL  ${entry.label}: ${reported.message}\n`);
 
-    if (entry.issues.length === 0)
+    if (entry.structureIssues.length === 0)
       stdout.push(
         `PASS  ${entry.label}: classification security=${
           entry.facts.securitySensitive === true ? "yes" : "no"
@@ -455,6 +492,25 @@ export function renderStoryHuman(
       stdout: stdout.join(""),
       stderr: stderr.join(""),
     });
+  }
+
+  if (execution.ready) {
+    const structureIncomplete = execution.entries.some(
+      (entry) => entry.kind === "story" && entry.structureIssues.length > 0,
+    );
+    stdout.push(
+      `Structure: ${
+        structureIncomplete ? "STORY_CONTRACT_INCOMPLETE" : "STORY_CONTRACT_OK"
+      }\n`,
+    );
+    stdout.push(`Result: ${execution.outcome}\n`);
+    stdout.push(`Stories checked: ${execution.checked}\n`);
+    stdout.push(
+      execution.outcome === "STORY_READINESS_INCOMPLETE"
+        ? "Fill the reported structure or minimum content, then recheck.\n"
+        : "Minimum content only, not human-approved READY. Run make verify and human review.\n",
+    );
+    return Object.freeze({ stdout: stdout.join(""), stderr: stderr.join("") });
   }
 
   stdout.push(`Result: ${execution.outcome}\n`);

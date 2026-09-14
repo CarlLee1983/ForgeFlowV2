@@ -33,6 +33,12 @@ import {
 } from "./story-literals.js";
 import { checkMatrix } from "./story-matrix.js";
 import {
+  checkRiskContractFieldReadiness,
+  checkRiskEvidenceReadiness,
+  checkStoryReadiness,
+  type StoryReadinessFacts,
+} from "./story-readiness.js";
+import {
   type VerificationAuthority,
   type VerificationLevel,
   type VerificationTaskMode,
@@ -70,6 +76,11 @@ export interface StoryContractSources {
 export interface StoryContractEvaluation {
   readonly result: ResultEnvelope;
   readonly facts: StoryFacts;
+}
+
+/** A pure opt-in readiness evaluation plus its unchanged structural result. */
+export interface StoryReadinessEvaluation extends StoryContractEvaluation {
+  readonly structure: ResultEnvelope;
 }
 
 const levels: readonly VerificationLevel[] = ["low", "medium", "high"];
@@ -344,6 +355,8 @@ function checkRiskContract(
   source: string,
   contract: RiskContract,
   issues: ResultIssue[],
+  readiness: StoryReadinessFacts | undefined,
+  reportReadiness: ((entry: ResultIssue) => void) | undefined,
 ): void {
   const section = readDeclarationSection(source, contract.heading);
 
@@ -396,14 +409,32 @@ function checkRiskContract(
       );
       continue;
     }
-    if (readStructuredLiteral(values[0] ?? "") === undefined)
+    const value = readStructuredLiteral(values[0] ?? "");
+    if (value === undefined) {
       issues.push(
         issue(
           "STORY_RISK_CONTRACT_FIELD_LITERAL",
           `${contract.name} ${field} must state one exact same-line backticked value`,
         ),
       );
+      continue;
+    }
+    if (readiness !== undefined && reportReadiness !== undefined)
+      checkRiskContractFieldReadiness(
+        contract.name,
+        field,
+        value,
+        reportReadiness,
+      );
   }
+
+  if (readiness !== undefined && reportReadiness !== undefined)
+    checkRiskEvidenceReadiness(
+      contract.name,
+      declared,
+      readiness,
+      reportReadiness,
+    );
 }
 
 interface LiteralBullets {
@@ -460,20 +491,35 @@ export function readStoryDecisions(story: string): readonly string[] {
  * The order of the checks, and so the order of the diagnostics, is the order
  * the retained portable checker reports them in.
  */
-export function evaluateStoryContract(
+function evaluateStory(
   sources: StoryContractSources,
-): StoryContractEvaluation {
+  ready: boolean,
+): StoryReadinessEvaluation {
   const issues: ResultIssue[] = [];
+  const structureIssues: ResultIssue[] = [];
   const { directory, story, acceptance } = sources;
 
   const storyId = readStoryId(directory);
-  if (storyId === undefined)
-    issues.push(
-      issue(
-        "STORY_ID_INVALID",
-        `Story directory does not name a Story ID: ${directory.replace(/\/+$/, "").split("/").pop() ?? ""} (no leading run of its hyphen-separated segments is one; a Story ID is segments of uppercase letters and digits, where the first segment starts with an uppercase letter, each middle segment has an uppercase letter, and the last segment is digits)`,
-      ),
+  if (storyId === undefined) {
+    const entry = issue(
+      "STORY_ID_INVALID",
+      `Story directory does not name a Story ID: ${directory.replace(/\/+$/, "").split("/").pop() ?? ""} (no leading run of its hyphen-separated segments is one; a Story ID is segments of uppercase letters and digits, where the first segment starts with an uppercase letter, each middle segment has an uppercase letter, and the last segment is digits)`,
     );
+    issues.push(entry);
+    structureIssues.push(entry);
+  }
+
+  const readiness = ready
+    ? checkStoryReadiness(story, acceptance, issues)
+    : undefined;
+  const push = issues.push.bind(issues);
+  issues.push = (...entries: ResultIssue[]): number => {
+    structureIssues.push(...entries);
+    return push(...entries);
+  };
+  const reportReadiness = (entry: ResultIssue): void => {
+    issues[issues.length] = entry;
+  };
 
   const taskMode = readTaskMode(story, issues);
   const authority = readAuthority(story, taskMode, issues);
@@ -487,7 +533,8 @@ export function evaluateStoryContract(
   const risk = readRisk(story, issues);
   for (const signal of risk.signals) {
     const contract = riskContractsBySignal.get(signal);
-    if (contract !== undefined) checkRiskContract(story, contract, issues);
+    if (contract !== undefined)
+      checkRiskContract(story, contract, issues, readiness, reportReadiness);
   }
 
   const securitySensitive = readClassificationValue(
@@ -519,7 +566,11 @@ export function evaluateStoryContract(
   // An invalid classification suppresses every conditional check, because
   // neither condition is known.
   if (securitySensitive === undefined || baselineConformance === undefined)
-    return Object.freeze({ result: envelope(issues), facts });
+    return Object.freeze({
+      result: envelope(issues),
+      structure: envelope(structureIssues),
+      facts,
+    });
 
   const matrix = checkMatrix(acceptance, issues);
   const trust = countLiteralBullets(story, "## Trust Boundary Fields");
@@ -591,5 +642,27 @@ export function evaluateStoryContract(
     );
   }
 
-  return Object.freeze({ result: envelope(issues), facts });
+  return Object.freeze({
+    result: envelope(issues),
+    structure: envelope(structureIssues),
+    facts,
+  });
+}
+
+/** Evaluates the unchanged default Story contract. */
+export function evaluateStoryContract(
+  sources: StoryContractSources,
+): StoryContractEvaluation {
+  const evaluation = evaluateStory(sources, false);
+  return Object.freeze({
+    result: evaluation.structure,
+    facts: evaluation.facts,
+  });
+}
+
+/** Evaluates the opt-in Story readiness contract and retains its structure. */
+export function evaluateStoryReadiness(
+  sources: StoryContractSources,
+): StoryReadinessEvaluation {
+  return evaluateStory(sources, true);
 }

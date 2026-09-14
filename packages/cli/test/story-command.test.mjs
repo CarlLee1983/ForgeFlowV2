@@ -123,6 +123,70 @@ test("TST007-AC-001: JSON mode writes exactly one canonical envelope", async () 
   );
 });
 
+test("TST008-AC-001/003: readiness is opt-in and reports its selected result", async () => {
+  const readyStory = `# Story: TST-901 Fixture
+
+## Goal
+
+Check minimum Story content.
+
+## Scope
+
+* Check this fixture.
+
+## Classification
+
+* Security sensitive: no
+* Baseline conformance: no
+`;
+  const readyAcceptance = `# Acceptance Criteria
+
+## Happy Path
+
+* [ ] AC-001: The fixture is ready.
+
+## Acceptance Evidence
+
+| AC | Method | Evidence | Fixture / precondition | Expected observation |
+| --- | --- | --- | --- | --- |
+| \`AC-001\` | test | \`test\` | \`fixture\` | \`pass\` |
+`;
+  await withFixture(
+    async (root) => {
+      await writeStory(root, "TST-901-case", readyStory, readyAcceptance);
+    },
+    async (_root, reader) => {
+      const defaultExecution = await runStoryCheck(
+        ["specs/stories/TST-901-case"],
+        reader,
+      );
+      const readyExecution = await runStoryCheck(
+        ["--ready", "specs/stories/TST-901-case"],
+        reader,
+      );
+
+      assert.equal(defaultExecution.outcome, "STORY_CONTRACT_OK");
+      assert.equal(readyExecution.outcome, "STORY_READINESS_OK");
+      assert.equal(readyExecution.result.exit, 0);
+      assert.equal(
+        renderStoryHuman(readyExecution).stdout,
+        [
+          "ForgeFlow Story Contract Check",
+          "",
+          "INFO  specs/stories/TST-901-case: Story ID TST-901",
+          "PASS  specs/stories/TST-901-case: classification security=no baseline=no",
+          "",
+          "Structure: STORY_CONTRACT_OK",
+          "Result: STORY_READINESS_OK",
+          "Stories checked: 1",
+          "Minimum content only, not human-approved READY. Run make verify and human review.",
+          "",
+        ].join("\n"),
+      );
+    },
+  );
+});
+
 test("TST007-AC-005: discovery is lexical and skips _template", async () => {
   await withFixture(
     async (root) => {
@@ -254,8 +318,7 @@ test("TST007-AC-005: an unknown flag is a usage error", async () => {
       await writeStory(root, "TST-901-case");
     },
     async (_root, reader) => {
-      // Readiness is not migrated, so --ready is not offered yet.
-      for (const args of [["-x"], ["--ready"], ["--json", "-x"]]) {
+      for (const args of [["-x"], ["--ready", "-x"], ["--json", "-x"]]) {
         const execution = await runStoryCheck(args, reader);
         assert.equal(execution.outcome, "ERROR", args.join(" "));
         assert.equal(execution.result.outcome, "usage-error", args.join(" "));
@@ -272,7 +335,7 @@ test("TST007-AC-005: an unknown flag is a usage error", async () => {
         assert.equal(
           rendered.stderr,
           "ERROR Invalid arguments\n" +
-            "Usage: forgeflow story check [--json] [story-directory ...]\n" +
+            "Usage: forgeflow story check [--ready] [--json] [story-directory ...]\n" +
             "       forgeflow story check --help\n",
           args.join(" "),
         );
@@ -433,6 +496,8 @@ test("TST007-AC-005: production Story modules contain no process or write API", 
     "story.ts",
     "story-governance.ts",
     "story-matrix.ts",
+    "story-readiness.ts",
+    "story-table.ts",
     "story-decision.ts",
     "story-literals.ts",
     "story-id.ts",

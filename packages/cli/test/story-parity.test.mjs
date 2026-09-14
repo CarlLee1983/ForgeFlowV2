@@ -118,6 +118,89 @@ function issueForLegacyMessage(message) {
   if (code !== undefined) return { code, message };
 
   const dynamic = [
+    [
+      /^readiness: ## (Goal|Scope) needs non-placeholder content$/,
+      (match) =>
+        match[1] === "Goal" ? "STORY_READY_GOAL" : "STORY_READY_SCOPE",
+    ],
+    [/^readiness: duplicate AC ID: AC-\d+$/, "STORY_READY_AC_DUPLICATE"],
+    [
+      /^readiness: AC-\d+ needs non-placeholder same-line content$/,
+      "STORY_READY_AC_CONTENT",
+    ],
+    [
+      /^readiness: acceptance\.md needs a checkbox AC-<digits>: criterion$/,
+      "STORY_READY_AC_MISSING",
+    ],
+    [
+      /^readiness: acceptance evidence row \d+ must declare five columns$/,
+      "STORY_READY_EVIDENCE_COLUMNS",
+    ],
+    [
+      /^readiness: acceptance evidence row \d+ must end after the fifth column$/,
+      "STORY_READY_EVIDENCE_TAIL",
+    ],
+    [
+      /^readiness: acceptance evidence row \d+ must name one exact backticked AC-<digits> ID$/,
+      "STORY_READY_EVIDENCE_AC",
+    ],
+    [
+      /^readiness: acceptance evidence row \d+ names unknown AC ID: AC-\d+$/,
+      "STORY_READY_EVIDENCE_AC_UNKNOWN",
+    ],
+    [
+      /^readiness: acceptance evidence duplicates AC ID: AC-\d+$/,
+      "STORY_READY_EVIDENCE_AC_DUPLICATE",
+    ],
+    [
+      /^readiness: acceptance evidence row \d+ method must be test, command, or human$/,
+      "STORY_READY_EVIDENCE_METHOD",
+    ],
+    [
+      /^readiness: acceptance evidence row \d+ leaves (evidence|fixture \/ precondition|expected observation) unspecified$/,
+      "STORY_READY_EVIDENCE_UNSPECIFIED",
+    ],
+    [
+      /^readiness: acceptance evidence row \d+ must give (evidence|fixture \/ precondition|expected observation) as one exact backticked value$/,
+      "STORY_READY_EVIDENCE_LITERAL",
+    ],
+    [
+      /^readiness: acceptance evidence (header must be exactly the documented five columns|header must be followed by a five-column separator row|declares no rows)$/,
+      (match) =>
+        match[1].startsWith("header must be exactly")
+          ? "STORY_READY_EVIDENCE_HEADER"
+          : match[1].startsWith("header must be followed")
+            ? "STORY_READY_EVIDENCE_SEPARATOR"
+            : "STORY_READY_EVIDENCE_EMPTY",
+    ],
+    [
+      /^readiness: acceptance\.md is missing ## Acceptance Evidence$/,
+      "STORY_READY_EVIDENCE_MISSING",
+    ],
+    [
+      /^readiness: acceptance\.md must declare ## Acceptance Evidence exactly once$/,
+      "STORY_READY_EVIDENCE_REPEATED",
+    ],
+    [
+      /^readiness: acceptance evidence is missing AC ID: AC-\d+$/,
+      "STORY_READY_EVIDENCE_AC_MISSING",
+    ],
+    [
+      /^readiness: (Error Projection|Concurrency|Capacity|Retention and Overflow) .+ is a placeholder$/,
+      "STORY_READY_RISK_PLACEHOLDER",
+    ],
+    [
+      /^readiness: (Error Projection|Concurrency|Capacity|Retention and Overflow) Evidence AC must name one exact AC-<digits> ID$/,
+      "STORY_READY_RISK_EVIDENCE_FORMAT",
+    ],
+    [
+      /^readiness: (Error Projection|Concurrency|Capacity|Retention and Overflow) Evidence AC names unknown AC ID: AC-\d+$/,
+      "STORY_READY_RISK_EVIDENCE_UNKNOWN",
+    ],
+    [
+      /^readiness: (Error Projection|Concurrency|Capacity|Retention and Overflow) Evidence AC has no Acceptance Evidence row: AC-\d+$/,
+      "STORY_READY_RISK_EVIDENCE_UNMAPPED",
+    ],
     [/^Story directory does not name a Story ID: .+$/s, "STORY_ID_INVALID"],
     [
       /^Story must declare ## (Authority|Architecture|Risk) at most once$/,
@@ -257,7 +340,11 @@ function issueForLegacyMessage(message) {
     ],
   ];
   const matched = dynamic.find(([pattern]) => pattern.test(message));
-  return matched === undefined ? undefined : { code: matched[1], message };
+  if (matched === undefined) return undefined;
+  const result = matched[0].exec(message);
+  const resolvedCode =
+    typeof matched[1] === "function" ? matched[1](result) : matched[1];
+  return { code: resolvedCode, message };
 }
 
 /** Strictly maps only retained checker diagnostic/result lines to Core values. */
@@ -279,7 +366,9 @@ function normalizeLegacyDiagnostic(diagnostic) {
       return { ok: false };
     if (
       line === "Result: STORY_CONTRACT_OK" ||
-      line === "Result: STORY_CONTRACT_INCOMPLETE"
+      line === "Result: STORY_CONTRACT_INCOMPLETE" ||
+      line === "Result: STORY_READINESS_OK" ||
+      line === "Result: STORY_READINESS_INCOMPLETE"
     ) {
       if (resultLine !== undefined) return { ok: false };
       resultLine = line;
@@ -288,7 +377,11 @@ function normalizeLegacyDiagnostic(diagnostic) {
     return { ok: false };
   }
 
-  if (resultLine === "Result: STORY_CONTRACT_OK" && issues.length === 0)
+  if (
+    (resultLine === "Result: STORY_CONTRACT_OK" ||
+      resultLine === "Result: STORY_READINESS_OK") &&
+    issues.length === 0
+  )
     return {
       ok: true,
       value: {
@@ -299,7 +392,11 @@ function normalizeLegacyDiagnostic(diagnostic) {
         issues: [],
       },
     };
-  if (resultLine === "Result: STORY_CONTRACT_INCOMPLETE" && issues.length > 0)
+  if (
+    (resultLine === "Result: STORY_CONTRACT_INCOMPLETE" ||
+      resultLine === "Result: STORY_READINESS_INCOMPLETE") &&
+    issues.length > 0
+  )
     return {
       ok: true,
       value: {
@@ -321,6 +418,9 @@ function diagnosticLines(output) {
     /^INFO {2}.+: Story ID .+$/,
     /^PASS {2}.+: classification security=(yes|no) baseline=(yes|no)$/,
     /^Stories checked: \d+$/,
+    /^Structure: STORY_CONTRACT_(OK|INCOMPLETE)$/,
+    /^Minimum content only, not human-approved READY\. Run make verify and human review\.$/,
+    /^Fill the reported structure or minimum content, then recheck\.$/,
     /^Next:$/,
     /^Static Story structure only\. Run make verify and human review\.$/,
     /^Record the missing classification, conditional contract, fixture$/,
@@ -355,6 +455,8 @@ function legacyEvidence(output) {
       });
     const checked = /^Stories checked: (\d+)$/.exec(line);
     if (checked) facts.push({ checked: Number(checked[1]) });
+    const structure = /^Structure: STORY_CONTRACT_(OK|INCOMPLETE)$/.exec(line);
+    if (structure) facts.push({ structure: structure[1] });
   }
 
   return facts;
@@ -367,13 +469,21 @@ function typescriptEvidence(execution) {
     if (entry.kind !== "story") continue;
     if (entry.facts.storyId !== undefined)
       facts.push({ label: entry.label, storyId: entry.facts.storyId });
-    if (entry.issues.length === 0)
+    if (entry.structureIssues.length === 0)
       facts.push({
         label: entry.label,
         security: entry.facts.securitySensitive === true ? "yes" : "no",
         baseline: entry.facts.baselineConformance === true ? "yes" : "no",
       });
   }
+  if (execution.ready)
+    facts.push({
+      structure: execution.entries.some(
+        (entry) => entry.kind === "story" && entry.structureIssues.length > 0,
+      )
+        ? "INCOMPLETE"
+        : "OK",
+    });
   facts.push({ checked: execution.checked });
 
   return facts;
@@ -487,6 +597,60 @@ function acceptanceWithMatrix(...rows) {
   return `# Acceptance Criteria\n\n## Security Fixture Matrix\n\n${matrixHeader}\n${separator}\n${rows
     .map((row) => `${row}\n`)
     .join("")}`;
+}
+
+const evidenceHeader =
+  "| AC | Method | Evidence | Fixture / precondition | Expected observation |";
+const evidenceSeparator = "| --- | --- | --- | --- | --- |";
+
+function readyStory(...sections) {
+  return `# Story: TST-901 Fixture
+
+## Goal
+
+Provide a deterministic Story fixture.
+
+## Scope
+
+* Check Story readiness.
+
+## Classification
+
+* Security sensitive: no
+* Baseline conformance: no
+${sections.length === 0 ? "" : `\n${sections.join("\n\n")}\n`}`;
+}
+
+function readyAcceptance(criteria = "* [ ] AC-001: Fixture.", ...rows) {
+  return `# Acceptance Criteria
+
+## Happy Path
+
+${criteria}
+
+## Acceptance Evidence
+
+${evidenceHeader}
+${evidenceSeparator}
+${rows.length === 0 ? "| `AC-001` | test | `test` | `fixture` | `pass` |" : rows.join("\n")}
+`;
+}
+
+function readinessRiskStory(signal, heading, fields) {
+  return readyStory(
+    `## Risk
+
+* Level: low
+* Signal: \`${signal}\``,
+    `${heading}
+
+${fields.map(([label, value]) => `* ${label}: \`${value}\``).join("\n")}`,
+  );
+}
+
+async function assertReadinessParity(name, story, options = {}) {
+  const args = ["--ready", ...(options.args ?? [caseStory])];
+  await assertParity(name, story, { ...options, args });
 }
 
 test("TST007-AC-002: identity and classification have retained-checker parity", async () => {
@@ -880,6 +1044,168 @@ test("TST007-AC-005: hostile Markdown boundaries have retained-checker parity", 
   await assertParity("repeated-subject", base, {
     args: [caseStory, caseStory],
   });
+});
+
+test("TST008-AC-002: readiness content, fences, and acceptance criteria have retained-checker parity", async () => {
+  await assertReadinessParity("ready-complete", readyStory(), {
+    acceptance: readyAcceptance(),
+  });
+  await assertReadinessParity(
+    "ready-goal-scope-placeholders",
+    readyStory().replace(
+      "Provide a deterministic Story fixture.\n\n## Scope\n\n* Check Story readiness.",
+      "<goal>\n\n## Scope\n\n* <scope>",
+    ),
+    { acceptance: readyAcceptance() },
+  );
+  await assertReadinessParity(
+    "ready-non-english-and-technical-content",
+    readyStory().replace(
+      "Provide a deterministic Story fixture.\n\n## Scope\n\n* Check Story readiness.",
+      "驗證契約。\n\n## Scope\n\n* `<T>` remains valid content.",
+    ),
+    { acceptance: readyAcceptance("* [ ] AC-001: 驗證 `<T>`。") },
+  );
+  await assertReadinessParity(
+    "ready-fenced-content-is-ignored",
+    readyStory().replace(
+      "Provide a deterministic Story fixture.",
+      "```markdown\n<goal>\n```\n\nProvide a deterministic Story fixture.",
+    ),
+    { acceptance: readyAcceptance() },
+  );
+  await assertReadinessParity("ready-missing-checkbox", readyStory(), {
+    acceptance: readyAcceptance("* AC-001: not a checkbox"),
+  });
+  await assertReadinessParity(
+    "ready-duplicate-and-placeholder-checkbox",
+    readyStory(),
+    {
+      acceptance: readyAcceptance(
+        "* [ ] AC-001: <acceptance criterion>\n* [x] AC-001: Fixture.",
+        "| `AC-001` | test | `test` | `fixture` | `pass` |",
+      ),
+    },
+  );
+});
+
+test("TST008-AC-002: readiness evidence tables have retained-checker parity", async () => {
+  await assertReadinessParity("ready-evidence-missing", readyStory(), {
+    acceptance: "# Acceptance Criteria\n\n* [ ] AC-001: Fixture.\n",
+  });
+  await assertReadinessParity("ready-evidence-header", readyStory(), {
+    acceptance: `# Acceptance Criteria
+
+* [ ] AC-001: Fixture.
+
+## Acceptance Evidence
+
+| Wrong | Header |
+${evidenceSeparator}
+| \`AC-001\` | test | \`test\` | \`fixture\` | \`pass\` |
+`,
+  });
+  await assertReadinessParity(
+    "ready-evidence-separator-and-pipe",
+    readyStory(),
+    {
+      acceptance: readyAcceptance(
+        "* [ ] AC-001: Fixture.",
+        "| `AC-001` | test | `a|b` | `fixture` | `pass` |",
+      ).replace(evidenceSeparator, "| -- | -- |"),
+    },
+  );
+  await assertReadinessParity("ready-evidence-cells", readyStory(), {
+    acceptance: readyAcceptance(
+      "* [ ] AC-001: Fixture.",
+      "| `AC-002` | machine | `<evidence>` | prose | `pass` |",
+      "| `AC-002` | test | `test` | `fixture` | `pass` |",
+    ),
+  });
+  await assertReadinessParity("ready-evidence-tail", readyStory(), {
+    acceptance: readyAcceptance(
+      "* [ ] AC-001: Fixture.",
+      "| `AC-001` | test | `test` | `fixture` | `pass` | trailing-garbage",
+    ),
+  });
+  await assertReadinessParity("ready-evidence-repeated-section", readyStory(), {
+    acceptance: `${readyAcceptance()}
+## Acceptance Evidence
+
+${evidenceHeader}
+${evidenceSeparator}
+| \`AC-001\` | test | \`test\` | \`fixture\` | \`pass\` |
+`,
+  });
+});
+
+test("TST008-AC-002: readiness risk evidence and placeholders have retained-checker parity", async () => {
+  const contracts = [
+    [
+      "error-projection",
+      "## Error Projection",
+      [
+        ["Source failure", "<source failure>"],
+        ["Public projection", "public"],
+        ["Detail policy", "detail"],
+        ["Evidence AC", "AC-002"],
+      ],
+    ],
+    [
+      "concurrency",
+      "## Concurrency",
+      [
+        ["Contended resource", "resource"],
+        ["Linearization point", "point"],
+        ["Conflict outcome", "conflict"],
+        ["Evidence AC", "<evidence ac>"],
+      ],
+    ],
+    [
+      "bounded-capacity",
+      "## Capacity",
+      [
+        ["Bounded resource", "resource"],
+        ["Limit", "<limit>"],
+        ["Saturation behavior", "saturate"],
+        ["Failure projection", "failure"],
+        ["Evidence AC", "AC-001"],
+      ],
+    ],
+    [
+      "retention-overflow",
+      "## Retention and Overflow",
+      [
+        ["Retained resource", "resource"],
+        ["Retention bound", "bound"],
+        ["Overflow policy", "overflow"],
+        ["Recovery / observability", "<recovery / observability>"],
+        ["Evidence AC", "AC-001"],
+      ],
+    ],
+  ];
+  for (const [signal, heading, fields] of contracts)
+    await assertReadinessParity(
+      `ready-risk-${signal}`,
+      readinessRiskStory(signal, heading, fields),
+      { acceptance: readyAcceptance() },
+    );
+
+  await assertReadinessParity(
+    "ready-risk-interleaves-placeholder-and-structure",
+    readyStory(
+      `## Risk
+
+* Level: low
+* Signal: \`error-projection\``,
+      `## Error Projection
+
+* Source failure: \`<source failure>\`
+* Detail policy: \`detail\`
+* Evidence AC: \`AC-001\``,
+    ),
+    { acceptance: readyAcceptance() },
+  );
 });
 
 test("TST007-AC-002: independent review findings stay fixed", async () => {
