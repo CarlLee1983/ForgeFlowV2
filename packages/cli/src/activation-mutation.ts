@@ -1,129 +1,39 @@
 import { createHash } from "node:crypto";
-import { constants } from "node:fs";
-import { lstat, mkdir, open, rename, rm, rmdir } from "node:fs/promises";
+import { lstat } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import {
-  adoptionMarkerPath,
-  createAdoptionMarker,
-  findInitPreconditionMismatches,
-  getInitObservationScope,
-  type InitMutationExecutionObservation,
-  type InitMutationFailure,
-  type InitMutationPlan,
-  type InitPathObservation,
-  type InitSnapshot,
+  activationDirectories,
+  activationSkillDirectory,
+  activationSnapshotPath,
+  findActivationPreconditionMismatches,
+  type ActivationMutationPlan,
+  type ActivationPathObservation,
+  type ActivationPlannedPayload,
+  type MutationExecutionObservation,
+  type MutationFailure,
 } from "@forgeflow/core";
 
 import {
-  captureInitObservations,
-  captureInitStageObservations,
-  initFilesystemIdentity,
-} from "./init-observation.js";
-import type { PackagedInitPayload } from "./init-snapshot.js";
-
-interface OriginalFile {
-  readonly bytes: Uint8Array;
-  readonly mode: number;
-  readonly identity: string;
-}
+  captureActivationObservations,
+  captureActivationStageObservations,
+} from "./activation-observation.js";
+import {
+  nodeInitMutationOperations,
+  type InitMutationOperations,
+} from "./init-mutation.js";
+import { initFilesystemIdentity } from "./init-observation.js";
 
 interface OwnedDirectory {
   readonly path: string;
   readonly identity: string;
 }
 
-export type InitMutationOperation =
-  "makeDirectory" | "writeFileExclusive" | "rename";
-
-export interface InitMutationOperations {
-  readonly makeDirectory: (path: string, mode: number) => Promise<string>;
-  readonly readFileNoFollow: (path: string) => Promise<OriginalFile>;
-  readonly writeFileExclusive: (
-    path: string,
-    bytes: Uint8Array,
-    mode: number,
-    preserveMode?: boolean,
-  ) => Promise<void>;
-  readonly rename: (source: string, destination: string) => Promise<void>;
-  readonly removeFile: (path: string) => Promise<void>;
-  readonly removeDirectory: (path: string) => Promise<void>;
-  readonly afterOperation?: (
-    operation: InitMutationOperation,
-    path: string,
-  ) => Promise<void>;
-  readonly shouldAbort?: () => boolean;
-}
-
-async function readFileNoFollow(path: string): Promise<OriginalFile> {
-  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
-  try {
-    const before = await handle.stat();
-    if (!before.isFile()) throw new Error("Not a regular file");
-    const bytes = new Uint8Array(await handle.readFile());
-    const after = await handle.stat();
-    if (
-      !after.isFile() ||
-      initFilesystemIdentity(before) !== initFilesystemIdentity(after) ||
-      before.size !== after.size ||
-      before.mtimeMs !== after.mtimeMs ||
-      before.mode !== after.mode
-    )
-      throw new Error("File changed while being read");
-    return Object.freeze({
-      bytes,
-      mode: after.mode & 0o777,
-      identity: initFilesystemIdentity(after),
-    });
-  } finally {
-    await handle.close();
-  }
-}
-
-async function writeFileExclusive(
-  path: string,
-  bytes: Uint8Array,
-  mode: number,
-  preserveMode: boolean = false,
-): Promise<void> {
-  const handle = await open(
-    path,
-    constants.O_WRONLY |
-      constants.O_CREAT |
-      constants.O_EXCL |
-      constants.O_NOFOLLOW,
-    mode,
-  );
-  try {
-    await handle.writeFile(bytes);
-    if (preserveMode) await handle.chmod(mode);
-  } finally {
-    await handle.close();
-  }
-}
-
-export const nodeInitMutationOperations: InitMutationOperations = Object.freeze(
-  {
-    makeDirectory: async (path: string, mode: number) => {
-      await mkdir(path, { mode });
-      return initFilesystemIdentity(await lstat(path));
-    },
-    readFileNoFollow,
-    writeFileExclusive,
-    rename,
-    removeFile: async (path: string) => {
-      await rm(path, { force: true });
-    },
-    removeDirectory: rmdir,
-    shouldAbort: () => false,
-  },
-);
-
 function failure(
-  stage: InitMutationFailure["stage"],
+  stage: MutationFailure["stage"],
   code: string,
   path?: string,
-): InitMutationFailure {
+): MutationFailure {
   return Object.freeze({
     stage,
     code,
@@ -136,23 +46,9 @@ function digest(bytes: Uint8Array): string {
 }
 
 function observation(
-  plan: InitMutationPlan,
-  state: {
-    readonly committed?: boolean;
-    readonly prepared?: readonly string[];
-    readonly attempted?: readonly string[];
-    readonly applied?: readonly string[];
-    readonly recoveryAttempted?: readonly string[];
-    readonly restored?: readonly string[];
-    readonly unrecovered?: readonly string[];
-    readonly invalidated?: readonly string[];
-    readonly invalidationFailed?: readonly string[];
-    readonly retained?: readonly string[];
-    readonly cleanupResidue?: readonly string[];
-    readonly preconditionMismatches?: readonly string[];
-    readonly failure?: InitMutationFailure;
-  },
-): InitMutationExecutionObservation {
+  plan: ActivationMutationPlan,
+  state: Partial<Omit<MutationExecutionObservation, "planId">> = {},
+): MutationExecutionObservation {
   return Object.freeze({
     planId: plan.planId,
     committed: state.committed ?? false,
@@ -173,7 +69,7 @@ function observation(
   });
 }
 
-function stageByDestination(plan: InitMutationPlan): Map<string, string> {
+function stageByDestination(plan: ActivationMutationPlan): Map<string, string> {
   return new Map(
     plan.effects.map((effect, index) => [
       effect.path,
@@ -248,20 +144,25 @@ async function cleanupDirectories(
 }
 
 function normalizePreparedRecapture(
-  plan: InitMutationPlan,
-  actual: readonly InitPathObservation[],
+  plan: ActivationMutationPlan,
+  actual: readonly ActivationPathObservation[],
   createdDirectories: ReadonlyMap<string, string>,
-): readonly InitPathObservation[] {
+): readonly ActivationPathObservation[] {
   const expected = new Map(
     plan.preconditions.map((entry) => [entry.path, entry]),
   );
   return Object.freeze(
-    actual.map((entry) =>
-      createdDirectories.get(entry.path) === entry.identity &&
-      expected.get(entry.path)?.kind === "missing"
-        ? (expected.get(entry.path) as InitPathObservation)
-        : entry,
-    ),
+    actual.map((entry) => {
+      const createdIsStillOwned =
+        createdDirectories.get(entry.path) === entry.identity &&
+        expected.get(entry.path)?.kind === "missing";
+      const integrationIsStillEmpty =
+        entry.path !== activationSkillDirectory ||
+        (entry.kind === "directory" && entry.members?.length === 0);
+      return createdIsStillOwned && integrationIsStillEmpty
+        ? (expected.get(entry.path) as ActivationPathObservation)
+        : entry;
+    }),
   );
 }
 
@@ -285,91 +186,95 @@ async function changedOwnedDirectories(
   return Object.freeze(changed);
 }
 
-export async function executeInitMutation(
-  candidate: string,
-  plan: InitMutationPlan,
-  snapshot: InitSnapshot,
-  payloads: readonly PackagedInitPayload[],
+function stageCollision(
+  stages: ReadonlyMap<string, string>,
+  path: string,
+): boolean {
+  for (const stage of stages.values()) if (stage === path) return true;
+  return false;
+}
+
+export async function executeActivationMutation(
+  root: string,
+  plan: ActivationMutationPlan,
+  payloads: readonly ActivationPlannedPayload[],
   operations: InitMutationOperations = nodeInitMutationOperations,
-): Promise<InitMutationExecutionObservation> {
+): Promise<MutationExecutionObservation> {
   const prepared: string[] = [];
   const attempted: string[] = [];
   const applied: string[] = [];
+  const recoveryAttempted: string[] = [];
   const restored: string[] = [];
   const unrecovered: string[] = [];
-  const recoveryAttempted: string[] = [];
   const invalidated: string[] = [];
   const invalidationFailed: string[] = [];
   const createdDirectories: OwnedDirectory[] = [];
   const createdStages: OwnedDirectory[] = [];
-  const stages = stageByDestination(plan);
   const originals = new Set<string>();
-  const root = candidate;
+  const stages = stageByDestination(plan);
 
   try {
-    const rootStats = await lstat(root);
+    const stats = await lstat(root);
     if (
-      !rootStats.isDirectory() ||
-      initFilesystemIdentity(rootStats) !== plan.rootIdentity
+      !stats.isDirectory() ||
+      initFilesystemIdentity(stats) !== plan.rootIdentity
     )
       throw new Error("Target identity changed");
   } catch {
     return observation(plan, {
-      failure: failure("precondition", "INIT_STALE_PLAN"),
+      failure: failure("precondition", "ACTIVATION_STALE_PLAN"),
     });
   }
 
   const payloadByPath = new Map(
     payloads.map((payload) => [payload.path, payload]),
   );
-  const markerBytes = new TextEncoder().encode(createAdoptionMarker(snapshot));
-  const effectBytes = new Map<string, Uint8Array>();
   for (const effect of plan.effects) {
     const payload = payloadByPath.get(effect.path);
-    const bytes =
-      effect.path === adoptionMarkerPath ? markerBytes : payload?.bytes;
     if (
-      bytes === undefined ||
-      digest(bytes) !== effect.digest ||
-      (effect.path !== adoptionMarkerPath &&
-        (payload === undefined ||
-          !Number.isInteger(payload.mode) ||
-          payload.mode < 0 ||
-          payload.mode > 0o777))
+      payload === undefined ||
+      payload.digest !== effect.digest ||
+      digest(payload.bytes) !== effect.digest ||
+      payload.mode !== effect.mode ||
+      !Number.isInteger(payload.mode) ||
+      payload.mode < 0 ||
+      payload.mode > 0o777
     )
       return observation(plan, {
-        failure: failure("precondition", "INIT_PAYLOAD_INVALID", effect.path),
+        failure: failure(
+          "precondition",
+          "ACTIVATION_PAYLOAD_INVALID",
+          effect.path,
+        ),
       });
-    effectBytes.set(effect.path, bytes);
   }
 
-  const initialPaths = await captureInitObservations(root, plan.mode);
-  const initialStages = await captureInitStageObservations(
+  const initialPaths = await captureActivationObservations(root);
+  const initialStages = await captureActivationStageObservations(
     root,
     plan.stagePreconditions.map(({ path }) => path),
   );
-  const initialMismatches = findInitPreconditionMismatches(
+  const initialMismatches = findActivationPreconditionMismatches(
     plan,
     initialPaths,
     initialStages,
   );
   if (initialMismatches.length > 0) {
-    const onlyStageCollisions = initialMismatches.every((path) =>
-      stagesHas(stages, path),
+    const stagesOnly = initialMismatches.every((path) =>
+      stageCollision(stages, path),
     );
     return observation(plan, {
       preconditionMismatches: initialMismatches,
       failure: failure(
         "precondition",
-        onlyStageCollisions ? "INIT_STAGE_COLLISION" : "INIT_STALE_PLAN",
+        stagesOnly ? "ACTIVATION_STAGE_COLLISION" : "ACTIVATION_STALE_PLAN",
         initialMismatches[0],
       ),
     });
   }
 
-  const scope = getInitObservationScope(plan.mode);
   try {
-    for (const directory of scope.directories) {
+    for (const directory of activationDirectories.slice(2)) {
       const expected = plan.preconditions.find(
         ({ path }) => path === directory,
       );
@@ -379,7 +284,6 @@ export async function executeInitMutation(
       createdDirectories.push({ path: directory, identity });
       await operations.afterOperation?.("makeDirectory", destination);
     }
-
     for (const effect of plan.effects) {
       const stagePath = stages.get(effect.path) as string;
       const stage = resolve(root, stagePath);
@@ -393,6 +297,32 @@ export async function executeInitMutation(
         const original = await operations.readFileNoFollow(
           resolve(root, effect.path),
         );
+        if (
+          original.identity !== expected.identity ||
+          original.mode !== expected.mode ||
+          digest(original.bytes) !== expected.digest
+        ) {
+          const stageResidue = await cleanupStages(
+            root,
+            createdStages,
+            operations,
+          );
+          const directoryResidue = await cleanupDirectories(
+            root,
+            createdDirectories,
+            operations,
+          );
+          return observation(plan, {
+            prepared,
+            preconditionMismatches: [effect.path],
+            cleanupResidue: [...stageResidue, ...directoryResidue],
+            failure: failure(
+              "precondition",
+              "ACTIVATION_STALE_PLAN",
+              effect.path,
+            ),
+          });
+        }
         await operations.writeFileExclusive(
           resolve(stage, "original"),
           original.bytes,
@@ -405,12 +335,14 @@ export async function executeInitMutation(
         );
         originals.add(effect.path);
       }
+      const payload = payloadByPath.get(
+        effect.path,
+      ) as ActivationPlannedPayload;
       await operations.writeFileExclusive(
         resolve(stage, "new"),
-        effectBytes.get(effect.path) as Uint8Array,
-        effect.path === adoptionMarkerPath
-          ? 0o666
-          : (payloadByPath.get(effect.path)?.mode as number),
+        payload.bytes,
+        payload.mode,
+        true,
       );
       await operations.afterOperation?.(
         "writeFileExclusive",
@@ -432,26 +364,30 @@ export async function executeInitMutation(
       failure: failure(
         "prepare",
         residue.length === 0
-          ? "INIT_PREPARATION_FAILED"
-          : "INIT_RECOVERY_CLEANUP_FAILED",
+          ? "ACTIVATION_PREPARATION_FAILED"
+          : "ACTIVATION_CLEANUP_FAILED",
         prepared.at(-1),
       ),
     });
   }
 
-  const preparedPaths = await captureInitObservations(root, plan.mode);
+  const ignoredStages = plan.stagePreconditions.map(({ path }) => path);
+  const preparedPaths = await captureActivationObservations(
+    root,
+    ignoredStages,
+  );
   const changedDirectories = await changedOwnedDirectories(root, [
     ...createdDirectories,
     ...createdStages,
   ]);
-  const normalizedPaths = normalizePreparedRecapture(
+  const normalized = normalizePreparedRecapture(
     plan,
     preparedPaths,
     new Map(createdDirectories.map(({ path, identity }) => [path, identity])),
   );
-  const recaptureMismatches = findInitPreconditionMismatches(
+  const recaptureMismatches = findActivationPreconditionMismatches(
     plan,
-    normalizedPaths,
+    normalized,
     plan.stagePreconditions,
   );
   const preparedMismatches = Object.freeze([
@@ -471,7 +407,7 @@ export async function executeInitMutation(
       cleanupResidue: [...stageResidue, ...directoryResidue],
       failure: failure(
         "precondition",
-        "INIT_STALE_PLAN",
+        "ACTIVATION_STALE_PLAN",
         preparedMismatches[0],
       ),
     });
@@ -491,14 +427,14 @@ export async function executeInitMutation(
       failure: failure(
         "prepare",
         residue.length === 0
-          ? "INIT_INTERRUPTED"
-          : "INIT_RECOVERY_CLEANUP_FAILED",
+          ? "ACTIVATION_INTERRUPTED"
+          : "ACTIVATION_CLEANUP_FAILED",
         residue[0],
       ),
     });
   }
 
-  let applyFailure: InitMutationFailure | undefined;
+  let applyFailure: MutationFailure | undefined;
   for (const effect of plan.effects) {
     const stagePath = stages.get(effect.path) as string;
     attempted.push(effect.path);
@@ -510,11 +446,15 @@ export async function executeInitMutation(
       await operations.afterOperation?.("rename", resolve(root, effect.path));
       applied.push(effect.path);
       if (operations.shouldAbort?.() === true) {
-        applyFailure = failure("apply", "INIT_INTERRUPTED", effect.path);
+        applyFailure = failure("apply", "ACTIVATION_INTERRUPTED", effect.path);
         break;
       }
     } catch {
-      applyFailure = failure("apply", "INIT_REPLACEMENT_FAILED", effect.path);
+      applyFailure = failure(
+        "apply",
+        "ACTIVATION_REPLACEMENT_FAILED",
+        effect.path,
+      );
       break;
     }
   }
@@ -528,6 +468,15 @@ export async function executeInitMutation(
           const original = await operations.readFileNoFollow(
             resolve(root, stagePath, "original"),
           );
+          const expected = plan.preconditions.find(
+            (entry) => entry.path === path,
+          );
+          if (
+            expected?.kind !== "file" ||
+            original.mode !== expected.mode ||
+            digest(original.bytes) !== expected.digest
+          )
+            throw new Error("Prepared recovery copy changed");
           await operations.writeFileExclusive(
             resolve(root, stagePath, "restore"),
             original.bytes,
@@ -549,31 +498,15 @@ export async function executeInitMutation(
         restored.push(path);
       } catch {
         unrecovered.push(path);
-        if (path === adoptionMarkerPath) {
-          try {
-            await operations.removeFile(resolve(root, path));
-            invalidated.push(path);
-          } catch {
-            invalidationFailed.push(path);
-          }
-        }
       }
     }
 
     if (unrecovered.length > 0) {
-      if (
-        !invalidated.includes(adoptionMarkerPath) &&
-        !invalidationFailed.includes(adoptionMarkerPath)
-      ) {
-        try {
-          await lstat(resolve(root, adoptionMarkerPath));
-          await operations.removeFile(resolve(root, adoptionMarkerPath));
-          invalidated.push(adoptionMarkerPath);
-        } catch (error: unknown) {
-          if ((error as { code?: string }).code === "ENOENT")
-            invalidated.push(adoptionMarkerPath);
-          else invalidationFailed.push(adoptionMarkerPath);
-        }
+      try {
+        await operations.removeFile(resolve(root, activationSnapshotPath));
+        invalidated.push(activationSnapshotPath);
+      } catch {
+        invalidationFailed.push(activationSnapshotPath);
       }
       return observation(plan, {
         prepared,
@@ -585,7 +518,11 @@ export async function executeInitMutation(
         invalidated,
         invalidationFailed,
         retained: createdStages.map(({ path }) => path),
-        failure: failure("recovery", "INIT_RESTORE_FAILED", unrecovered[0]),
+        failure: failure(
+          "recovery",
+          "ACTIVATION_RESTORE_FAILED",
+          unrecovered[0],
+        ),
       });
     }
 
@@ -602,12 +539,11 @@ export async function executeInitMutation(
       applied,
       recoveryAttempted,
       restored,
-      invalidated,
       cleanupResidue: residue,
       failure:
         residue.length === 0
           ? applyFailure
-          : failure("recovery", "INIT_RECOVERY_CLEANUP_FAILED", residue[0]),
+          : failure("recovery", "ACTIVATION_CLEANUP_FAILED", residue[0]),
     });
   }
 
@@ -621,18 +557,21 @@ export async function executeInitMutation(
     ...(cleanupResidue.length === 0
       ? {}
       : {
-          failure: failure("cleanup", "INIT_CLEANUP_FAILED", cleanupResidue[0]),
+          failure: failure(
+            "cleanup",
+            "ACTIVATION_CLEANUP_FAILED",
+            cleanupResidue[0],
+          ),
         }),
   });
 }
 
-export async function executeInitMutationWithSignals(
-  candidate: string,
-  plan: InitMutationPlan,
-  snapshot: InitSnapshot,
-  payloads: readonly PackagedInitPayload[],
+export async function executeActivationMutationWithSignals(
+  root: string,
+  plan: ActivationMutationPlan,
+  payloads: readonly ActivationPlannedPayload[],
   operations: InitMutationOperations = nodeInitMutationOperations,
-): Promise<InitMutationExecutionObservation> {
+): Promise<MutationExecutionObservation> {
   let interrupted = false;
   const onSignal = (): void => {
     interrupted = true;
@@ -640,16 +579,11 @@ export async function executeInitMutationWithSignals(
   const signals: readonly NodeJS.Signals[] = ["SIGHUP", "SIGINT", "SIGTERM"];
   for (const signal of signals) process.on(signal, onSignal);
   try {
-    return await executeInitMutation(candidate, plan, snapshot, payloads, {
+    return await executeActivationMutation(root, plan, payloads, {
       ...operations,
       shouldAbort: () => interrupted,
     });
   } finally {
     for (const signal of signals) process.off(signal, onSignal);
   }
-}
-
-function stagesHas(stages: ReadonlyMap<string, string>, path: string): boolean {
-  for (const stage of stages.values()) if (stage === path) return true;
-  return false;
 }

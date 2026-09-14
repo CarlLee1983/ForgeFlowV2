@@ -3,6 +3,11 @@
 import { readFileSync } from "node:fs";
 
 import {
+  activationHelp,
+  renderActivationHuman,
+  runActivation,
+} from "./activation.js";
+import {
   renderDoctorVerificationHuman,
   renderDoctorVerificationStart,
   runDoctorVerification,
@@ -41,6 +46,7 @@ Usage:
 
 Commands:
   init               Plan or apply ForgeFlow initialization
+  codex activate     Preview or apply project-local Codex activation
   doctor             Inspect the static Repository Contract
   verify             Run the canonical repository verification target
   handoff check      Check immutable Handoff evidence
@@ -84,6 +90,23 @@ if (
     process.stdout.write(serializeResultEnvelope(execution.result));
   } else {
     const rendered = renderInitHuman(execution);
+    process.stdout.write(rendered.stdout);
+    process.stderr.write(rendered.stderr);
+  }
+  process.exitCode = execution.result.exit;
+} else if (
+  args.length === 3 &&
+  args[0] === "codex" &&
+  args[1] === "activate" &&
+  args[2] === "--help"
+) {
+  process.stdout.write(activationHelp);
+} else if (args[0] === "codex" && args[1] === "activate") {
+  const execution = await runActivation(args.slice(2));
+  if (execution.mode === "json") {
+    process.stdout.write(serializeResultEnvelope(execution.result));
+  } else {
+    const rendered = renderActivationHuman(execution);
     process.stdout.write(rendered.stdout);
     process.stderr.write(rendered.stderr);
   }

@@ -19,6 +19,18 @@ const canonicalResults = [
   { status: "error", outcome: "internal-error", exit: 2 },
   { status: "pass", outcome: "RELEASE_READY", exit: 0 },
   { status: "fail", outcome: "RELEASE_INCOMPLETE", exit: 1 },
+  { status: "pass", outcome: "ACTIVATION_PREVIEW", exit: 0 },
+  { status: "pass", outcome: "ACTIVATION_APPLIED", exit: 0 },
+  { status: "pass", outcome: "ACTIVATION_UNCHANGED", exit: 0 },
+  { status: "fail", outcome: "ACTIVATION_CONFLICT", exit: 1 },
+  { status: "fail", outcome: "ACTIVATION_OPERATION_REFUSED", exit: 1 },
+  {
+    status: "fail",
+    outcome: "ACTIVATION_APPLY_FAILED_RECOVERED",
+    exit: 1,
+  },
+  { status: "fail", outcome: "ACTIVATION_RECOVERY_INCOMPLETE", exit: 1 },
+  { status: "fail", outcome: "ACTIVATION_CLEANUP_INCOMPLETE", exit: 1 },
   { status: "error", outcome: "ERROR", exit: 2 },
   { status: "error", outcome: "ERROR", exit: 3 },
 ];

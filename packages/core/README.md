@@ -3,6 +3,17 @@
 Dependency-free ForgeFlow contracts for machine results and Protocol selection.
 Only the package root is public.
 
+## Codex activation planning and execution evaluation
+
+`planActivation(request)` validates immutable adoption, bounded AGENTS-section,
+installed membership, snapshot, checksum, and no-follow path observations. It
+returns `ACTIVATION_PREVIEW`, `ACTIVATION_UNCHANGED`, a conflict/refusal, or an
+ordered content-addressed plan whose activation snapshot is last.
+`evaluateActivationMutation(plan, observation)` uses the same immutable
+mutation-execution observation contract as Init while assigning only
+activation-specific outcomes. Core performs no filesystem, process, Git,
+environment, clock, or network access.
+
 ## Init planning and execution evaluation
 
 `planMutation(request)` creates an immutable content-addressed Init plan from a
@@ -60,25 +71,33 @@ value or throws `ResultEnvelopeValidationError` with the same issues.
 
 The valid status, outcome, and exit combinations are:
 
-| Status    | Outcome                       | Exit |
-| --------- | ----------------------------- | ---- |
-| `pass`    | `success`                     | `0`  |
-| `fail`    | `failure`                     | `1`  |
-| `warning` | `warning`                     | `0`  |
-| `error`   | `usage-error`                 | `2`  |
-| `error`   | `configuration-error`         | `2`  |
-| `error`   | `internal-error`              | `2`  |
-| `pass`    | `RELEASE_READY`               | `0`  |
-| `fail`    | `RELEASE_INCOMPLETE`          | `1`  |
-| `pass`    | `INIT_APPLIED`                | `0`  |
-| `pass`    | `INIT_PREVIEW`                | `0`  |
-| `fail`    | `INIT_CONFLICT`               | `1`  |
-| `fail`    | `INIT_OPERATION_REFUSED`      | `1`  |
-| `fail`    | `INIT_APPLY_FAILED_RECOVERED` | `1`  |
-| `fail`    | `INIT_RECOVERY_INCOMPLETE`    | `1`  |
-| `fail`    | `INIT_CLEANUP_INCOMPLETE`     | `1`  |
-| `error`   | `ERROR`                       | `2`  |
-| `error`   | `ERROR`                       | `3`  |
+| Status    | Outcome                             | Exit |
+| --------- | ----------------------------------- | ---- |
+| `pass`    | `success`                           | `0`  |
+| `fail`    | `failure`                           | `1`  |
+| `warning` | `warning`                           | `0`  |
+| `error`   | `usage-error`                       | `2`  |
+| `error`   | `configuration-error`               | `2`  |
+| `error`   | `internal-error`                    | `2`  |
+| `pass`    | `RELEASE_READY`                     | `0`  |
+| `fail`    | `RELEASE_INCOMPLETE`                | `1`  |
+| `pass`    | `INIT_APPLIED`                      | `0`  |
+| `pass`    | `INIT_PREVIEW`                      | `0`  |
+| `fail`    | `INIT_CONFLICT`                     | `1`  |
+| `fail`    | `INIT_OPERATION_REFUSED`            | `1`  |
+| `fail`    | `INIT_APPLY_FAILED_RECOVERED`       | `1`  |
+| `fail`    | `INIT_RECOVERY_INCOMPLETE`          | `1`  |
+| `fail`    | `INIT_CLEANUP_INCOMPLETE`           | `1`  |
+| `pass`    | `ACTIVATION_PREVIEW`                | `0`  |
+| `pass`    | `ACTIVATION_APPLIED`                | `0`  |
+| `pass`    | `ACTIVATION_UNCHANGED`              | `0`  |
+| `fail`    | `ACTIVATION_CONFLICT`               | `1`  |
+| `fail`    | `ACTIVATION_OPERATION_REFUSED`      | `1`  |
+| `fail`    | `ACTIVATION_APPLY_FAILED_RECOVERED` | `1`  |
+| `fail`    | `ACTIVATION_RECOVERY_INCOMPLETE`    | `1`  |
+| `fail`    | `ACTIVATION_CLEANUP_INCOMPLETE`     | `1`  |
+| `error`   | `ERROR`                             | `2`  |
+| `error`   | `ERROR`                             | `3`  |
 
 Subjects use a lowercase kind and optional ASCII identifier, such as
 `repository` or `story:TST-002`. Paths are normalized relative POSIX paths;

@@ -1,0 +1,397 @@
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import {
+  chmod,
+  copyFile,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, relative } from "node:path";
+import { fileURLToPath, URL } from "node:url";
+import test from "node:test";
+
+import { validateResultEnvelope } from "@forgeflow/core";
+
+import {
+  nodeActivationFilesystemAdapter,
+  runActivation,
+} from "../dist/activation.js";
+
+const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url));
+const bin = fileURLToPath(new URL("../dist/bin.js", import.meta.url));
+const bootstrap = join(repositoryRoot, "scripts/bootstrap");
+
+function runCli(args) {
+  return spawnSync(
+    globalThis.process.execPath,
+    [bin, "codex", "activate", ...args],
+    { encoding: "utf8" },
+  );
+}
+
+async function manifest(root) {
+  const entries = [];
+  async function visit(directory) {
+    for (const name of (await readdir(directory)).sort()) {
+      const path = join(directory, name);
+      const stats = await lstat(path);
+      const entry = relative(root, path);
+      if (stats.isDirectory()) {
+        entries.push([entry, "directory", stats.mode & 0o777]);
+        await visit(path);
+      } else if (stats.isSymbolicLink()) {
+        entries.push([entry, "symlink"]);
+      } else {
+        entries.push([
+          entry,
+          "file",
+          stats.mode & 0o777,
+          new Uint8Array(await readFile(path)),
+        ]);
+      }
+    }
+  }
+  await visit(root);
+  return entries;
+}
+
+async function adopted(root, name) {
+  const target = join(root, name);
+  await mkdir(target);
+  const result = spawnSync(bootstrap, [target], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  await writeFile(
+    join(target, "AGENTS.md"),
+    "custom policy\r\nno final newline",
+    {
+      mode: 0o600,
+    },
+  );
+  return target;
+}
+
+async function copySourceFile(sourceRoot, path) {
+  const destination = join(sourceRoot, path);
+  await mkdir(dirname(destination), { recursive: true });
+  await copyFile(join(repositoryRoot, path), destination);
+}
+
+async function legacySource(root) {
+  const source = join(root, "legacy-source");
+  for (const path of [
+    "scripts/codex-activate",
+    "VERSION",
+    "skills/forgeflow/SKILL.md",
+    "skills/forgeflow/agents-block.md",
+    "skills/story-development/SKILL.md",
+  ])
+    await copySourceFile(source, path);
+  await chmod(join(source, "scripts/codex-activate"), 0o755);
+  return source;
+}
+
+test("TST014-AC-001/002/008: packed preview, apply, and unchanged have retained generated-byte parity", async () => {
+  const root = await mkdtemp(join(tmpdir(), "forgeflow-activation-parity-"));
+  try {
+    const source = await legacySource(root);
+    const cliTarget = await adopted(root, "cli");
+    const legacyTarget = await adopted(root, "legacy");
+    const before = await manifest(cliTarget);
+
+    const preview = runCli(["--json", cliTarget]);
+    assert.equal(preview.status, 0, preview.stderr);
+    assert.deepEqual(await manifest(cliTarget), before);
+    const previewResult = JSON.parse(preview.stdout);
+    assert.equal(previewResult.outcome, "ACTIVATION_PREVIEW");
+    assert.deepEqual(
+      previewResult.data.changes.map(({ path }) => path),
+      [
+        "AGENTS.md",
+        ".agents/skills/forgeflow/SKILL.md",
+        ".agents/skills/forgeflow/story-development.md",
+        ".agents/skills/forgeflow/.forgeflow-snapshot",
+      ],
+    );
+
+    const humanPreview = runCli([cliTarget]);
+    const legacyPreview = spawnSync(
+      join(source, "scripts/codex-activate"),
+      [legacyTarget],
+      { encoding: "utf8" },
+    );
+    assert.equal(humanPreview.status, 0, humanPreview.stderr);
+    assert.equal(legacyPreview.status, 0, legacyPreview.stderr);
+    for (const output of [humanPreview.stdout, legacyPreview.stdout]) {
+      assert.match(output, /Would write .*AGENTS\.md/);
+      assert.match(output, /<!-- ForgeFlow Codex: begin -->/);
+      assert.match(output, /custom policy/);
+      assert.match(output, /Preview only; review the changes/);
+    }
+    assert.match(humanPreview.stdout, /--- .*\/cli\/AGENTS\.md/);
+    assert.match(humanPreview.stdout, /\+\+\+ .*AGENTS\.md \(proposed\)/);
+    assert.deepEqual(await manifest(cliTarget), before);
+
+    const cli = runCli(["--apply", "--json", cliTarget]);
+    const legacy = spawnSync(
+      join(source, "scripts/codex-activate"),
+      ["--apply", legacyTarget],
+      { encoding: "utf8" },
+    );
+    assert.equal(cli.status, 0, cli.stderr);
+    assert.equal(legacy.status, 0, legacy.stderr);
+    const result = JSON.parse(cli.stdout);
+    assert.equal(result.outcome, "ACTIVATION_APPLIED");
+    assert.deepEqual(validateResultEnvelope(result), {
+      ok: true,
+      value: result,
+    });
+    assert.deepEqual(await manifest(cliTarget), await manifest(legacyTarget));
+    assert.equal(result.data.attempted.at(-1), result.data.changes.at(-1).path);
+    assert.equal(
+      result.data.attempted.at(-1),
+      ".agents/skills/forgeflow/.forgeflow-snapshot",
+    );
+
+    const installed = await manifest(cliTarget);
+    const unchanged = runCli(["--json", "--apply", cliTarget]);
+    assert.equal(unchanged.status, 0, unchanged.stderr);
+    assert.equal(JSON.parse(unchanged.stdout).outcome, "ACTIVATION_UNCHANGED");
+    assert.deepEqual(await manifest(cliTarget), installed);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("TST014-AC-004: unknown and locally edited owned content conflicts before mutation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "forgeflow-activation-conflict-"));
+  try {
+    const target = await adopted(root, "target");
+    const installed = runCli(["--apply", target]);
+    assert.equal(installed.status, 0, installed.stderr || installed.stdout);
+    await writeFile(
+      join(target, ".agents/skills/forgeflow/local-note.md"),
+      "keep me\n",
+    );
+    const before = await manifest(target);
+    const unknown = runCli(["--json", target]);
+    assert.equal(unknown.status, 1);
+    assert.equal(JSON.parse(unknown.stdout).outcome, "ACTIVATION_CONFLICT");
+    assert.deepEqual(await manifest(target), before);
+
+    await rm(join(target, ".agents/skills/forgeflow/local-note.md"));
+    await writeFile(
+      join(target, ".agents/skills/forgeflow/SKILL.md"),
+      "local edit\n",
+    );
+    const editedBefore = await manifest(target);
+    const edited = runCli(["--apply", "--json", target]);
+    assert.equal(edited.status, 1);
+    assert.equal(JSON.parse(edited.stdout).outcome, "ACTIVATION_CONFLICT");
+    assert.deepEqual(await manifest(target), editedBefore);
+
+    const incompleteTarget = await adopted(root, "incomplete");
+    assert.equal(runCli(["--apply", incompleteTarget]).status, 0);
+    await rm(
+      join(incompleteTarget, ".agents/skills/forgeflow/story-development.md"),
+    );
+    const incompleteBefore = await manifest(incompleteTarget);
+    const incomplete = runCli(["--apply", "--json", incompleteTarget]);
+    assert.equal(incomplete.status, 1);
+    assert.equal(JSON.parse(incomplete.stdout).outcome, "ACTIVATION_CONFLICT");
+    assert.deepEqual(await manifest(incompleteTarget), incompleteBefore);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("TST014-AC-004/005: malformed markers, invalid adoption, and unsafe links fail closed", async () => {
+  const root = await mkdtemp(join(tmpdir(), "forgeflow-activation-safety-"));
+  try {
+    const malformedTarget = await adopted(root, "malformed");
+    await writeFile(
+      join(malformedTarget, "AGENTS.md"),
+      "<!-- ForgeFlow Codex: begin -->\nunclosed\n",
+    );
+    const malformedBefore = await manifest(malformedTarget);
+    const malformed = runCli(["--apply", "--json", malformedTarget]);
+    assert.equal(malformed.status, 1);
+    assert.equal(JSON.parse(malformed.stdout).outcome, "ACTIVATION_CONFLICT");
+    assert.deepEqual(await manifest(malformedTarget), malformedBefore);
+
+    const adoptionTarget = await adopted(root, "invalid-adoption");
+    await writeFile(
+      join(adoptionTarget, "specs/.forgeflow-adoption"),
+      "version=0.9.0\nversion=0.8.0\n",
+    );
+    const adoptionBefore = await manifest(adoptionTarget);
+    const adoption = runCli(["--json", adoptionTarget]);
+    assert.equal(adoption.status, 1);
+    assert.equal(JSON.parse(adoption.stdout).outcome, "ACTIVATION_CONFLICT");
+    assert.deepEqual(await manifest(adoptionTarget), adoptionBefore);
+
+    const linkedTarget = await adopted(root, "linked");
+    const outside = join(root, "outside-agents.md");
+    await writeFile(outside, "outside stays unchanged\n");
+    await rm(join(linkedTarget, "AGENTS.md"));
+    await symlink(outside, join(linkedTarget, "AGENTS.md"));
+    const linkedBefore = await manifest(linkedTarget);
+    const outsideBefore = await readFile(outside);
+    const linked = runCli(["--apply", "--json", linkedTarget]);
+    assert.equal(linked.status, 1);
+    assert.equal(
+      JSON.parse(linked.stdout).outcome,
+      "ACTIVATION_OPERATION_REFUSED",
+    );
+    assert.deepEqual(await manifest(linkedTarget), linkedBefore);
+    assert.deepEqual(await readFile(outside), outsideBefore);
+
+    const parentTypeTarget = await adopted(root, "parent-type");
+    await writeFile(join(parentTypeTarget, ".agents"), "not a directory\n");
+    const parentBefore = await manifest(parentTypeTarget);
+    const parentType = runCli(["--apply", "--json", parentTypeTarget]);
+    assert.equal(parentType.status, 1);
+    assert.equal(
+      JSON.parse(parentType.stdout).outcome,
+      "ACTIVATION_OPERATION_REFUSED",
+    );
+    assert.deepEqual(await manifest(parentTypeTarget), parentBefore);
+
+    const leafTypeTarget = await adopted(root, "leaf-type");
+    await mkdir(join(leafTypeTarget, ".agents/skills/forgeflow"), {
+      recursive: true,
+    });
+    await mkdir(join(leafTypeTarget, ".agents/skills/forgeflow/SKILL.md"));
+    await writeFile(
+      join(leafTypeTarget, ".agents/skills/forgeflow/story-development.md"),
+      "workflow\n",
+    );
+    await writeFile(
+      join(leafTypeTarget, ".agents/skills/forgeflow/.forgeflow-snapshot"),
+      "snapshot\n",
+    );
+    const leafBefore = await manifest(leafTypeTarget);
+    const leafType = runCli(["--json", leafTypeTarget]);
+    assert.equal(leafType.status, 1);
+    assert.equal(
+      JSON.parse(leafType.stdout).outcome,
+      "ACTIVATION_OPERATION_REFUSED",
+    );
+    assert.deepEqual(await manifest(leafTypeTarget), leafBefore);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("TST014-AC-007: preview and unchanged scratch cleanup faults retain evidence without target mutation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "forgeflow-activation-scratch-"));
+  try {
+    const target = await adopted(root, "target");
+    const before = await manifest(target);
+    const scratch = {
+      async prepare() {
+        return {
+          prepared: true,
+          cleaned: false,
+          session: {
+            path: "/private/tmp/retained-activation",
+            token: "scratch/retained-activation",
+            async cleanup() {
+              return false;
+            },
+          },
+        };
+      },
+    };
+    const preview = await runActivation(
+      ["--json", target],
+      nodeActivationFilesystemAdapter,
+      scratch,
+    );
+    assert.equal(preview.result.outcome, "ACTIVATION_CLEANUP_INCOMPLETE");
+    assert.deepEqual(preview.result.data.cleanupResidue, [
+      "scratch/retained-activation",
+    ]);
+    assert.equal(
+      preview.retainedScratchPath,
+      "/private/tmp/retained-activation",
+    );
+    assert.deepEqual(await manifest(target), before);
+
+    assert.equal(runCli(["--apply", target]).status, 0);
+    const installed = await manifest(target);
+    const unchanged = await runActivation(
+      [target],
+      nodeActivationFilesystemAdapter,
+      {
+        async prepare() {
+          return {
+            prepared: true,
+            cleaned: false,
+            session: {
+              path: "/private/tmp/thrown-activation",
+              token: "scratch/thrown-activation",
+              async cleanup() {
+                throw new Error("EACCES /private/tmp secret-token");
+              },
+            },
+          };
+        },
+      },
+    );
+    assert.equal(unchanged.result.outcome, "ACTIVATION_CLEANUP_INCOMPLETE");
+    assert.deepEqual(unchanged.result.data.cleanupResidue, [
+      "scratch/thrown-activation",
+    ]);
+    assert.deepEqual(await manifest(target), installed);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("TST014-AC-006/008: invalid invocation is ERROR/2 and packed assets are present", () => {
+  const invalid = runCli(["--json", "--apply"]);
+  assert.equal(invalid.status, 2);
+  assert.equal(JSON.parse(invalid.stdout).error.code, "ACTIVATION_USAGE");
+
+  const packed = spawnSync("npm", ["pack", "--dry-run", "--json"], {
+    cwd: fileURLToPath(new URL("..", import.meta.url)),
+    encoding: "utf8",
+  });
+  assert.equal(packed.status, 0, packed.stderr);
+  const files = JSON.parse(packed.stdout)[0].files.map(({ path }) => path);
+  for (const path of [
+    "dist/snapshot/skills/forgeflow/SKILL.md",
+    "dist/snapshot/skills/forgeflow/agents-block.md",
+    "dist/snapshot/skills/story-development/SKILL.md",
+  ])
+    assert.ok(files.includes(path), `missing packed activation asset: ${path}`);
+});
+
+test("TST014-AC-005/006: acquisition facts are evaluated by Core without raw diagnostics", async () => {
+  for (const kind of ["target-unavailable", "source-unavailable"]) {
+    const execution = await runActivation(["--json", "fixture"], {
+      async inspect() {
+        return { kind };
+      },
+    });
+    assert.equal(execution.result.outcome, "ACTIVATION_OPERATION_REFUSED");
+    assert.equal(execution.result.exit, 1);
+    assert.doesNotMatch(
+      JSON.stringify(execution.result),
+      /\/private\/|EACCES|secret-token/,
+    );
+  }
+  const missing = runCli(["--json", join(tmpdir(), "missing-activation")]);
+  assert.equal(missing.status, 1);
+  assert.equal(
+    JSON.parse(missing.stdout).issues[0].code,
+    "ACTIVATION_TARGET_UNAVAILABLE",
+  );
+});

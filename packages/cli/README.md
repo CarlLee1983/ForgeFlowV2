@@ -18,6 +18,18 @@ revalidates its content-addressed plan, prepares private sibling stages, writes
 the marker last, and reverse-recovers detected failures. `--dry-run` performs
 no target writes, staging, or recovery. Init never uses the network or prompts.
 
+Project-local Codex activation is available through:
+
+```text
+forgeflow codex activate [--apply] [--json] repository-directory
+```
+
+Preview is target-read-only and may use private external scratch. `--apply`
+revalidates its content-addressed plan, prepares all four owned destinations,
+replaces the activation snapshot last, and reverse-recovers detected failures.
+Unknown or locally edited owned content is never overwritten. Activation uses
+only packaged assets, never the network or target-owned processes.
+
 The Handoff command checks immutable evidence:
 
 ```text
@@ -100,6 +112,6 @@ The package root exports `serializeResultEnvelope(value)`. It validates through
 with envelope and issue properties in the published contract order. Invalid
 values throw Core's `ResultEnvelopeValidationError` before serialization.
 
-Both domain commands use this serializer for `--json`. The package root remains
+All domain commands use this serializer for `--json`. The package root remains
 limited to this programmatic serializer; filesystem adaptation and human
 rendering are executable internals.
