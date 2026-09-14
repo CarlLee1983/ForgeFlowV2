@@ -39,6 +39,44 @@ export {
   getInitObservationScope,
   planMutation,
 } from "./init.js";
+
+export type {
+  MutationExecutionObservation,
+  MutationFailure,
+  MutationFailureStage,
+  MutationPathKind,
+  MutationPathObservation,
+  MutationStageObservation,
+  MutationStagePrecondition,
+} from "./mutation.js";
+
+export {
+  activationAdoptionPath,
+  activationDestinations,
+  activationDirectories,
+  activationSkillDirectory,
+  activationSnapshotPath,
+  evaluateActivationAcquisition,
+  evaluateActivationMutation,
+  evaluateActivationScratchCleanup,
+  findActivationPreconditionMismatches,
+  getActivationObservationScope,
+  planActivation,
+  posixCksum,
+} from "./activation.js";
+export type {
+  ActivationAcquisitionObservation,
+  ActivationMutationPlan,
+  ActivationPathObservation,
+  ActivationPathPrecondition,
+  ActivationPlanEvaluation,
+  ActivationPlannedChange,
+  ActivationPlannedPayload,
+  ActivationPlanRequest,
+  ActivationScratchCleanupObservation,
+  ActivationSourceAsset,
+  ActivationSourceSnapshot,
+} from "./activation.js";
 export type {
   InitChangeKind,
   InitMode,

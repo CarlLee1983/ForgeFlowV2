@@ -22,6 +22,9 @@ const payloads = [
   ["guidance/PRINCIPLES.md", "guidance/PRINCIPLES.md"],
   ["guidance/DECISIONS.md", "guidance/DECISIONS.md"],
   ["guidance/PRACTICES.md", "guidance/PRACTICES.md"],
+  ["skills/forgeflow/SKILL.md", "skills/forgeflow/SKILL.md"],
+  ["skills/forgeflow/agents-block.md", "skills/forgeflow/agents-block.md"],
+  ["skills/story-development/SKILL.md", "skills/story-development/SKILL.md"],
 ];
 
 rmSync(snapshotRoot, { recursive: true, force: true });

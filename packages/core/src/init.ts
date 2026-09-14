@@ -7,20 +7,21 @@ import {
   type ResultEnvelope,
   type ResultIssue,
 } from "./result.js";
+import type {
+  MutationExecutionObservation,
+  MutationFailure,
+  MutationFailureStage,
+  MutationPathKind,
+  MutationPathObservation,
+  MutationStageObservation,
+  MutationStagePrecondition,
+} from "./mutation.js";
 
 export type InitMode = "safe" | "force" | "upgrade";
-export type InitPathKind =
-  "missing" | "file" | "directory" | "symlink" | "other" | "unconfirmable";
+export type InitPathKind = MutationPathKind;
 export type InitChangeKind = "install" | "replace";
 
-export interface InitPathObservation {
-  readonly path: string;
-  readonly kind: InitPathKind;
-  readonly readable?: boolean;
-  readonly searchable?: boolean;
-  readonly digest?: string;
-  readonly identity?: string;
-}
+export type InitPathObservation = MutationPathObservation;
 
 export interface InitSnapshotPayload {
   readonly path: string;
@@ -71,41 +72,11 @@ export interface InitMutationPlan {
   readonly planId: string;
 }
 
-export interface InitStagePrecondition {
-  readonly path: string;
-  readonly kind: "missing";
-}
-
-export interface InitStageObservation {
-  readonly path: string;
-  readonly kind: InitPathKind;
-}
-
-export type InitMutationFailureStage =
-  "precondition" | "prepare" | "apply" | "recovery" | "cleanup";
-
-export interface InitMutationFailure {
-  readonly stage: InitMutationFailureStage;
-  readonly code: string;
-  readonly path?: string;
-}
-
-export interface InitMutationExecutionObservation {
-  readonly planId: string;
-  readonly committed: boolean;
-  readonly prepared: readonly string[];
-  readonly attempted: readonly string[];
-  readonly applied: readonly string[];
-  readonly recoveryAttempted: readonly string[];
-  readonly restored: readonly string[];
-  readonly unrecovered: readonly string[];
-  readonly invalidated: readonly string[];
-  readonly invalidationFailed: readonly string[];
-  readonly retained: readonly string[];
-  readonly cleanupResidue: readonly string[];
-  readonly preconditionMismatches: readonly string[];
-  readonly failure?: InitMutationFailure;
-}
+export type InitStagePrecondition = MutationStagePrecondition;
+export type InitStageObservation = MutationStageObservation;
+export type InitMutationFailureStage = MutationFailureStage;
+export type InitMutationFailure = MutationFailure;
+export type InitMutationExecutionObservation = MutationExecutionObservation;
 
 const freshDirectories = [
   "specs",

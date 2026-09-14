@@ -18,6 +18,7 @@ Usage:
 
 Commands:
   init               Plan or apply ForgeFlow initialization
+  codex activate     Preview or apply project-local Codex activation
   doctor             Inspect the static Repository Contract
   verify             Run the canonical repository verification target
   handoff check      Check immutable Handoff evidence
