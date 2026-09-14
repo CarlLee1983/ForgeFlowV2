@@ -3,6 +3,14 @@
 Dependency-free ForgeFlow contracts for machine results and Protocol selection.
 Only the package root is public.
 
+## Repository Doctor evaluation
+
+`evaluateRepositoryDoctor(snapshot)` is a pure interpretation of an immutable
+static repository observation. The CLI owns no-follow filesystem acquisition;
+Core owns required-capability outcomes, marker and guidance drift, Makefile
+clues, composed Story/Handoff states, ordered facts, and the result envelope.
+It never reads the filesystem, starts a process, or mutates a target.
+
 ## Handoff evaluation
 
 `evaluateHandoff(source)` evaluates Handoff Markdown source using the

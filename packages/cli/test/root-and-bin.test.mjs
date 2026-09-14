@@ -17,6 +17,8 @@ Usage:
   forgeflow [command]
 
 Commands:
+  doctor             Inspect the static Repository Contract
+  verify             Run the canonical repository verification target
   handoff check      Check immutable Handoff evidence
   story check        Check the static Story contract
   verification check Resolve plans and check recorded results
@@ -92,6 +94,27 @@ Check minimum Story content.
     assert.equal(parsed.status, "pass");
     assert.equal(parsed.exit, 0);
     assert.equal(result.stdout, `${JSON.stringify(parsed)}\n`);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("TST009-AC-005: the packed CLI emits one static Doctor JSON result", async () => {
+  const root = await mkdtemp(join(tmpdir(), "packed-doctor-"));
+  try {
+    await mkdir(join(root, "specs", "stories"), { recursive: true });
+    await writeFile(join(root, "AGENTS.md"), "agent guide\n");
+    await writeFile(join(root, "Makefile"), "verify:\n\t@:\n");
+    const result = runCli(["doctor", "--json"], root);
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    const parsed = JSON.parse(result.stdout);
+    assert.deepEqual(validateResultEnvelope(parsed), {
+      ok: true,
+      value: parsed,
+    });
+    assert.equal(parsed.subject, "repository");
+    assert.equal(parsed.status, "pass");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
