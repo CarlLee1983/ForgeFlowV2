@@ -11,23 +11,24 @@ integration contract e2e architecture`.
 * static: pass — `pnpm run typecheck && ./scripts/story-check --ready specs/stories/TST-011-local-release-inspection`
 * unit: pass — `pnpm test`
 * integration: pass — `node --test packages/cli/test/release-command.test.mjs packages/cli/test/release-parity.test.mjs`
-* contract: fail — `node --test packages/cli/test/release-parity.test.mjs`
+* contract: pass — `node --test packages/cli/test/release-parity.test.mjs`
 * e2e: pass — `make verify`
-* architecture: fail — `independent Sol/high Standards and Spec reviews`
+* architecture: pass — `independent Sol/high Standards and Spec reviews`
 
 ## Evidence
 
 * `AC-001`: pass — `node --test packages/cli/test/release-command.test.mjs`
-* `AC-002`: fail — `node --test packages/cli/test/release-parity.test.mjs`
-* `AC-003`: fail — `node --test packages/cli/test/release-command.test.mjs`
+* `AC-002`: pass — `node --test packages/cli/test/release-parity.test.mjs`
+* `AC-003`: pass — `node --test packages/cli/test/release-command.test.mjs`
 * `AC-004`: pass — `node --test packages/cli/test/release-command.test.mjs`
-* `AC-005`: fail — `make verify`
+* `AC-005`: pass — `make verify`
 
 ## Authority Used
 
 * plan
 * modify
+* commit
 
 ## Residual Risks
 
-* `the TypeScript differential corpus does not yet cover every retained release-check fixture, especially promisor/lazy-fetch, full fsmonitor/hooks, mutation-manifest, and concurrency families; TST-011 must not be marked complete until that corpus is implemented`
+* `the GitHub Actions runtime matrix has not run remotely because this Story grants no push authority; local focused suites and make verify passed in this checkout`
