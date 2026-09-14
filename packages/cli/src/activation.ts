@@ -6,7 +6,7 @@ import {
   rmdir,
   writeFile,
 } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 import { tmpdir } from "node:os";
 
 import {
@@ -61,6 +61,7 @@ export interface ActivationScratchPreparation {
 
 export interface ActivationScratchAdapter {
   prepare(
+    root: string,
     payloads: readonly ActivationPlannedPayload[],
   ): Promise<ActivationScratchPreparation>;
 }
@@ -148,21 +149,29 @@ function parse(args: readonly string[]):
       readonly candidate: string;
     }
   | { readonly valid: false; readonly mode: ActivationOutputMode } {
-  const requestedMode: ActivationOutputMode = args.includes("--json")
-    ? "json"
-    : "human";
+  let requestedMode: ActivationOutputMode = "human";
+  for (const argument of args) {
+    if (argument === "--") break;
+    if (argument === "--json") {
+      requestedMode = "json";
+      break;
+    }
+  }
   let mode: ActivationOutputMode = "human";
   let apply = false;
   let candidate: string | undefined;
+  let optionsEnded = false;
   for (const argument of args) {
     if (candidate !== undefined) return { valid: false, mode: requestedMode };
-    if (argument === "--json") {
+    if (argument === "--" && !optionsEnded) {
+      optionsEnded = true;
+    } else if (!optionsEnded && argument === "--json") {
       if (mode === "json") return { valid: false, mode: requestedMode };
       mode = "json";
-    } else if (argument === "--apply") {
+    } else if (!optionsEnded && argument === "--apply") {
       if (apply) return { valid: false, mode: requestedMode };
       apply = true;
-    } else if (argument.startsWith("-")) {
+    } else if (!optionsEnded && argument.startsWith("-")) {
       return { valid: false, mode: requestedMode };
     } else {
       candidate = argument;
@@ -208,11 +217,26 @@ export const nodeActivationFilesystemAdapter: ActivationFilesystemAdapter =
 export const nodeActivationScratchAdapter: ActivationScratchAdapter =
   Object.freeze({
     async prepare(
+      root: string,
       payloads: readonly ActivationPlannedPayload[],
     ): Promise<ActivationScratchPreparation> {
+      let base: string;
+      try {
+        base = await realpath(tmpdir());
+        while (isTargetOrDescendant(root, base)) {
+          const parent = dirname(base);
+          if (parent === base)
+            return Object.freeze({ prepared: false, cleaned: true });
+          base = parent;
+        }
+        if (!(await lstat(base)).isDirectory())
+          return Object.freeze({ prepared: false, cleaned: true });
+      } catch {
+        return Object.freeze({ prepared: false, cleaned: true });
+      }
       let path: string;
       try {
-        path = await mkdtemp(join(tmpdir(), "forgeflow-activation-"));
+        path = await mkdtemp(join(base, "forgeflow-activation-"));
       } catch {
         return Object.freeze({ prepared: false, cleaned: true });
       }
@@ -278,6 +302,14 @@ export const nodeActivationScratchAdapter: ActivationScratchAdapter =
       });
     },
   });
+
+function isTargetOrDescendant(root: string, candidate: string): boolean {
+  const path = relative(root, candidate);
+  return (
+    path === "" ||
+    (path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path))
+  );
+}
 
 function withScratchObservation(
   mode: ActivationOutputMode,
@@ -378,7 +410,7 @@ export async function runActivation(
 
   let preparation: ActivationScratchPreparation;
   try {
-    preparation = await scratch.prepare(planned.payloads);
+    preparation = await scratch.prepare(inspection.root, planned.payloads);
   } catch {
     return internalError(invocation.mode);
   }

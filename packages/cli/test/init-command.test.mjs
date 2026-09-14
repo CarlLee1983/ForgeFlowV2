@@ -164,10 +164,14 @@ test("TST012-AC-008/009: unsafe paths and invalid arguments fail without target 
 });
 
 test("TST012-AC-006: npm package content includes the complete bundled snapshot", () => {
-  const packed = spawnSync("npm", ["pack", "--dry-run", "--json"], {
-    cwd: fileURLToPath(new URL("..", import.meta.url)),
-    encoding: "utf8",
-  });
+  const packed = spawnSync(
+    "npm",
+    ["pack", "--dry-run", "--json", "--ignore-scripts"],
+    {
+      cwd: fileURLToPath(new URL("..", import.meta.url)),
+      encoding: "utf8",
+    },
+  );
   assert.equal(packed.status, 0, packed.stderr);
   const files = JSON.parse(packed.stdout)[0].files.map((entry) => entry.path);
   for (const path of [

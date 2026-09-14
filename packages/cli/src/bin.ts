@@ -62,6 +62,19 @@ const unavailable =
   "forgeflow: command unavailable; this command is not available. Run forgeflow --help.\n";
 const args = process.argv.slice(2);
 
+function activationGlobalOption(
+  commandArgs: readonly string[],
+): "--help" | "--version" | "invalid" | undefined {
+  let selected: "--help" | "--version" | undefined;
+  for (const argument of commandArgs) {
+    if (argument === "--") break;
+    if (argument !== "--help" && argument !== "--version") continue;
+    if (selected !== undefined) return "invalid";
+    selected = argument;
+  }
+  return selected;
+}
+
 function executionObserver(mode: "human" | "json") {
   return Object.freeze({
     onStdout: (chunk: string) => {
@@ -95,12 +108,17 @@ if (
   }
   process.exitCode = execution.result.exit;
 } else if (
-  args.length === 3 &&
   args[0] === "codex" &&
   args[1] === "activate" &&
-  args[2] === "--help"
+  activationGlobalOption(args.slice(2)) === "--help"
 ) {
   process.stdout.write(activationHelp);
+} else if (
+  args[0] === "codex" &&
+  args[1] === "activate" &&
+  activationGlobalOption(args.slice(2)) === "--version"
+) {
+  process.stdout.write(`${manifest.version}\n`);
 } else if (args[0] === "codex" && args[1] === "activate") {
   const execution = await runActivation(args.slice(2));
   if (execution.mode === "json") {

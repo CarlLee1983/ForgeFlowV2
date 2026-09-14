@@ -1366,19 +1366,21 @@ export function evaluateActivationScratchCleanup(
       ),
     ),
   );
+  const existing = Array.isArray(baseData.cleanupResidue)
+    ? baseData.cleanupResidue
+    : Object.freeze([]);
+  const cleanupResidue = Object.freeze([...existing, ...observation.retained]);
+  const issues = Object.freeze([...evaluation.result.issues, ...problems]);
   if (evaluation.result.outcome === "ACTIVATION_RECOVERY_INCOMPLETE") {
-    const existing = Array.isArray(baseData.cleanupResidue)
-      ? baseData.cleanupResidue
-      : Object.freeze([]);
     return Object.freeze({
       result: result(
         "fail",
         "ACTIVATION_RECOVERY_INCOMPLETE",
         1,
-        Object.freeze([...evaluation.result.issues, ...problems]),
+        issues,
         Object.freeze({
           ...baseData,
-          cleanupResidue: Object.freeze([...existing, ...observation.retained]),
+          cleanupResidue,
         }),
       ),
       changes: evaluation.changes,
@@ -1393,10 +1395,10 @@ export function evaluateActivationScratchCleanup(
       "fail",
       "ACTIVATION_CLEANUP_INCOMPLETE",
       1,
-      problems,
+      issues,
       Object.freeze({
         ...baseData,
-        cleanupResidue: Object.freeze([...observation.retained]),
+        cleanupResidue,
       }),
     ),
     changes: evaluation.changes,

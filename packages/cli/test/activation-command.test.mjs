@@ -28,11 +28,11 @@ const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const bin = fileURLToPath(new URL("../dist/bin.js", import.meta.url));
 const bootstrap = join(repositoryRoot, "scripts/bootstrap");
 
-function runCli(args) {
+function runCli(args, env) {
   return spawnSync(
     globalThis.process.execPath,
     [bin, "codex", "activate", ...args],
-    { encoding: "utf8" },
+    { encoding: "utf8", env },
   );
 }
 
@@ -355,15 +355,122 @@ test("TST014-AC-007: preview and unchanged scratch cleanup faults retain evidenc
   }
 });
 
+test("TST014-AC-007: preview and unchanged keep real scratch external to the target", async () => {
+  const root = await mkdtemp(
+    join(tmpdir(), "forgeflow-activation-external-scratch-"),
+  );
+  try {
+    const target = await adopted(root, "target");
+    const targetChild = join(target, "scratch-base");
+    const dotDotNamedChild = join(target, "..scratch");
+    await mkdir(targetChild);
+    await mkdir(dotDotNamedChild);
+    const before = await manifest(target);
+    await chmod(target, 0o555);
+    try {
+      await chmod(targetChild, 0o555);
+      await chmod(dotDotNamedChild, 0o555);
+      try {
+        for (const scratchBase of [target, targetChild, dotDotNamedChild]) {
+          const preview = runCli(
+            ["--json", target],
+            Object.freeze({ ...globalThis.process.env, TMPDIR: scratchBase }),
+          );
+          assert.equal(preview.status, 0, preview.stderr);
+          assert.equal(
+            JSON.parse(preview.stdout).outcome,
+            "ACTIVATION_PREVIEW",
+          );
+        }
+      } finally {
+        await chmod(targetChild, 0o755);
+        await chmod(dotDotNamedChild, 0o755);
+      }
+    } finally {
+      await chmod(target, 0o700);
+    }
+    assert.deepEqual(await manifest(target), before);
+
+    const applied = runCli(["--apply", target]);
+    assert.equal(applied.status, 0, applied.stderr);
+    const installed = await manifest(target);
+    await chmod(target, 0o555);
+    try {
+      await chmod(targetChild, 0o555);
+      await chmod(dotDotNamedChild, 0o555);
+      for (const scratchBase of [target, targetChild, dotDotNamedChild]) {
+        const unchanged = runCli(
+          ["--json", target],
+          Object.freeze({
+            ...globalThis.process.env,
+            TMPDIR: scratchBase,
+          }),
+        );
+        assert.equal(unchanged.status, 0, unchanged.stderr);
+        assert.equal(
+          JSON.parse(unchanged.stdout).outcome,
+          "ACTIVATION_UNCHANGED",
+        );
+      }
+    } finally {
+      await chmod(targetChild, 0o755);
+      await chmod(dotDotNamedChild, 0o755);
+      await chmod(target, 0o700);
+    }
+    assert.deepEqual(await manifest(target), installed);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("TST014 input contract: activation routes each global option once before the delimiter", async () => {
+  const help = runCli(["--json", "--help"]);
+  assert.equal(help.status, 0, help.stderr);
+  assert.ok(help.stdout.includes("Usage:\n  forgeflow codex activate"));
+  assert.equal(help.stderr, "");
+
+  const version = runCli(["--apply", "--version"]);
+  assert.equal(version.status, 0, version.stderr);
+  assert.equal(version.stdout, "0.1.0\n");
+  assert.equal(version.stderr, "");
+
+  for (const args of [
+    ["--help", "--help"],
+    ["--version", "--version"],
+    ["--help", "--version"],
+  ]) {
+    const duplicate = runCli(args);
+    assert.equal(duplicate.status, 2, duplicate.stderr);
+  }
+
+  const afterDelimiter = runCli(["--json", "--", "--help"]);
+  assert.equal(afterDelimiter.status, 1, afterDelimiter.stderr);
+  assert.equal(
+    JSON.parse(afterDelimiter.stdout).issues[0].code,
+    "ACTIVATION_TARGET_UNAVAILABLE",
+  );
+
+  const positionalJson = await runActivation(["--", "--json"], {
+    async inspect() {
+      return { kind: "target-unavailable" };
+    },
+  });
+  assert.equal(positionalJson.mode, "human");
+});
+
 test("TST014-AC-006/008: invalid invocation is ERROR/2 and packed assets are present", () => {
   const invalid = runCli(["--json", "--apply"]);
   assert.equal(invalid.status, 2);
   assert.equal(JSON.parse(invalid.stdout).error.code, "ACTIVATION_USAGE");
 
-  const packed = spawnSync("npm", ["pack", "--dry-run", "--json"], {
-    cwd: fileURLToPath(new URL("..", import.meta.url)),
-    encoding: "utf8",
-  });
+  const packed = spawnSync(
+    "npm",
+    ["pack", "--dry-run", "--json", "--ignore-scripts"],
+    {
+      cwd: fileURLToPath(new URL("..", import.meta.url)),
+      encoding: "utf8",
+    },
+  );
   assert.equal(packed.status, 0, packed.stderr);
   const files = JSON.parse(packed.stdout)[0].files.map(({ path }) => path);
   for (const path of [

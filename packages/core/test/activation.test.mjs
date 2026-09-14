@@ -324,6 +324,53 @@ test("TST014-AC-007: preview and unchanged scratch cleanup faults are Core outco
   assert.equal(failed.result.exit, 1);
   assert.deepEqual(failed.result.data.cleanupResidue, ["scratch/activation-1"]);
 
+  const committedPlan = planActivation(freshRequest()).plan;
+  const committedPaths = committedPlan.effects.map(({ path }) => path);
+  const stage = committedPlan.stagePreconditions[0].path;
+  const committedStageCleanup = evaluateActivationMutation(
+    committedPlan,
+    trace(committedPlan, {
+      committed: true,
+      prepared: committedPaths,
+      attempted: committedPaths,
+      applied: committedPaths,
+      cleanupResidue: [stage],
+      failure: {
+        stage: "cleanup",
+        code: "ACTIVATION_CLEANUP_FAILED",
+        path: stage,
+      },
+    }),
+  );
+  const committedWithScratch = evaluateActivationScratchCleanup(
+    committedStageCleanup,
+    {
+      cleaned: false,
+      retained: ["scratch/activation-committed"],
+    },
+  );
+  assert.equal(
+    committedWithScratch.result.outcome,
+    "ACTIVATION_CLEANUP_INCOMPLETE",
+  );
+  assert.equal(committedWithScratch.result.exit, 1);
+  assert.deepEqual(
+    committedWithScratch.result.issues.slice(
+      0,
+      committedStageCleanup.result.issues.length,
+    ),
+    committedStageCleanup.result.issues,
+  );
+  assert.deepEqual(
+    committedWithScratch.result.issues.map(({ path }) => path),
+    [stage, "scratch/activation-committed"],
+  );
+  assert.deepEqual(committedWithScratch.result.data.cleanupResidue, [
+    stage,
+    "scratch/activation-committed",
+  ]);
+  assert.equal(validateResultEnvelope(committedWithScratch.result).ok, true);
+
   const plan = planActivation(freshRequest()).plan;
   const paths = plan.effects.map(({ path }) => path);
   const recovery = evaluateActivationMutation(
