@@ -45,8 +45,8 @@ verify             = execute make verify
 
 ## Command mapping and options
 
-| New command                                | Legacy capability                     | Contract                                                                                         |
-| ------------------------------------------ | ------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| New command                                  | Legacy capability                     | Contract                                                                                         |
+| -------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `praxisbound init [repo]`                    | `scripts/bootstrap`                   | Apply fresh adoption by default; supports `--dry-run`, mutually exclusive `--force`/`--upgrade`. |
 | `praxisbound doctor [repo]`                  | `scripts/doctor`                      | Static, read-only by default; retains `--run-verify` during compatibility period.                |
 | `praxisbound verify [repo]`                  | Doctor execution mode / `make verify` | Explicitly runs target-owned `make verify` once from physical root.                              |
@@ -97,8 +97,8 @@ additive behavior, not a reinterpretation of the legacy script path.
 
 ### Modes
 
-| Invocation                                  | Meaning                                                                                                                                  |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Invocation                                    | Meaning                                                                                                                                  |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `praxisbound init [repo]`                     | Fresh safe mode. Refuse if any managed destination exists.                                                                               |
 | `praxisbound init --dry-run [repo]`           | Run the same preflight and emit the exact intended install/replace set; no target write.                                                 |
 | `praxisbound init --force [repo]`             | Explicitly replace only the exact fresh-install managed destinations, including repository-owned `AGENTS.md` and Guidance starter files. |
@@ -174,149 +174,48 @@ on child zero and `1` on child nonzero, preserving Doctor semantics.
 
 In JSON mode, the child process cannot write to stdout because stdout is
 reserved for the result envelope. Child stdout/stderr is forwarded to CLI
-stderr in observed order; the stable envelope records command, cwd identity,
-child exit/signal, and outcome, not arbitrary log text.
+stderr in observed order. The stable envelope records the normalized CLI
+`status`, `outcome`, `exit`, and typed issues, not arbitrary child log text or a
+guaranteed child command, cwd, exit, or signal field.
 
 ## Machine-readable result envelope v1
 
-The draft JSON Schema is
-[`result-envelope-v1.schema.json`](result-envelope-v1.schema.json).
+The [published JSON Schema](result-envelope-v1.schema.json) defines the current
+`1.0.0` envelope. This is the executable CLI contract, including the exact
+status/outcome/exit combinations; older planning drafts are not consumer inputs.
 
-Example:
-
-```json
-{
-  "schemaVersion": "1",
-  "command": "story.check",
-  "status": "fail",
-  "outcome": "STORY_READINESS_INCOMPLETE",
-  "exitCode": 1,
-  "issues": [
-    {
-      "code": "story.acceptance-evidence.missing",
-      "severity": "error",
-      "category": "evidence",
-      "message": "Acceptance Evidence has no row for AC-003.",
-      "rule": "protocol/story.md#acceptance-evidence",
-      "location": {
-        "path": "specs/stories/FF-300-example/acceptance.md"
-      },
-      "data": { "acceptanceId": "AC-003" }
-    }
-  ],
-  "evidence": [],
-  "error": null,
-  "data": {
-    "subjects": ["specs/stories/FF-300-example"]
-  },
-  "metadata": {
-    "toolingVersion": "0.1.0",
-    "protocolVersion": "0.9.0",
-    "supportedProtocolRange": ">=0.9.0 <0.10.0"
-  }
-}
-```
-
-### Envelope rules
-
-- `schemaVersion` versions the JSON shape and meaning; it is independent of
-  Protocol and tooling versions.
-- `command` is a stable dotted identifier such as `story.check` or
-  `release.check`, independent of argv aliases.
-- `status` is only `pass`, `fail`, or `error`.
-- `outcome` is the command-specific stable result code. Existing shell result
-  names remain outcomes where they exist.
-- `exitCode` must equal the process exit code for every handled completion.
-- `issues` contains typed validation, warning, safety, compatibility, or
-  configuration diagnostics. `message` is human-readable and not stable.
-- A warning is an issue with `severity: warning`; warnings may accompany
-  `status: pass`. Doctor `CONTRACT_DRIFT` is the primary example.
-- `evidence` contains observations, never approvals or inferred current state.
-- `error` is `null` for pass/fail domain outcomes. For `status: error` it holds
-  the one evaluation-stopping error; secondary facts may remain in `issues`.
-- `data` contains command-specific structured values. Consumers must ignore
-  unknown keys within `data` and `issue.data` for forward compatibility.
-- `metadata` always distinguishes tooling, resolved Protocol, and supported
-  range. `protocolVersion` may be `null` only when resolution itself failed.
-
-### Issue contract
-
-Stable fields:
-
-```text
-code
-severity
-category
-rule (when the issue implements a protocol rule)
-location.path / line / column (when known)
-data keys documented for that code
-```
-
-Unstable presentation field:
-
-```text
-message
-```
-
-Paths are repository-relative POSIX paths. No temporary absolute path, locale-
-specific OS error text, stack trace, random identifier, duration, or implicit
-timestamp enters a stable issue.
-
-Issue codes are lowercase namespaced identifiers, for example:
-
-```text
-story.classification.missing
-handoff.recorded-at.invalid
-verification.layer.required-missing
-doctor.protocol-version.drift
-init.path.symlink-refused
-cli.arguments.invalid
-internal.unexpected
-```
-
-New issue codes are additive. Removing a code, changing when it fires, changing
-its severity/category, or changing documented `data` meaning is a machine-
-contract change.
-
-### Evidence contract
-
-Each evidence item contains:
-
-```text
-code       stable evidence type
-kind       file | declaration | command | git | mutation | version
-subject    repository-relative subject or stable logical subject
-location   optional repository-relative path plus one-based line/column
-status     pass | fail | partial | not_run | not_checked | unsupported | unknown
-observation structured facts
-```
-
-Path-bearing evidence uses `location.path`; `subject` remains a stable logical
-identifier and never carries an absolute temporary path. Repository paths use
-POSIX separators and reject absolute paths, drive prefixes, backslashes, empty
-segments, and `.`/`..` segments.
-
-Examples include the selected Protocol version, a required file observation,
-the `make verify` child exit, a Git tag-to-commit observation, or an applied
-mutation. Evidence never means Human Review passed unless the Protocol artifact
-explicitly records such an observation, and even then it does not authorize a
-merge.
-
-### Error contract
+A minimal handled completion is:
 
 ```json
 {
-  "code": "cli.arguments.invalid",
-  "category": "usage",
-  "message": "--force and --upgrade are mutually exclusive.",
-  "retryable": false,
-  "data": {}
+  "schemaVersion": "1.0.0",
+  "protocolVersion": "0.10.0",
+  "status": "pass",
+  "outcome": "success",
+  "exit": 0,
+  "subject": "handoff",
+  "issues": []
 }
 ```
 
-Error categories are `usage`, `configuration`, `environment`, or `internal`.
-Expected invalid Protocol documents are not tooling errors: they produce
-`status: fail`, typed issues, and exit `1`.
+`schemaVersion` versions the JSON contract and is independent of the CLI
+package version and bundled Protocol version. The package's exact tooling
+version comes from `@praxisbound/cli` metadata or `praxisbound --version`, not
+from an envelope `metadata` object. `status` is `pass`, `warning`, `fail`, or
+`error`; warning is a distinct advisory completion with exit `0`. `outcome`
+is a schema-listed semantic result, and envelope `exit` equals the actual
+process exit. The required `subject` names the checked artifact or operation.
+Optional `path`, `data`, and `error` carry command-specific observations and
+errors. There is no top-level `command`, `evidence`, or `metadata` field.
+
+`issues` is an array of typed diagnostics. Each issue has a stable `code` and
+may have a repository-relative `path` or logical `subject`; `message` is human
+presentation and must not be matched by automation. `error`, when present, has
+`code` and presentation `message`. Consumers may ignore unknown
+command-specific `data` keys within the known schema, but must stop on an
+unsupported schema version or a malformed/missing result. The
+[process consumer guidance](forgepilot-integration.md) gives the required check
+order and ownership rule, with ForgePilot as an optional example.
 
 ### JSON stream contract
 
@@ -351,9 +250,10 @@ Rules:
   issue/error codes state which occurred.
 - Error dominates fail; explicit fail dominates partial/incomplete; all safe
   requested subjects are still reported when the command supports aggregation.
-- A child command's raw exit is evidence and never silently reused as the CLI
-  exit. For example, child `make verify` exit `17` produces CLI exit `1` and
-  records `childExitCode: 17`.
+- A child command's raw exit determines the normalized CLI result and is never
+  silently reused as the CLI exit. For example, child `make verify` exit `17`
+  produces CLI exit `1`; the current JSON envelope does not expose the raw
+  child exit.
 
 ### Legacy exit mapping
 
@@ -363,7 +263,7 @@ Rules:
 | Doctor / verify                       | Incomplete structure or nonzero child verification                                                      | Invalid argv, unsafe/unreadable root, composed-checker acquisition error, or missing `make` | Unexpected internal failure                           |
 | Init                                  | Conflict, diagnosed unsafe managed path/source snapshot, unavailable upgrade, or apply/recovery failure | Invalid argv or target argument is not a directory                                          | Unexpected failure outside a handled recovery outcome |
 | Codex activation                      | Diagnosed adoption/content/path safety refusal or apply/recovery failure                                | Invalid argv                                                                                | Unexpected failure outside a handled recovery outcome |
-| Release check                         | Any diagnosed local release-readiness or guarded Git inspection failure                                 | Invalid argv, unsafe/missing/unreadable/non-directory target, or physical non-root target | Unexpected internal failure                           |
+| Release check                         | Any diagnosed local release-readiness or guarded Git inspection failure                                 | Invalid argv, unsafe/missing/unreadable/non-directory target, or physical non-root target   | Unexpected internal failure                           |
 
 This table is part of parity. It avoids silently reclassifying current init,
 activation, or release failures as exit `2` merely to make the new taxonomy look
@@ -372,26 +272,20 @@ classification and fixture rebaseline outside a migration ticket.
 
 ## Command outcomes
 
-| Command              | Stable outcomes                                                                                                                                                                                                                            |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `doctor`             | `STRUCTURE_OK`, `CONTRACT_DRIFT`, `STRUCTURE_INCOMPLETE`, `VERIFIED_LOCAL`, `VERIFICATION_FAILED`, `ERROR`                                                                                                                                 |
-| `story.check`        | `STORY_CONTRACT_OK`, `STORY_CONTRACT_INCOMPLETE`, `STORY_READINESS_OK`, `STORY_READINESS_INCOMPLETE`, `ERROR`                                                                                                                              |
-| `verification.check` | `VERIFICATION_PLAN_OK`, `VERIFICATION_PLAN_INCOMPLETE`, `VERIFICATION_PASS`, `VERIFICATION_PARTIAL`, `VERIFICATION_FAIL`, `VERIFICATION_RESULT_INCOMPLETE`, `ERROR`                                                                        |
-| `handoff.check`      | `HANDOFF_CONTRACT_OK`, `HANDOFF_CONTRACT_INCOMPLETE`, `ERROR`                                                                                                                                                                              |
-| `verify`             | `VERIFIED_LOCAL`, `VERIFICATION_FAILED`, `ERROR`                                                                                                                                                                                           |
-| `release.check`      | `RELEASE_READY`, `RELEASE_INCOMPLETE`, `ERROR`                                                                                                                                                                                             |
-| `init`               | `INIT_APPLIED`, `INIT_PREVIEW`, `INIT_CONFLICT`, `INIT_OPERATION_REFUSED`, `INIT_APPLY_FAILED_RECOVERED`, `INIT_RECOVERY_INCOMPLETE`, `INIT_CLEANUP_INCOMPLETE`, `ERROR`                                                                   |
-| `codex.activate`     | `ACTIVATION_PREVIEW`, `ACTIVATION_APPLIED`, `ACTIVATION_UNCHANGED`, `ACTIVATION_CONFLICT`, `ACTIVATION_OPERATION_REFUSED`, `ACTIVATION_APPLY_FAILED_RECOVERED`, `ACTIVATION_RECOVERY_INCOMPLETE`, `ACTIVATION_CLEANUP_INCOMPLETE`, `ERROR` |
+The current v1 envelope uses `success`, `failure`, and `warning` for the
+static and canonical-verification families. `release check`, `init`, and
+`codex activate` retain their schema-listed command-specific outcomes.
+Expected invocation or acquisition errors use the schema-listed error
+outcomes. Older shell result labels can still appear in human rendering; a
+process consumer must use the JSON `status`, `outcome`, and issue codes actually
+emitted by its pinned CLI version. The published schema enumerates the valid
+status/outcome/exit combinations.
 
-Adding an outcome is additive only when existing inputs keep their current
-outcome. Renaming/removing one or changing its exit mapping is breaking for the
-machine contract and must be versioned accordingly.
-
-`toolingVersion` and non-null `protocolVersion` are SemVer values.
-`supportedProtocolRange` uses the documented npm-compatible range grammar. Its
-schema declares the required custom format `praxisbound-npm-semver-range`; CLI
-serialization and conforming schema consumers must register a semantic range
-validator rather than treating the lexical pattern alone as sufficient.
+The current envelope carries exact `schemaVersion` and `protocolVersion` values.
+The CLI package version and Core's public `getToolingCapabilities()` provide
+tooling and supported-Protocol-range metadata separately; neither appears as a
+top-level envelope field. Consumers pin the package version and reject an
+unsupported envelope schema or Protocol version before interpreting outcomes.
 
 ## Backward-compatibility policy
 

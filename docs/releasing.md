@@ -7,10 +7,27 @@ one repeatable local readiness interface:
 make release-check
 ```
 
-The command first runs the canonical `make verify` gate, then checks the local
-release candidate's version, commit, strict worktree cleanliness, and local tag
-consistency. Its PASS is local-only evidence. It never fetches, pushes, changes
-tags, calls GitHub, or creates a release.
+The command first runs the canonical `make verify` gate, then runs the built
+TypeScript CLI's local release inspection through a JSON compatibility adapter.
+Node.js and the installed repository tooling are required for this Make target.
+The adapter preserves the six success records emitted by the former shell
+checker. It checks the local candidate's version, commit, strict worktree
+cleanliness, and local tag consistency. Its PASS is local-only evidence. It
+never fetches, pushes, changes tags, calls GitHub, or creates a release.
+
+During the TST-017 deprecation period, select the unchanged shell checker for
+an exact rollback of the inspection implementation:
+
+```sh
+make release-check RELEASE_CHECK_IMPLEMENTATION=legacy
+```
+
+That selection still runs `make verify` first and requires no data migration.
+Direct `./scripts/release-check` remains the portable shell interface. An
+unknown implementation value fails without running an inspection. The default
+selection is a Corrective compatibility change; the `legacy` selector is
+Additive. Removing the shell checker requires a separately approved TST-018
+Legacy Removal Gate.
 
 Remote tag, Release, and CI state is time-sensitive evidence. Query it through
 this runbook when making a release or review decision; a handoff may preserve a

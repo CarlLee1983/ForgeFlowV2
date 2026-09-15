@@ -14,7 +14,7 @@ Detailed artifacts:
 - [CLI and Machine Contract](cli-contract.md)
 - [Compatibility, Parity, and Migration Plan](parity-and-migration.md)
 - [Ordered Implementation Tickets](implementation-tickets.md)
-- [Draft result-envelope v1 JSON Schema](result-envelope-v1.schema.json)
+- [Published result-envelope v1 JSON Schema](result-envelope-v1.schema.json)
 
 ## A. Current State
 
@@ -120,7 +120,8 @@ process, Git, and recovery edge families.
 No capability may switch defaults or remove legacy code until its Behavioral
 Parity Gate passes. Legacy removal additionally requires installable packages,
 version-pinned npx acquisition, offline installed-binary execution, full CI/root
-verification, existing adoption and ForgePilot validation, migration/rollback
+verification, existing adoption, the packed process consumer contract, preservation
+or explicit migration of any supported external integration, migration/rollback
 docs, namespace provenance, and a separate approved removal ticket.
 
 ## E. CLI Contract
@@ -142,19 +143,21 @@ praxisbound codex activate
 Story's plan or recorded result. This removes the most dangerous naming
 ambiguity while keeping artifact checkers consistent.
 
-Every applicable command supports `--json` and explicit Protocol selection.
-Result envelope v1 contains:
+Every applicable command supports `--json`; Protocol selection applies to
+commands that evaluate or install Protocol artifacts. The published result
+envelope v1 requires:
 
 ```text
-schemaVersion, command, status, outcome, exitCode,
-issues, evidence, error, data,
-metadata.{toolingVersion, protocolVersion, supportedProtocolRange}
+schemaVersion, protocolVersion, status, outcome, exit, subject, issues
 ```
 
-Warnings are typed `issues` with severity `warning`; Doctor drift can therefore
-be `status: pass`, outcome `CONTRACT_DRIFT`, exit `0`. Human messages are not
-stable keys. In JSON mode stdout is exactly one JSON object; child/progress logs
-use stderr.
+`path`, `data`, and `error` are optional. The CLI package version and Core
+capabilities supply tooling-version metadata separately; the envelope has no
+`command`, `exitCode`, `evidence`, or `metadata` fields. Doctor drift has the
+distinct `warning` status with exit `0`. Human messages are not stable keys. In
+JSON mode stdout is exactly one JSON object; child/progress logs use stderr.
+The [published schema](result-envelope-v1.schema.json) and
+[CLI contract](cli-contract.md) define the current status/outcome combinations.
 
 Unified exit contract:
 
@@ -221,15 +224,18 @@ Protocol version, tooling version, and supported range are explicit and
 independent. Initial Core/CLI versions move together only to reduce package
 combinations, not because they equal root Protocol `VERSION`.
 
-ForgePilot should first use the Process Boundary:
+An external consumer should first use the Process Boundary:
 
 ```text
-ForgePilot -> praxisbound --json
+consumer -> praxisbound --json
 ```
 
 It may later use public `@praxisbound/core` root exports for in-process evaluation,
 accepting Core SemVer as an additional dependency. Neither mode may parse human
 output, import internal modules, or give PraxisBound lifecycle authority.
+The [process consumer guidance](forgepilot-integration.md) names the current
+schema, version checks, failure handling, and lifecycle ownership boundary;
+ForgePilot is an optional example.
 
 ## G. Migration Waves
 
@@ -241,8 +247,9 @@ output, import internal modules, or give PraxisBound lifecycle authority.
 6. Local release check.
 7. Init planning/dry-run, then apply/recovery.
 8. Codex activation preview/apply.
-9. Packed npm/npx, supported platform, existing adoption, and ForgePilot
-   validation; per-command default decisions.
+9. Packed npm/npx, supported platform, existing adoption, and independent process
+   consumer validation; optional external integrations and per-command default
+   decisions.
 10. Separate legacy retirement tickets only if explicitly approved.
 
 Doctor intentionally does not go first: it composes Story and Handoff. Handoff
@@ -289,8 +296,9 @@ repair, architecture analysis, AI-dependent decision, or ForgePilot redesign.
 - **PL-AC-005 — CLI:** the full command hierarchy, legacy mapping, static versus
   executing behavior, global options, and init force/upgrade/dry-run semantics
   are unambiguous.
-- **PL-AC-006 — Machine contract:** a draft JSON Schema defines result, issue,
-  warning, evidence, error, metadata, ordering, stdout, and compatibility rules.
+- **PL-AC-006 — Machine contract:** the published JSON Schema defines result,
+  status/outcome, typed issues, optional error/data, stdout, and compatibility
+  rules; tooling metadata comes from package versions and Core capabilities.
 - **PL-AC-007 — Exit contract:** `0`/`1`/`2`/`3` have one category meaning across
   commands and legacy/current exceptions are mapped.
 - **PL-AC-008 — Parity:** fixtures, isolation, legacy normalization, semantic and
@@ -345,7 +353,7 @@ TST-012 init planning/dry-run
 TST-013 init apply/recovery
 TST-014 Codex activation
 TST-015 npm/npx consumer validation
-TST-016 ForgePilot contract validation
+TST-016 packed process consumer validation
 TST-017 release-check compatibility entrypoint switch
 TST-018 legacy release-check removal
 ```
@@ -364,12 +372,12 @@ cleanup, and removal never share a migration ticket.
 | What stays CLI-only?            | argv, filesystem/Git/Make observation, authorization, mutation/recovery execution, terminal/JSON serialization, and exit.                                 |
 | How is equivalence proved?      | Same isolated fixtures, fail-closed legacy normalizer, expected manifest, semantic/effect comparator, and full parity gate.                               |
 | What is the CLI hierarchy?      | `init`, `doctor`, `verify`, plus `story/verification/handoff/release check` and late `codex activate`.                                                    |
-| What is the machine contract?   | Versioned v1 envelope/schema with typed issues, evidence, error, data, and version metadata; one JSON object on stdout.                                   |
+| What is the machine contract?   | Versioned v1 envelope/schema with typed issues and optional data/error; one JSON object on stdout. Tooling metadata comes from packages.                  |
 | What is the exit contract?      | `0` positive/advisory, `1` negative result, `2` cannot evaluate safely, `3` internal failure.                                                             |
-| How are npm packages composed?  | Scoped Core + CLI, CLI exposes `praxisbound`; npm/npx consumers, pnpm workspace development.                                                                |
+| How are npm packages composed?  | Scoped Core + CLI, CLI exposes `praxisbound`; npm/npx consumers, pnpm workspace development.                                                              |
 | What does init do?              | Offline detection/preflight, deterministic plan, safe apply; dry-run no-write; force exact managed set; upgrade templates/marker only; recovery evidence. |
 | What is migration order?        | Handoff -> verification -> Story -> Doctor/verify -> release -> init -> activation -> rollout/removal.                                                    |
-| When can shell be removed?      | Only after parity plus package/npx/CI/adoption/ForgePilot/docs/version/runtime/removal gates, in its own ticket.                                          |
+| When can shell be removed?      | Only after parity plus package/npx/CI/adoption/process-consumer/docs/version/runtime/removal gates, in its own ticket.                                    |
 | How does ForgePilot integrate?  | Prefer CLI JSON Process Boundary; optional public Core Library Boundary; never internal imports or human parsing.                                         |
 | How do versions coexist?        | Exact independent `toolingVersion`, `protocolVersion`, `supportedProtocolRange`, and result `schemaVersion`, with no silent negotiation.                  |
 
