@@ -2,6 +2,23 @@
 
 The ForgeFlow command-line interface shell. Invoke it through `forgeflow`.
 
+## Acquisition and offline use
+
+For human exploration, `npx @forgeflow/cli --help` may acquire the current
+release selected by npm. Reproducible automation pins the tooling version and
+suppresses the acquisition prompt:
+
+```sh
+npx --yes @forgeflow/cli@<tooling-version> --help
+```
+
+Package acquisition may use the network. After `npm install` has acquired an
+exact version, offline automation invokes `./node_modules/.bin/forgeflow`
+directly. It does not describe package acquisition itself as offline.
+
+Do not use the unscoped `npx forgeflow`; that registry name belongs to an
+unrelated package.
+
 ```text
 forgeflow [command]
 ```

@@ -18,8 +18,14 @@ run_case() {
 forgeflow_repo=$(CDPATH='' cd -P "$(dirname "$0")/.." >/dev/null 2>&1 && pwd)
 forgeflow_cli="$forgeflow_repo/packages/cli/dist/bin.js"
 forgeflow_test_dir=$(mktemp -d "${TMPDIR:-/tmp}/forgeflow-tooling.XXXXXX")
+forgeflow_registry_pid=''
+forgeflow_registry_sequence=0
 
 cleanup() {
+  if [ -n "$forgeflow_registry_pid" ]; then
+    kill "$forgeflow_registry_pid" 2>/dev/null || :
+    wait "$forgeflow_registry_pid" 2>/dev/null || :
+  fi
   rm -rf "$forgeflow_test_dir"
 }
 
@@ -75,10 +81,12 @@ packed_packages_have_the_bounded_public_contract() {
   mkdir -p "$forgeflow_pack_dir/core" "$forgeflow_pack_dir/cli" \
     "$forgeflow_extract_dir/core" "$forgeflow_extract_dir/cli"
 
-  pnpm --dir "$forgeflow_repo/packages/core" pack \
-    --pack-destination "$forgeflow_pack_dir/core" --silent >/dev/null
-  pnpm --dir "$forgeflow_repo/packages/cli" pack \
-    --pack-destination "$forgeflow_pack_dir/cli" --silent >/dev/null
+  npm pack "$forgeflow_repo/packages/core" --json \
+    --pack-destination "$forgeflow_pack_dir/core" \
+    >"$forgeflow_test_dir/core-pack.json"
+  npm pack "$forgeflow_repo/packages/cli" --json \
+    --pack-destination "$forgeflow_pack_dir/cli" \
+    >"$forgeflow_test_dir/cli-pack.json"
 
   set -- "$forgeflow_pack_dir/core"/*.tgz
   [ "$#" -eq 1 ] && [ -f "$1" ] || fail 'Core did not produce one tarball'
@@ -215,14 +223,35 @@ packed_packages_have_the_bounded_public_contract() {
 
   [ -x "$forgeflow_extract_dir/cli/package/dist/bin.js" ] ||
     fail 'packed CLI executable does not have its executable bit'
+  [ "$(sed -n '1p' "$forgeflow_extract_dir/cli/package/dist/bin.js")" = \
+    '#!/usr/bin/env node' ] ||
+    fail 'packed CLI executable does not have the documented shebang'
+  cmp "$forgeflow_repo/LICENSE" \
+    "$forgeflow_extract_dir/core/package/LICENSE" >/dev/null ||
+    fail 'Core package license does not match the repository license'
+  cmp "$forgeflow_repo/LICENSE" \
+    "$forgeflow_extract_dir/cli/package/LICENSE" >/dev/null ||
+    fail 'CLI package license does not match the repository license'
+  cmp "$forgeflow_repo/packages/core/README.md" \
+    "$forgeflow_extract_dir/core/package/README.md" >/dev/null ||
+    fail 'Core package readme does not match its source'
+  cmp "$forgeflow_repo/packages/cli/README.md" \
+    "$forgeflow_extract_dir/cli/package/README.md" >/dev/null ||
+    fail 'CLI package readme does not match its source'
 
   node --input-type=module - \
     "$forgeflow_extract_dir/core/package/package.json" \
-    "$forgeflow_extract_dir/cli/package/package.json" <<'NODE'
+    "$forgeflow_extract_dir/cli/package/package.json" \
+    "$forgeflow_test_dir/core-pack.json" \
+    "$forgeflow_test_dir/cli-pack.json" \
+    "$forgeflow_core_tarball" "$forgeflow_cli_tarball" <<'NODE'
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 
-const [corePath, cliPath] = process.argv.slice(2);
+const [corePath, cliPath, corePackPath, cliPackPath, coreTarball, cliTarball] =
+  process.argv.slice(2);
 const readManifest = (path) => JSON.parse(readFileSync(path, "utf8"));
 const core = readManifest(corePath);
 const cli = readManifest(cliPath);
@@ -232,6 +261,8 @@ const packageRoot = {
   import: "./dist/index.js",
 };
 
+assert.equal(core.name, "@forgeflow/core");
+assert.equal(cli.name, "@forgeflow/cli");
 assert.deepEqual(core.exports, { ".": packageRoot });
 assert.deepEqual(cli.exports, { ".": packageRoot });
 assert.equal(core.dependencies, undefined);
@@ -242,15 +273,79 @@ assert.equal(cli.optionalDependencies, undefined);
 assert.equal(cli.peerDependencies, undefined);
 assert.deepEqual(cli.bin, { forgeflow: "./dist/bin.js" });
 assert.equal(cli.version, core.version);
+assert.equal(core.engines.node, "^22.13.0 || ^24.0.0 || ^26.0.0");
+assert.deepEqual(cli.engines, core.engines);
+assert.deepEqual(core.files, ["dist", "README.md", "LICENSE"]);
+assert.deepEqual(cli.files, core.files);
+assert.deepEqual(core.repository, {
+  type: "git",
+  url: "git+https://github.com/CarlLee1983/ForgeFlowV2.git",
+  directory: "packages/core",
+});
+assert.deepEqual(cli.repository, {
+  ...core.repository,
+  directory: "packages/cli",
+});
+assert.deepEqual(core.publishConfig, { access: "public", provenance: true });
+assert.deepEqual(cli.publishConfig, core.publishConfig);
+for (const manifest of [core, cli]) {
+  for (const lifecycle of ["preinstall", "install", "postinstall", "prepare"]) {
+    assert.equal(manifest.scripts?.[lifecycle], undefined);
+  }
+  for (const target of Object.values(manifest.exports["."])) {
+    assert.equal(existsSync(resolve(dirname(manifest === core ? corePath : cliPath), target)), true);
+  }
+}
+
+for (const [packPath, tarballPath] of [
+  [corePackPath, coreTarball],
+  [cliPackPath, cliTarball],
+]) {
+  const [packed] = JSON.parse(readFileSync(packPath, "utf8"));
+  const tarball = readFileSync(tarballPath);
+  assert.equal(
+    packed.integrity,
+    `sha512-${createHash("sha512").update(tarball).digest("base64")}`,
+  );
+  assert.equal(packed.shasum, createHash("sha1").update(tarball).digest("hex"));
+  assert.equal(packed.files.some(({ path }) => path === "package.json"), true);
+}
+
+const snapshotRoot = resolve(dirname(cliPath), "dist/snapshot");
+const provenance = readManifest(join(snapshotRoot, "provenance.json"));
+assert.equal(
+  readFileSync(join(snapshotRoot, "VERSION"), "utf8").trim(),
+  provenance.protocolVersion,
+);
+assert.equal(provenance.provenance, "@forgeflow/cli bundled Protocol snapshot");
+assert.equal(provenance.revision, "unknown");
+for (const payload of provenance.payloads) {
+  assert.equal(
+    createHash("sha256")
+      .update(readFileSync(join(snapshotRoot, payload.destination)))
+      .digest("hex"),
+    payload.sha256,
+  );
+}
+assert.equal(
+  createHash("sha256")
+    .update(JSON.stringify(provenance.payloads))
+    .digest("hex"),
+  provenance.snapshotDigest,
+);
 NODE
 
   forgeflow_consumer_dir="$forgeflow_test_dir/consumer"
-  mkdir -p "$forgeflow_consumer_dir"
+  forgeflow_npm_home="$forgeflow_test_dir/npm-home"
+  forgeflow_npm_cache="$forgeflow_test_dir/npm-cache"
+  forgeflow_npm_userconfig="$forgeflow_test_dir/npmrc"
+  mkdir -p "$forgeflow_consumer_dir" "$forgeflow_npm_home" \
+    "$forgeflow_npm_cache"
+  : >"$forgeflow_npm_userconfig"
   node --input-type=module - \
     "$forgeflow_consumer_dir/package.json" \
     "$forgeflow_core_tarball" "$forgeflow_cli_tarball" <<'NODE'
 import { writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
 
 const [manifestPath, coreTarball, cliTarball] = process.argv.slice(2);
 const manifest = {
@@ -263,22 +358,16 @@ const manifest = {
     "@forgeflow/cli": `file:${cliTarball}`,
   },
 };
-const workspace = {
-  overrides: {
-    "@forgeflow/core": `file:${coreTarball}`,
-  },
-};
 
 writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-writeFileSync(
-  join(dirname(manifestPath), "pnpm-workspace.yaml"),
-  `${JSON.stringify(workspace, null, 2)}\n`,
-);
 NODE
-  pnpm --dir "$forgeflow_consumer_dir" install --offline \
-    --ignore-scripts >/dev/null
   (
     CDPATH='' cd "$forgeflow_consumer_dir"
+    env -i PATH="$PATH" HOME="$forgeflow_npm_home" \
+      npm_config_cache="$forgeflow_npm_cache" \
+      npm_config_userconfig="$forgeflow_npm_userconfig" \
+      npm_config_offline=true npm_config_audit=false npm_config_fund=false \
+      npm install --ignore-scripts >/dev/null
     node --input-type=module <<'NODE'
 await import("@forgeflow/core");
 await import("@forgeflow/cli");
@@ -465,6 +554,7 @@ await assert.rejects(import("@forgeflow/cli/machine"), {
 });
 NODE
   )
+  : >"$forgeflow_test_dir/packed-machine-passed"
 }
 
 packed_init_apply_is_consumable() {
@@ -522,6 +612,7 @@ for (const mode of ["safe", "force", "upgrade"]) {
 }
 NODE
   )
+  : >"$forgeflow_test_dir/packed-init-passed"
 }
 
 packed_activation_is_consumable() {
@@ -626,6 +717,274 @@ NODE
   )
 }
 
+historical_packed_package_contract_is_preserved() {
+  [ -f "$forgeflow_core_tarball" ] && [ -f "$forgeflow_cli_tarball" ] ||
+    fail 'npm package validation did not preserve both historical tarballs'
+  [ -d "$forgeflow_consumer_dir/node_modules/@forgeflow/core" ] &&
+    [ -d "$forgeflow_consumer_dir/node_modules/@forgeflow/cli" ] ||
+    fail 'npm package validation did not preserve the historical consumer contract'
+}
+
+clean_npm_consumer_runs_required_commands() {
+  [ -f "$forgeflow_test_dir/packed-machine-passed" ] ||
+    fail 'clean npm consumer machine checks did not complete'
+  [ -f "$forgeflow_test_dir/packed-init-passed" ] ||
+    fail 'clean npm consumer init checks did not complete'
+  [ -f "$forgeflow_consumer_dir/package-lock.json" ] ||
+    fail 'clean consumer has no npm package lock'
+  [ ! -e "$forgeflow_consumer_dir/pnpm-lock.yaml" ] &&
+    [ ! -e "$forgeflow_consumer_dir/pnpm-workspace.yaml" ] ||
+    fail 'clean npm consumer depends on pnpm state'
+
+  (
+    CDPATH='' cd "$forgeflow_consumer_dir"
+    ./node_modules/.bin/forgeflow --help >"$forgeflow_test_dir/consumer-help"
+  )
+  grep -Fq 'Usage:' "$forgeflow_test_dir/consumer-help" ||
+    fail 'clean npm consumer help did not render'
+  grep -Fq '  init               Plan or apply ForgeFlow initialization' \
+    "$forgeflow_test_dir/consumer-help" ||
+    fail 'clean npm consumer help omitted init'
+}
+
+start_npm_registry_fixture() {
+  forgeflow_registry_mode=$1
+  forgeflow_registry_sequence=$((forgeflow_registry_sequence + 1))
+  forgeflow_registry_state="$forgeflow_test_dir/registry-$forgeflow_registry_sequence.state"
+  forgeflow_registry_log="$forgeflow_test_dir/registry-$forgeflow_registry_sequence.log"
+  forgeflow_registry_stdout="$forgeflow_test_dir/registry-$forgeflow_registry_sequence.stdout"
+  forgeflow_registry_stderr="$forgeflow_test_dir/registry-$forgeflow_registry_sequence.stderr"
+  : >"$forgeflow_registry_log"
+
+  node "$forgeflow_repo/tests/npm-registry-fixture.mjs" \
+    "$forgeflow_registry_state" "$forgeflow_registry_log" \
+    "$forgeflow_core_tarball" "$forgeflow_cli_tarball" \
+    "$forgeflow_extract_dir/core/package/package.json" \
+    "$forgeflow_extract_dir/cli/package/package.json" \
+    "$forgeflow_registry_mode" \
+    >"$forgeflow_registry_stdout" 2>"$forgeflow_registry_stderr" &
+  forgeflow_registry_pid=$!
+
+  forgeflow_registry_wait=0
+  while [ ! -s "$forgeflow_registry_state" ]; do
+    kill -0 "$forgeflow_registry_pid" 2>/dev/null ||
+      fail 'npm registry fixture exited before becoming ready'
+    forgeflow_registry_wait=$((forgeflow_registry_wait + 1))
+    [ "$forgeflow_registry_wait" -lt 10 ] ||
+      fail 'npm registry fixture did not become ready'
+    sleep 1
+  done
+  forgeflow_registry=$(node -e \
+    'console.log(JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).registry)' \
+    "$forgeflow_registry_state")
+}
+
+stop_npm_registry_fixture() {
+  kill "$forgeflow_registry_pid" 2>/dev/null || :
+  wait "$forgeflow_registry_pid" 2>/dev/null || :
+  forgeflow_registry_pid=''
+}
+
+coordinate_is_pinned_cli() {
+  forgeflow_coordinate=$1
+  forgeflow_tooling_version=$2
+  [ "$forgeflow_coordinate" = "@forgeflow/cli@$forgeflow_tooling_version" ]
+}
+
+run_isolated_npx() {
+  forgeflow_npx_registry=$1
+  forgeflow_npx_cache=$2
+  forgeflow_npx_coordinate=$3
+  forgeflow_npx_stdout=$4
+  forgeflow_npx_stderr=$5
+  forgeflow_npx_home="$forgeflow_npx_cache/home"
+  forgeflow_npx_userconfig="$forgeflow_npx_cache/npmrc"
+  mkdir -p "$forgeflow_npx_home" "$forgeflow_npx_cache/cache"
+  : >"$forgeflow_npx_userconfig"
+
+  env -i PATH="$PATH" HOME="$forgeflow_npx_home" \
+    npm_config_cache="$forgeflow_npx_cache/cache" \
+    npm_config_userconfig="$forgeflow_npx_userconfig" \
+    npm_config_registry="$forgeflow_npx_registry" \
+    npm_config_audit=false npm_config_fund=false \
+    npm_config_fetch_retries=0 npm_config_fetch_retry_mintimeout=1 \
+    npm_config_fetch_retry_maxtimeout=1 \
+    npm_config_update_notifier=false \
+    npx --yes "$forgeflow_npx_coordinate" --version \
+    >"$forgeflow_npx_stdout" 2>"$forgeflow_npx_stderr"
+}
+
+registry_received_no_authorization() {
+  if grep -Fq '"authorization":true' "$forgeflow_registry_log"; then
+    fail 'isolated npm acquisition sent an authorization header'
+  fi
+}
+
+sensitive_acquisition_payloads_are_absent() {
+  for forgeflow_sensitive_payload in \
+    'ambient-node-auth-secret' 'ambient-npm-secret' \
+    'ambient-secret' 'https://hostile.invalid/' \
+    'http://hostile.invalid/'
+  do
+    if grep -F "$forgeflow_sensitive_payload" \
+      "$forgeflow_registry_log" \
+      "$forgeflow_test_dir/npx-good.stdout" \
+      "$forgeflow_test_dir/npx-good.stderr" >/dev/null; then
+      fail 'isolated npm acquisition exposed inherited credential or routing state'
+    fi
+  done
+}
+
+pinned_acquisition_and_offline_execution_are_distinct() {
+  forgeflow_tooling_version=$(node -p \
+    "require('$forgeflow_repo/packages/cli/package.json').version")
+  forgeflow_pinned_coordinate="@forgeflow/cli@$forgeflow_tooling_version"
+  coordinate_is_pinned_cli "$forgeflow_pinned_coordinate" \
+    "$forgeflow_tooling_version" ||
+    fail 'exact CLI coordinate was not accepted as pinned'
+  if coordinate_is_pinned_cli '@forgeflow/cli@latest' \
+    "$forgeflow_tooling_version"; then
+    fail 'latest dist-tag was accepted for automated acquisition'
+  fi
+  if coordinate_is_pinned_cli 'forgeflow' "$forgeflow_tooling_version"; then
+    fail 'unscoped package was accepted for automated acquisition'
+  fi
+
+  start_npm_registry_fixture none
+  forgeflow_hostile_npmrc="$forgeflow_test_dir/hostile/npmrc"
+  forgeflow_registry_authority=${forgeflow_registry#http://}
+  forgeflow_registry_authority=${forgeflow_registry_authority%/}
+  mkdir -p "$forgeflow_test_dir/hostile"
+  printf 'registry=https://hostile.invalid/\n//%s/:_authToken=ambient-secret\nalways-auth=true\n' \
+    "$forgeflow_registry_authority" >"$forgeflow_hostile_npmrc"
+  (
+    NODE_AUTH_TOKEN='ambient-node-auth-secret'
+    NPM_TOKEN='ambient-npm-secret'
+    npm_config_userconfig="$forgeflow_hostile_npmrc"
+    npm_config_registry='https://hostile.invalid/'
+    HTTP_PROXY='http://hostile.invalid/'
+    HTTPS_PROXY='http://hostile.invalid/'
+    export NODE_AUTH_TOKEN NPM_TOKEN npm_config_userconfig npm_config_registry
+    export HTTP_PROXY HTTPS_PROXY
+    run_isolated_npx "$forgeflow_registry" \
+      "$forgeflow_test_dir/npx-good" "$forgeflow_pinned_coordinate" \
+      "$forgeflow_test_dir/npx-good.stdout" \
+      "$forgeflow_test_dir/npx-good.stderr"
+  ) || fail 'version-pinned npx acquisition failed'
+  [ "$(sed -n '1p' "$forgeflow_test_dir/npx-good.stdout")" = \
+    "$forgeflow_tooling_version" ] ||
+    fail 'version-pinned npx did not execute the acquired CLI version'
+  grep -Fq '"path":"/@forgeflow/cli"' "$forgeflow_registry_log" ||
+    fail 'pinned acquisition did not request scoped CLI metadata'
+  grep -Fq '"path":"/@forgeflow/core"' "$forgeflow_registry_log" ||
+    fail 'pinned acquisition did not request scoped Core metadata'
+  grep -Fq "/@forgeflow/cli/-/cli-$forgeflow_tooling_version.tgz" \
+    "$forgeflow_registry_log" ||
+    fail 'pinned acquisition did not request the exact CLI tarball'
+  grep -Fq "/@forgeflow/core/-/core-$forgeflow_tooling_version.tgz" \
+    "$forgeflow_registry_log" ||
+    fail 'pinned acquisition did not request the exact Core tarball'
+  registry_received_no_authorization
+  sensitive_acquisition_payloads_are_absent
+  stop_npm_registry_fixture
+
+  for forgeflow_failure_mode in bad-integrity bad-shasum corrupt-tarball; do
+    start_npm_registry_fixture "$forgeflow_failure_mode"
+    if run_isolated_npx "$forgeflow_registry" \
+      "$forgeflow_test_dir/npx-$forgeflow_failure_mode" \
+      "$forgeflow_pinned_coordinate" \
+      "$forgeflow_test_dir/npx-$forgeflow_failure_mode.stdout" \
+      "$forgeflow_test_dir/npx-$forgeflow_failure_mode.stderr"; then
+      fail "pinned acquisition accepted $forgeflow_failure_mode package metadata"
+    fi
+    [ ! -s "$forgeflow_test_dir/npx-$forgeflow_failure_mode.stdout" ] ||
+      fail "$forgeflow_failure_mode acquisition executed the CLI"
+    registry_received_no_authorization
+    stop_npm_registry_fixture
+  done
+
+  forgeflow_offline_target="$forgeflow_test_dir/offline-init-target"
+  mkdir "$forgeflow_offline_target"
+  (
+    CDPATH='' cd "$forgeflow_consumer_dir"
+    env -i PATH="$PATH" HOME="$forgeflow_npm_home" \
+      NODE_OPTIONS="--require=$forgeflow_repo/tests/network-deny.cjs" \
+      ./node_modules/.bin/forgeflow --help \
+      >"$forgeflow_test_dir/offline-help"
+    env -i PATH="$PATH" HOME="$forgeflow_npm_home" \
+      NODE_OPTIONS="--require=$forgeflow_repo/tests/network-deny.cjs" \
+      ./node_modules/.bin/forgeflow doctor --json \
+      >"$forgeflow_test_dir/offline-doctor.json"
+    env -i PATH="$PATH" HOME="$forgeflow_npm_home" \
+      NODE_OPTIONS="--require=$forgeflow_repo/tests/network-deny.cjs" \
+      ./node_modules/.bin/forgeflow verification check --json \
+      >"$forgeflow_test_dir/offline-verification.json"
+    env -i PATH="$PATH" HOME="$forgeflow_npm_home" \
+      NODE_OPTIONS="--require=$forgeflow_repo/tests/network-deny.cjs" \
+      ./node_modules/.bin/forgeflow verify --json \
+      >"$forgeflow_test_dir/offline-verify.json" \
+      2>"$forgeflow_test_dir/offline-verify.stderr"
+    env -i PATH="$PATH" HOME="$forgeflow_npm_home" \
+      NODE_OPTIONS="--require=$forgeflow_repo/tests/network-deny.cjs" \
+      ./node_modules/.bin/forgeflow init --dry-run --json \
+      "$forgeflow_offline_target" >"$forgeflow_test_dir/offline-init.json"
+  )
+  node --input-type=module - \
+    "$forgeflow_test_dir/offline-doctor.json" \
+    "$forgeflow_test_dir/offline-verification.json" \
+    "$forgeflow_test_dir/offline-verify.json" \
+    "$forgeflow_test_dir/offline-init.json" <<'NODE'
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const [doctorPath, verificationPath, verifyPath, initPath] = process.argv.slice(2);
+const results = [doctorPath, verificationPath, verifyPath, initPath].map((path) =>
+  JSON.parse(readFileSync(path, "utf8")),
+);
+assert.equal(["pass", "warning"].includes(results[0].status), true);
+for (const result of results.slice(1)) assert.equal(result.status, "pass");
+for (const result of results) assert.equal(result.exit, 0);
+assert.equal(results[0].subject, "repository");
+assert.equal(results[1].subject, "verification");
+assert.equal(results[2].outcome, "success");
+assert.equal(results[3].outcome, "INIT_PREVIEW");
+NODE
+}
+
+supported_consumer_matrix_and_acquisition_docs_are_declared() {
+  forgeflow_contract_fixture="$forgeflow_test_dir/distribution-contract"
+  mkdir "$forgeflow_contract_fixture"
+  cp "$forgeflow_repo/.github/workflows/verify.yml" \
+    "$forgeflow_contract_fixture/verify.yml"
+  cp "$forgeflow_repo/packages/cli/README.md" \
+    "$forgeflow_contract_fixture/cli-README.md"
+  forgeflow_workflow="$forgeflow_contract_fixture/verify.yml"
+  for forgeflow_matrix_value in \
+    'ubuntu-latest' 'macos-latest' \
+    '22.13.0' '22.x' '24.0.0' '24.x' '26.0.0' '26.x'
+  do
+    grep -Fq -- "- $forgeflow_matrix_value" "$forgeflow_workflow" ||
+      fail "tooling compatibility matrix omits $forgeflow_matrix_value"
+  done
+  if grep -Fq -- '- 20.19.0' "$forgeflow_workflow"; then
+    fail 'tooling compatibility matrix still admits Node 20'
+  fi
+  grep -Fq 'runs-on: ${{ matrix.runner }}' "$forgeflow_workflow" ||
+    fail 'tooling compatibility matrix does not select its declared OS runner'
+  grep -Fq 'check-latest: true' "$forgeflow_workflow" ||
+    fail 'moving Node matrix lines may use stale runner cache versions'
+
+  forgeflow_cli_readme="$forgeflow_contract_fixture/cli-README.md"
+  grep -Fq 'npx --yes @forgeflow/cli@<tooling-version>' \
+    "$forgeflow_cli_readme" ||
+    fail 'CLI readme omits version-pinned acquisition'
+  grep -Fq './node_modules/.bin/forgeflow' "$forgeflow_cli_readme" ||
+    fail 'CLI readme omits direct installed-binary execution'
+  grep -Fq 'Do not use the unscoped `npx forgeflow`' \
+    "$forgeflow_cli_readme" ||
+    fail 'CLI readme does not reject the unrelated unscoped package'
+}
+
 unavailable_arguments_fail_with_one_usage_result() {
   forgeflow_empty="$forgeflow_test_dir/empty"
   forgeflow_unavailable="$forgeflow_test_dir/unavailable"
@@ -686,10 +1045,14 @@ legacy_shell_commands_do_not_delegate_to_node() {
 
 run_case 'TST001-AC-001' workspace_lock_is_current_single_document_and_fails_closed
 run_case 'TST001-AC-002' built_cli_help_and_version_are_exact
-run_case 'TST001-AC-003' packed_packages_have_the_bounded_public_contract
+run_case 'TST015-AC-002' packed_packages_have_the_bounded_public_contract
+run_case 'TST001-AC-003' historical_packed_package_contract_is_preserved
 run_case 'TST002-AC-005' packed_machine_contract_is_consumable
 run_case 'TST013-AC-001' packed_init_apply_is_consumable
+run_case 'TST015-AC-003' clean_npm_consumer_runs_required_commands
 run_case 'TST014-AC-001' packed_activation_is_consumable
+run_case 'TST015-AC-004' pinned_acquisition_and_offline_execution_are_distinct
+run_case 'TST015-AC-004' supported_consumer_matrix_and_acquisition_docs_are_declared
 run_case 'TST001-AC-004' unavailable_arguments_fail_with_one_usage_result
 run_case 'TST001-AC-005' legacy_shell_commands_do_not_delegate_to_node
 

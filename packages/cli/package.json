@@ -4,8 +4,17 @@
   "description": "ForgeFlow CLI and machine-result serialization",
   "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CarlLee1983/ForgeFlowV2.git",
+    "directory": "packages/cli"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "engines": {
-    "node": "^20.19.0 || ^22.13.0 || >=24"
+    "node": "^22.13.0 || ^24.0.0 || ^26.0.0"
   },
   "exports": {
     ".": {
@@ -27,6 +36,6 @@
     "prepack": "pnpm run build"
   },
   "dependencies": {
-    "@forgeflow/core": "workspace:0.1.0"
+    "@forgeflow/core": "0.1.0"
   }
 }

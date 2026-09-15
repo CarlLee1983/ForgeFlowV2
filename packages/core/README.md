@@ -3,6 +3,15 @@
 Dependency-free ForgeFlow contracts for machine results and Protocol selection.
 Only the package root is public.
 
+Install the exact tooling version used by the caller:
+
+```sh
+npm install @forgeflow/core@<tooling-version>
+```
+
+Consumers require a supported Node 22, 24, or 26 release and npm; pnpm is used
+only for development in the ForgeFlow repository.
+
 ## Codex activation planning and execution evaluation
 
 `planActivation(request)` validates immutable adoption, bounded AGENTS-section,
