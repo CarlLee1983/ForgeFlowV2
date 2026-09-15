@@ -7,10 +7,27 @@ one repeatable local readiness interface:
 make release-check
 ```
 
-The command first runs the canonical `make verify` gate, then checks the local
-release candidate's version, commit, strict worktree cleanliness, and local tag
-consistency. Its PASS is local-only evidence. It never fetches, pushes, changes
-tags, calls GitHub, or creates a release.
+The command first runs the canonical `make verify` gate, then runs the built
+TypeScript CLI's local release inspection through a JSON compatibility adapter.
+Node.js and the installed repository tooling are required for this Make target.
+The adapter preserves the six success records emitted by the former shell
+checker. It checks the local candidate's version, commit, strict worktree
+cleanliness, and local tag consistency. Its PASS is local-only evidence. It
+never fetches, pushes, changes tags, calls GitHub, or creates a release.
+
+During the TST-017 deprecation period, select the unchanged shell checker for
+an exact rollback of the inspection implementation:
+
+```sh
+make release-check RELEASE_CHECK_IMPLEMENTATION=legacy
+```
+
+That selection still runs `make verify` first and requires no data migration.
+Direct `./scripts/release-check` remains the portable shell interface. An
+unknown implementation value fails without running an inspection. The default
+selection is a Corrective compatibility change; the `legacy` selector is
+Additive. Removing the shell checker requires a separately approved TST-018
+Legacy Removal Gate.
 
 Remote tag, Release, and CI state is time-sensitive evidence. Query it through
 this runbook when making a release or review decision; a handoff may preserve a
@@ -213,12 +230,24 @@ following against the same `candidate_sha`:
 * GitHub identifies the public repository as `CarlLee1983/PraxisBound` and both
   package manifests name that exact repository and package subdirectory.
 * `@praxisbound/core@<version>` and `@praxisbound/cli@<version>` do not exist,
-  and the authenticated maintainer controls the `@praxisbound` scope.
+  and an authenticated `praxisbound` organization owner or authorized member
+  has package-publishing rights for the `@praxisbound` scope.
 * Local `make verify` and the required remote `verify.yml` run pass for the
   exact candidate SHA.
 * The protected `NPM_TOKEN` Actions secret contains only the short-lived,
-  scope-limited bootstrap credential. Never place or test that credential in
-  the worktree or a command argument.
+  scope-limited bootstrap credential issued by that organization-authorized
+  account. For the unattended first `npm publish`, its Packages and scopes
+  permission must be `Read and write (publish and stage)` for `@praxisbound`,
+  with `Bypass 2FA` enabled only if organization policy permits it. A stage-only
+  token or Organizations-settings permission does not grant direct package
+  publication. Never place or test the credential in the worktree or a command
+  argument; do not substitute a local ambient npm session. If organization
+  policy forbids bypass, stop for Human Review.
+
+The [npm granular-token policy](https://docs.npmjs.com/about-access-tokens/)
+currently permits this first-publish exception but announces removal of direct
+publishing with bypass-2FA tokens in January 2027. Recheck the policy before
+dispatch; if the bootstrap path is unavailable, stop for Human Review.
 
 A brand-new npm package cannot use staged publishing and cannot have a Trusted
 Publisher configured before it exists. Dispatch `publish.yml` from `main` for

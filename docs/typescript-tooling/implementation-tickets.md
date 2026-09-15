@@ -477,17 +477,19 @@ Verification:
   direct local-bin offline matrix, provenance checks, supported Node/OS CI, and
   `make verify`.
 
-## TST-016 — Validate ForgePilot integration contract
+## TST-016 — Validate the packed CLI process consumer contract
 
 Depends on: TST-015.
 
 Scope:
 
-- Add consumer contract tests showing ForgePilot can use CLI JSON without human
-  parsing for every published CLI command.
+- Add an independent process consumer contract test for every npm-packed CLI
+  JSON command without parsing human output.
 - If a library integration is requested, test only Core package-root exports
   against the declared tooling SemVer.
 - Document process/library selection and compatibility failure behavior.
+- Record an agreed ForgePilot-owned check separately when available; live
+  ForgePilot integration is optional.
 
 Non-goals:
 
@@ -496,18 +498,20 @@ Non-goals:
 
 Acceptance criteria:
 
-- Process integration handles pass/warning/fail/error and schema-version mismatch.
+- The packed process consumer handles pass/warning/fail/error and schema-version
+  mismatch.
 - No test matches human wording.
 - PraxisBound never reads or changes ForgePilot's mutable lifecycle authority.
 
 Verification:
 
-- Consumer contract suite using packed CLI/Core artifacts, schema fixtures,
-  agreed ForgePilot-owned contract checks, and `make verify`.
+- Consumer contract suite using packed CLI/Core artifacts, schema fixtures, and
+  `make verify`; an available agreed ForgePilot-owned check supplies separate
+  live-integration evidence.
 
 ## TST-017 — Switch the release-check compatibility entrypoint
 
-Depends on: TST-011, TST-015, and TST-016.
+Depends on: TST-011, TST-015, and TST-016's packed process contract.
 
 Scope:
 
@@ -536,9 +540,10 @@ Acceptance criteria:
 
 Verification:
 
-- Full release-check parity, packed consumer matrix, existing adoption
-  validation, Make target ordering/failure fixtures, ForgePilot contract,
-  `make verify`, and independent review.
+- Full release-check parity, packed consumer matrix and process contract,
+  existing adoption validation, Make target ordering/failure fixtures,
+  `make verify`, and independent review. Preserve or explicitly migrate any
+  supported external process integration.
 
 ## TST-018 — Remove the legacy release-check implementation
 
@@ -562,8 +567,9 @@ Acceptance criteria:
 - Every Legacy Removal Gate item has attached passing evidence.
 - Removal is correctly classified under `protocol/versioning.md`; a Node runtime
   requirement has explicit Breaking approval and revisits ADR-003.
-- Golden fixtures, existing adoption, packed npx, ForgePilot, CI, and docs remain
-  valid with no fallback to deleted code.
+- Golden fixtures, existing adoption, packed npx, generic process consumer
+  contract, CI, and docs remain valid with no fallback to deleted code. Any
+  supported external integration is preserved or explicitly migrated.
 
 Verification:
 
@@ -590,7 +596,7 @@ TST-001 foundation
           -> TST-014 Codex activation
 TST-011 and TST-014
   -> TST-015 npm/npx validation
-    -> TST-016 ForgePilot validation
+    -> TST-016 packed process consumer contract
       -> TST-017 release-check entrypoint switch
         -> TST-018 legacy release-check removal
 ```

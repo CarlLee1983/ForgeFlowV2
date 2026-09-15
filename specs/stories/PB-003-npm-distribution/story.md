@@ -8,9 +8,9 @@ PraxisBound implementation.
 
 ## Context
 
-The maintainer controls the npm user scope `@praxisbound` and selected the new
-coordinates before the first public package release. TST-015 proved the package
-and consumer mechanisms under the old proposed identity but correctly retained
+The maintainer controls the npm organization scope `@praxisbound` and selected
+the new coordinates before the first public package release. TST-015 proved
+the package and consumer mechanisms under the old proposed identity but correctly retained
 the uncontrolled namespace as blocked historical evidence. ADR-011 supersedes
 those identity clauses. The existing draft result schema also diverges from the
 implemented CLI envelope and must be replaced before publication.
@@ -116,10 +116,14 @@ implemented CLI envelope and must be replaced before publication.
   local verification, exact-SHA remote CI, scope-control review, tarball checks,
   and final repository identity all pass.
 * R6: Because npm cannot stage a brand-new package or preconfigure its Trusted
-  Publisher, a short-lived scope-limited granular token exists only as a
+  Publisher, an organization-authorized account issues a short-lived granular
+  token limited to `@praxisbound` with Packages and scopes `Read and write
+  (publish and stage)` and bootstrap-only `Bypass 2FA` for unattended direct
+  publication, when organization policy permits it. It exists only as a
   protected GitHub Actions secret for the first Core and CLI provenance
   publishes to `next`. It is never printed, copied into the repository, or used
-  from the local worktree.
+  from the local worktree. If organization policy forbids 2FA bypass, first
+  publication blocks for Human Review rather than weakening that policy.
 * R7: Core is published to `next` and publicly smoke-tested before CLI. After
   both packages exist, configure the exact public workflow as each package's
   OIDC Trusted Publisher, disallow traditional token publishing, revoke the
@@ -139,7 +143,7 @@ implemented CLI envelope and must be replaced before publication.
 ## Dependencies
 
 * PB-001 and PB-002 complete with full verification.
-* Controlled npm user scope `@praxisbound`, final GitHub source identity, and
+* Controlled npm organization scope `@praxisbound`, final GitHub source identity, and
   exact-SHA supported CI.
 * TST-015 package, acquisition, offline, and consumer fixtures.
 

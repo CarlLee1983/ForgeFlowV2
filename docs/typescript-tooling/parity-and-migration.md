@@ -206,7 +206,9 @@ expected fixtures before parity is re-baselined.
   `npx --yes @praxisbound/cli@<tooling-version>` acquisition, package contents,
   direct local-binary offline execution after acquisition, supported Node
   matrix, and existing PraxisBound repository adoption.
-- Validate ForgePilot against CLI JSON first and optionally Core root exports.
+- Validate an independent process consumer against the npm-packed CLI JSON
+  commands. A ForgePilot-owned check, if available, supplies separate optional
+  live-integration evidence.
 - Decide each default switch independently; do not batch commands.
 
 ### Wave 9 — legacy retirement, if separately approved
@@ -240,7 +242,8 @@ No legacy Implementation may be removed until all of these are observed:
   package acquisition;
 - supported Node/OS CI passes and root `make verify` passes;
 - a fresh repository and at least one existing PraxisBound adoption are validated;
-- ForgePilot's supported process integration is unchanged or explicitly migrated;
+- the packed CLI process consumer contract remains valid, and any actually
+  supported external process integration is unchanged or explicitly migrated;
 - Protocol/tooling/version/package migration and rollback docs are complete;
 - npm namespace ownership and provenance are verified;
 - the command has completed a deprecation/default period defined by its Story;

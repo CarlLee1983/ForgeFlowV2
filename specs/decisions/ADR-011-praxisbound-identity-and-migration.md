@@ -9,7 +9,9 @@ The project was designed and implemented as ForgeFlow, but the maintainers do
 not control the selected `@forgeflow` npm scope and the unscoped `forgeflow`
 package belongs to an unrelated project. The first public Core and CLI release
 therefore needs an identity that the maintainers control. The maintainer chose
-PraxisBound and controls the npm user scope `@praxisbound`.
+PraxisBound and controls the npm organization scope `@praxisbound` through the
+`praxisbound` organization. The first public packages are organization-owned;
+the earlier user-scope observation remains historical evidence.
 
 The identity is already embedded in adopter-owned paths, activation snapshots,
 environment variables, package coordinates, a CLI binary, source provenance,
@@ -22,6 +24,7 @@ PraxisBound is the only canonical current identity. Its identity tuple is:
 
 * product and Protocol: `PraxisBound` and `PraxisBound Protocol`;
 * npm packages: `@praxisbound/core` and `@praxisbound/cli`;
+* npm package owner: `praxisbound` organization;
 * CLI executable: `praxisbound`;
 * adoption marker: `specs/.praxisbound-adoption`;
 * activation directory and snapshot: `.agents/skills/praxisbound/` and
@@ -91,12 +94,17 @@ recovery coverage than a mechanical rename.
 The first registry publication is a bootstrap exception because npm staged
 publishing cannot create a brand-new package and a Trusted Publisher cannot be
 configured until that package exists. A short-lived, scope-limited granular
-token is stored only as a protected GitHub Actions secret and publishes each
-new package from a public, exact-revision workflow with provenance to the
+token issued by an organization-authorized account with direct-publish
+package-and-scope rights and bootstrap-only 2FA bypass, when organization
+policy permits it, is stored only as a protected GitHub Actions secret. It
+publishes each new package from a public, exact-revision workflow with provenance to the
 non-default `next` tag. Core is published and verified before CLI. After each
 package exists, its workflow becomes an OIDC Trusted Publisher, traditional
 token publishing is disabled, and the bootstrap token is revoked before either
 package is promoted to `latest`.
+
+If organization policy forbids 2FA bypass, the first-publication token path
+blocks for Human Review; it does not relax the organization policy.
 
 Before npm publication, rollback restores the complete old adopter tuple:
 Protocol/templates/checkers, adoption marker, decision-root variable,

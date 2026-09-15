@@ -430,8 +430,11 @@ grep -Fq './tests/doctor.sh' "$forgeflow_makefile" ||
 grep -Eq '^release-check:[[:space:]]+verify$' "$forgeflow_makefile" ||
   fail 'release-check does not depend on canonical verify'
 
-grep -Fq './scripts/release-check' "$forgeflow_makefile" ||
-  fail 'release-check target does not invoke the local checker'
+grep -Fq './scripts/release-check-select' "$forgeflow_makefile" ||
+  fail 'release-check target does not invoke the selected local checker'
+
+grep -Fq './tests/release-check-switch.sh' "$forgeflow_makefile" ||
+  fail 'root verify does not include release-check switch acceptance tests'
 
 forgeflow_release_runbook="$forgeflow_repo/docs/releasing.md"
 

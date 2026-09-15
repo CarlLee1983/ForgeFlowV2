@@ -557,6 +557,28 @@ NODE
   : >"$praxisbound_test_dir/packed-machine-passed"
 }
 
+packed_process_consumer_contract() {
+  [ -x "$praxisbound_consumer_dir/node_modules/.bin/praxisbound" ] ||
+    fail 'packed-package consumer fixture is unavailable'
+  node "$praxisbound_repo/tests/process-consumer-contract.mjs" \
+    all-commands \
+    "$praxisbound_consumer_dir/node_modules/.bin/praxisbound" \
+    "$praxisbound_test_dir/process-consumer-commands" \
+    "$praxisbound_repo/docs/typescript-tooling/result-envelope-v1.schema.json" ||
+    fail 'packed process consumer could not handle every command'
+}
+
+process_consumer_fail_closed() {
+  [ -x "$praxisbound_consumer_dir/node_modules/.bin/praxisbound" ] ||
+    fail 'packed-package consumer fixture is unavailable'
+  node "$praxisbound_repo/tests/process-consumer-contract.mjs" \
+    failure-cases \
+    "$praxisbound_consumer_dir/node_modules/.bin/praxisbound" \
+    "$praxisbound_test_dir/process-consumer-failures" \
+    "$praxisbound_repo/docs/typescript-tooling/result-envelope-v1.schema.json" ||
+    fail 'process consumer accepted an incompatible or malformed result'
+}
+
 packed_init_apply_is_consumable() {
   [ -d "$praxisbound_consumer_dir/node_modules" ] ||
     fail 'packed-package consumer fixture is unavailable'
@@ -1044,10 +1066,12 @@ NODE
 }
 
 legacy_shell_commands_do_not_delegate_to_node() {
-  if grep -E '(^|[[:space:]])(node|nodejs|pnpm)([[:space:]]|$)' \
-    "$praxisbound_repo"/scripts/* >/dev/null; then
-    fail 'a legacy shell command delegates to the TypeScript runtime'
-  fi
+  for legacy_command in bootstrap doctor story-check handoff-check release-check verification-check codex-activate; do
+    if grep -E '(^|[[:space:]])(node|nodejs|pnpm)([[:space:]]|$)' \
+      "$praxisbound_repo/scripts/$legacy_command" >/dev/null; then
+      fail "legacy shell command $legacy_command delegates to the TypeScript runtime"
+    fi
+  done
 }
 
 run_case 'TST001-AC-001' workspace_lock_is_current_single_document_and_fails_closed
@@ -1055,6 +1079,8 @@ run_case 'TST001-AC-002' built_cli_help_and_version_are_exact
 run_case 'PB003-AC-001' packed_packages_have_the_bounded_public_contract
 run_case 'TST001-AC-003' historical_packed_package_contract_is_preserved
 run_case 'TST002-AC-005' packed_machine_contract_is_consumable
+run_case 'TST016-AC-001' packed_process_consumer_contract
+run_case 'TST016-AC-004' process_consumer_fail_closed
 run_case 'TST013-AC-001' packed_init_apply_is_consumable
 run_case 'PB003-AC-003' clean_npm_consumer_runs_required_commands
 run_case 'TST014-AC-001' packed_activation_is_consumable
