@@ -230,12 +230,24 @@ following against the same `candidate_sha`:
 * GitHub identifies the public repository as `CarlLee1983/PraxisBound` and both
   package manifests name that exact repository and package subdirectory.
 * `@praxisbound/core@<version>` and `@praxisbound/cli@<version>` do not exist,
-  and the authenticated maintainer controls the `@praxisbound` scope.
+  and an authenticated `praxisbound` organization owner or authorized member
+  has package-publishing rights for the `@praxisbound` scope.
 * Local `make verify` and the required remote `verify.yml` run pass for the
   exact candidate SHA.
 * The protected `NPM_TOKEN` Actions secret contains only the short-lived,
-  scope-limited bootstrap credential. Never place or test that credential in
-  the worktree or a command argument.
+  scope-limited bootstrap credential issued by that organization-authorized
+  account. For the unattended first `npm publish`, its Packages and scopes
+  permission must be `Read and write (publish and stage)` for `@praxisbound`,
+  with `Bypass 2FA` enabled only if organization policy permits it. A stage-only
+  token or Organizations-settings permission does not grant direct package
+  publication. Never place or test the credential in the worktree or a command
+  argument; do not substitute a local ambient npm session. If organization
+  policy forbids bypass, stop for Human Review.
+
+The [npm granular-token policy](https://docs.npmjs.com/about-access-tokens/)
+currently permits this first-publish exception but announces removal of direct
+publishing with bypass-2FA tokens in January 2027. Recheck the policy before
+dispatch; if the bootstrap path is unavailable, stop for Human Review.
 
 A brand-new npm package cannot use staged publishing and cannot have a Trusted
 Publisher configured before it exists. Dispatch `publish.yml` from `main` for
