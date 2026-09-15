@@ -1,8 +1,8 @@
 # Optional Agentic Discipline Adoption Pattern
 
 This document records an optional way to apply Robert C. Martin's public
-"Agentic Discipline" ideas to a ForgeFlow repository. It is guidance, not a
-protocol change: ForgeFlow still defines a Small Story, runs the repository's
+"Agentic Discipline" ideas to a PraxisBound repository. It is guidance, not a
+protocol change: PraxisBound still defines a Small Story, runs the repository's
 canonical `make verify` gate, and requires Human Review before merge. It does
 not add an orchestration runtime, new handoff fields, or a required agent
 vendor.
@@ -17,7 +17,7 @@ domain; the human-owned source and constraints are the control surface.
 The primary descriptions are in [Clean Coders Agentic Discipline,
 Part 2](https://cleancoders.com/episode/agentic-discipline-2) and [Part
 6](https://cleancoders.com/episode/agentic-discipline-6). The six-agent
-sequence below is a practical summary of Part 6, not a ForgeFlow requirement.
+sequence below is a practical summary of Part 6, not a PraxisBound requirement.
 
 ## Six roles and their evidence
 
@@ -34,16 +34,16 @@ Martin's videos describe each role working in an isolated Git worktree. Use
 that isolation only when the repository and team benefit from parallel work;
 the worktree is an implementation detail, not a new protocol state.
 
-## Mapping the pattern to ForgeFlow
+## Mapping the pattern to PraxisBound
 
-| Agentic Discipline concept | ForgeFlow artifact or gate |
+| Agentic Discipline concept | PraxisBound artifact or gate |
 | --- | --- |
 | Human-owned source | An approved Story with business rules, constraints, and acceptance criteria |
 | Specifier output | The Story's acceptance section and, when needed, a checked-in QA procedure |
 | Coder output | The implementation and tests required by the Story |
 | Cleaner / Architect / Hardener evidence | Repository-supported checks and review artifacts; add none when the repository cannot run them deterministically |
 | QA result | Acceptance evidence and Human Review of product behavior |
-| Final deterministic gate | `make verify` (the only canonical ForgeFlow completion command) |
+| Final deterministic gate | `make verify` (the only canonical PraxisBound completion command) |
 
 The mapping deliberately leaves role coordination outside the [Handoff
 Evidence Contract](../protocol/handoff.md). A role may be recorded in a branch

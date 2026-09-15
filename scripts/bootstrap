@@ -8,129 +8,144 @@ usage() {
 }
 
 managed_stage() {
-  forgeflow_destination="$forgeflow_target/$1"
+  praxisbound_destination="$praxisbound_target/$1"
   # Each rename stays on the destination's filesystem, including nested mounts.
-  forgeflow_stage="${forgeflow_destination%/*}/.forgeflow-install.$$-${forgeflow_destination##*/}"
+  praxisbound_stage="${praxisbound_destination%/*}/.praxisbound-install.$$-${praxisbound_destination##*/}"
 }
 
 prepare_managed_file() {
-  forgeflow_prepare_source=$1
-  forgeflow_prepare_relative=$2
-  managed_stage "$forgeflow_prepare_relative"
-  if [ -e "$forgeflow_stage" ] || [ -L "$forgeflow_stage" ]; then
-    printf 'Refusing existing staging path: %s\n' "$forgeflow_stage" >&2
+  praxisbound_prepare_source=$1
+  praxisbound_prepare_relative=$2
+  managed_stage "$praxisbound_prepare_relative"
+  if [ -e "$praxisbound_stage" ] || [ -L "$praxisbound_stage" ]; then
+    printf 'Refusing existing staging path: %s\n' "$praxisbound_stage" >&2
     return 1
   fi
   # The target is under caller control: record ownership before mkdir so a
   # caught interruption or post-operation failure cannot orphan a new directory.
-  forgeflow_prepared="$forgeflow_prepare_relative
-$forgeflow_prepared"
-  if ! (umask 077 && mkdir "$forgeflow_stage"); then
-    printf 'Could not create staging directory: %s\n' "$forgeflow_stage" >&2
+  praxisbound_prepared="$praxisbound_prepare_relative
+$praxisbound_prepared"
+  if ! (umask 077 && mkdir "$praxisbound_stage"); then
+    printf 'Could not create staging directory: %s\n' "$praxisbound_stage" >&2
     return 1
   fi
-  if [ -f "$forgeflow_destination" ]; then
-    cp -p "$forgeflow_destination" "$forgeflow_stage/original" || return 1
+  if [ -f "$praxisbound_destination" ]; then
+    cp -p "$praxisbound_destination" "$praxisbound_stage/original" || return 1
   fi
-  if [ -n "$forgeflow_prepare_source" ]; then
-    cp "$forgeflow_prepare_source" "$forgeflow_stage/new" || return 1
+  if [ -n "$praxisbound_prepare_source" ]; then
+    cp "$praxisbound_prepare_source" "$praxisbound_stage/new" || return 1
   else
     {
-      printf 'version=%s\n' "$forgeflow_version"
-      printf 'revision=%s\n' "$forgeflow_revision"
-    } >"$forgeflow_stage/new" || return 1
+      printf 'version=%s\n' "$praxisbound_version"
+      printf 'revision=%s\n' "$praxisbound_revision"
+    } >"$praxisbound_stage/new" || return 1
   fi
 }
 
 finish_install() {
-  forgeflow_finish_status=$?
+  praxisbound_finish_status=$?
   trap - 0
   trap '' HUP INT TERM
-  forgeflow_recovery_failed=0
+  praxisbound_recovery_failed=0
 
-  if [ "$forgeflow_finish_status" -ne 0 ] && [ "$forgeflow_committed" -eq 0 ]; then
-    while IFS= read -r forgeflow_recover_relative; do
-      [ -n "$forgeflow_recover_relative" ] || continue
-      managed_stage "$forgeflow_recover_relative"
-      forgeflow_restored=0
-      if [ -f "$forgeflow_stage/original" ]; then
+  if [ "$praxisbound_finish_status" -ne 0 ] && [ "$praxisbound_committed" -eq 0 ]; then
+    while IFS= read -r praxisbound_recover_relative; do
+      [ -n "$praxisbound_recover_relative" ] || continue
+      managed_stage "$praxisbound_recover_relative"
+      praxisbound_restored=0
+      if [ -f "$praxisbound_stage/original" ]; then
         # Keep the recovery copy even if the restoring rename reports failure
         # after changing the destination.
-        if cp -p "$forgeflow_stage/original" "$forgeflow_stage/restore" &&
-          mv -f "$forgeflow_stage/restore" "$forgeflow_destination"; then
-          forgeflow_restored=1
+        if cp -p "$praxisbound_stage/original" "$praxisbound_stage/restore" &&
+          mv -f "$praxisbound_stage/restore" "$praxisbound_destination"; then
+          praxisbound_restored=1
         fi
-      elif rm -f "$forgeflow_destination"; then
-        forgeflow_restored=1
+      elif rm -f "$praxisbound_destination"; then
+        praxisbound_restored=1
       fi
-      if [ "$forgeflow_restored" -eq 0 ]; then
-        forgeflow_recovery_failed=1
-        printf 'UNRESTORED: %s\n' "$forgeflow_destination" >&2
-        if [ -f "$forgeflow_stage/original" ]; then
+      if [ "$praxisbound_restored" -eq 0 ]; then
+        praxisbound_recovery_failed=1
+        printf 'UNRESTORED: %s\n' "$praxisbound_destination" >&2
+        if [ -f "$praxisbound_stage/original" ]; then
           printf 'Restore %s from %s/original using a temporary copy beside the destination, then rename it.\n' \
-            "$forgeflow_destination" "$forgeflow_stage" >&2
+            "$praxisbound_destination" "$praxisbound_stage" >&2
         else
-          printf 'Restore original absence: remove only %s.\n' "$forgeflow_destination" >&2
+          printf 'Restore original absence: remove only %s.\n' "$praxisbound_destination" >&2
         fi
-        if [ "$forgeflow_recover_relative" = "$forgeflow_marker_relative" ]; then
-          if ! rm -f "$forgeflow_destination"; then
+        if [ "$praxisbound_recover_relative" = "$praxisbound_marker_relative" ]; then
+          if ! rm -f "$praxisbound_destination"; then
             printf 'Do not trust the adoption marker: remove %s before using this adoption.\n' \
-              "$forgeflow_destination" >&2
+              "$praxisbound_destination" >&2
           fi
         fi
       fi
     done <<EOF
-$forgeflow_attempted
+$praxisbound_attempted
 EOF
-    if [ "$forgeflow_recovery_failed" -eq 0 ]; then
+    if [ "$praxisbound_legacy_upgrade" -eq 1 ]; then
+      managed_stage "$praxisbound_marker_relative"
+      if [ -f "$praxisbound_stage/legacy-original" ]; then
+        if ! cp -p "$praxisbound_stage/legacy-original" \
+          "$praxisbound_stage/legacy-restore" ||
+          ! mv -f "$praxisbound_stage/legacy-restore" \
+            "$praxisbound_target/$praxisbound_legacy_marker_relative"; then
+          praxisbound_recovery_failed=1
+          printf 'UNRESTORED: %s\n' \
+            "$praxisbound_target/$praxisbound_legacy_marker_relative" >&2
+        fi
+      fi
+    fi
+    if [ "$praxisbound_recovery_failed" -eq 0 ]; then
       printf 'Bootstrap failed; original managed file contents and existence restored.\n' >&2
     fi
   fi
 
-  while IFS= read -r forgeflow_cleanup_relative; do
-    [ -n "$forgeflow_cleanup_relative" ] || continue
-    managed_stage "$forgeflow_cleanup_relative"
-    [ -d "$forgeflow_stage" ] || continue
-    if [ "$forgeflow_recovery_failed" -eq 1 ]; then
-      printf 'Recovery copies retained: %s\n' "$forgeflow_stage" >&2
-    elif ! { rm -f "$forgeflow_stage/new" "$forgeflow_stage/restore" "$forgeflow_stage/original" &&
-      rmdir "$forgeflow_stage"; }; then
+  while IFS= read -r praxisbound_cleanup_relative; do
+    [ -n "$praxisbound_cleanup_relative" ] || continue
+    managed_stage "$praxisbound_cleanup_relative"
+    [ -d "$praxisbound_stage" ] || continue
+    if [ "$praxisbound_recovery_failed" -eq 1 ]; then
+      printf 'Recovery copies retained: %s\n' "$praxisbound_stage" >&2
+    elif ! { rm -f "$praxisbound_stage/new" "$praxisbound_stage/restore" "$praxisbound_stage/original" \
+      "$praxisbound_stage/legacy-original" "$praxisbound_stage/legacy-restore" &&
+      rmdir "$praxisbound_stage"; }; then
       printf 'Cleanup incomplete: %s; remove this staging directory after checking the managed files.\n' \
-        "$forgeflow_stage" >&2
-      forgeflow_finish_status=1
+        "$praxisbound_stage" >&2
+      praxisbound_finish_status=1
     fi
   done <<EOF
-$forgeflow_prepared
+$praxisbound_prepared
 EOF
 
-  if [ "$forgeflow_finish_status" -ne 0 ] && [ "$forgeflow_recovery_failed" -eq 0 ] &&
-    [ "$forgeflow_committed" -eq 0 ]; then
-    while IFS= read -r forgeflow_created_relative; do
-      [ -n "$forgeflow_created_relative" ] || continue
-      if [ -d "$forgeflow_target/$forgeflow_created_relative" ] &&
-        ! rmdir "$forgeflow_target/$forgeflow_created_relative"; then
+  if [ "$praxisbound_finish_status" -ne 0 ] && [ "$praxisbound_recovery_failed" -eq 0 ] &&
+    [ "$praxisbound_committed" -eq 0 ]; then
+    while IFS= read -r praxisbound_created_relative; do
+      [ -n "$praxisbound_created_relative" ] || continue
+      if [ -d "$praxisbound_target/$praxisbound_created_relative" ] &&
+        ! rmdir "$praxisbound_target/$praxisbound_created_relative"; then
         printf 'Cleanup incomplete: %s; remove only if empty.\n' \
-          "$forgeflow_target/$forgeflow_created_relative" >&2
+          "$praxisbound_target/$praxisbound_created_relative" >&2
       fi
     done <<EOF
-$forgeflow_created_directories
+$praxisbound_created_directories
 EOF
   fi
-  [ "$forgeflow_finish_status" -eq 0 ] || exit 1
+  [ "$praxisbound_finish_status" -eq 0 ] || exit 1
 }
 
-forgeflow_marker_relative='specs/.forgeflow-adoption'
-forgeflow_cr=$(printf '\r')
-forgeflow_tab=$(printf '\t')
+praxisbound_marker_relative='specs/.praxisbound-adoption'
+praxisbound_legacy_marker_relative='specs/.forgeflow-adoption'
+praxisbound_cr=$(printf '\r')
+praxisbound_tab=$(printf '\t')
 
 trim_trailing_blanks() {
-  forgeflow_trimmed=$1
+  praxisbound_trimmed=$1
 
   while :; do
-    case "$forgeflow_trimmed" in
-      *"$forgeflow_cr") forgeflow_trimmed=${forgeflow_trimmed%"$forgeflow_cr"} ;;
-      *"$forgeflow_tab") forgeflow_trimmed=${forgeflow_trimmed%"$forgeflow_tab"} ;;
-      *' ') forgeflow_trimmed=${forgeflow_trimmed% } ;;
+    case "$praxisbound_trimmed" in
+      *"$praxisbound_cr") praxisbound_trimmed=${praxisbound_trimmed%"$praxisbound_cr"} ;;
+      *"$praxisbound_tab") praxisbound_trimmed=${praxisbound_trimmed%"$praxisbound_tab"} ;;
+      *' ') praxisbound_trimmed=${praxisbound_trimmed% } ;;
       *) break ;;
     esac
   done
@@ -138,11 +153,11 @@ trim_trailing_blanks() {
 
 # An inherited Git environment would silently redirect every lookup below at
 # another repository, so it is cleared for the duration of the query.
-forgeflow_git() {
+praxisbound_git() {
   (
     unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR \
       GIT_OBJECT_DIRECTORY GIT_CEILING_DIRECTORIES
-    git -C "$forgeflow_root" "$@"
+    git -C "$praxisbound_root" "$@"
   )
 }
 
@@ -151,106 +166,106 @@ forgeflow_git() {
 # uncommitted changes must not claim the bare HEAD SHA, and a state that cannot
 # be read is not evidence of a clean tree.
 resolve_snapshot_revision() {
-  forgeflow_revision='unknown'
+  praxisbound_revision='unknown'
 
   command -v git >/dev/null 2>&1 || return 0
 
-  forgeflow_toplevel=$(forgeflow_git rev-parse --show-toplevel 2>/dev/null) ||
+  praxisbound_toplevel=$(praxisbound_git rev-parse --show-toplevel 2>/dev/null) ||
     return 0
 
-  if [ "$forgeflow_toplevel" != "$forgeflow_root" ]; then
+  if [ "$praxisbound_toplevel" != "$praxisbound_root" ]; then
     return 0
   fi
 
-  forgeflow_head=$(forgeflow_git rev-parse HEAD 2>/dev/null) || return 0
+  praxisbound_head=$(praxisbound_git rev-parse HEAD 2>/dev/null) || return 0
 
-  forgeflow_status=$(forgeflow_git status --porcelain 2>/dev/null) || return 0
+  praxisbound_status=$(praxisbound_git status --porcelain 2>/dev/null) || return 0
 
-  if [ -n "$forgeflow_status" ]; then
-    forgeflow_revision="$forgeflow_head-dirty"
+  if [ -n "$praxisbound_status" ]; then
+    praxisbound_revision="$praxisbound_head-dirty"
   else
-    forgeflow_revision="$forgeflow_head"
+    praxisbound_revision="$praxisbound_head"
   fi
 }
 
-forgeflow_force=0
-forgeflow_upgrade=0
-forgeflow_dry_run=0
-forgeflow_target=
-forgeflow_target_set=0
+praxisbound_force=0
+praxisbound_upgrade=0
+praxisbound_dry_run=0
+praxisbound_target=
+praxisbound_target_set=0
 
 while [ "$#" -gt 0 ]; do
-  if [ "$forgeflow_target_set" -eq 1 ]; then
+  if [ "$praxisbound_target_set" -eq 1 ]; then
     usage
     exit 2
   fi
 
   case "$1" in
     --force)
-      if [ "$forgeflow_force" -eq 1 ] || [ "$forgeflow_upgrade" -eq 1 ]; then
+      if [ "$praxisbound_force" -eq 1 ] || [ "$praxisbound_upgrade" -eq 1 ]; then
         usage
         exit 2
       fi
-      forgeflow_force=1
+      praxisbound_force=1
       ;;
     --upgrade)
-      if [ "$forgeflow_upgrade" -eq 1 ] || [ "$forgeflow_force" -eq 1 ]; then
+      if [ "$praxisbound_upgrade" -eq 1 ] || [ "$praxisbound_force" -eq 1 ]; then
         usage
         exit 2
       fi
-      forgeflow_upgrade=1
+      praxisbound_upgrade=1
       ;;
     --dry-run)
-      if [ "$forgeflow_dry_run" -eq 1 ]; then
+      if [ "$praxisbound_dry_run" -eq 1 ]; then
         usage
         exit 2
       fi
-      forgeflow_dry_run=1
+      praxisbound_dry_run=1
       ;;
     -*)
       usage
       exit 2
       ;;
     *)
-      forgeflow_target=$1
-      forgeflow_target_set=1
+      praxisbound_target=$1
+      praxisbound_target_set=1
       ;;
   esac
   shift
 done
 
-if [ "$forgeflow_target_set" -eq 0 ]; then
-  forgeflow_target=.
+if [ "$praxisbound_target_set" -eq 0 ]; then
+  praxisbound_target=.
 fi
 
-if [ ! -d "$forgeflow_target" ]; then
-  printf 'Target is not a directory: %s\n' "$forgeflow_target" >&2
+if [ ! -d "$praxisbound_target" ]; then
+  printf 'Target is not a directory: %s\n' "$praxisbound_target" >&2
   exit 2
 fi
 
-forgeflow_target=$(
-  cd -P "$forgeflow_target" >/dev/null 2>&1
+praxisbound_target=$(
+  cd -P "$praxisbound_target" >/dev/null 2>&1
   pwd
 )
 
-forgeflow_script_dir=$(
+praxisbound_script_dir=$(
   cd -P "$(dirname "$0")" >/dev/null 2>&1
   pwd
 )
-forgeflow_root=$(dirname "$forgeflow_script_dir")
-if [ ! -f "$forgeflow_root/VERSION" ]; then
-  printf 'ForgeFlow VERSION is missing: %s\n' "$forgeflow_root/VERSION" >&2
+praxisbound_root=$(dirname "$praxisbound_script_dir")
+if [ ! -f "$praxisbound_root/VERSION" ]; then
+  printf 'PraxisBound VERSION is missing: %s\n' "$praxisbound_root/VERSION" >&2
   exit 1
 fi
 
-forgeflow_version=$(sed -n '1p' "$forgeflow_root/VERSION")
-trim_trailing_blanks "$forgeflow_version"
-forgeflow_version=$forgeflow_trimmed
+praxisbound_version=$(sed -n '1p' "$praxisbound_root/VERSION")
+trim_trailing_blanks "$praxisbound_version"
+praxisbound_version=$praxisbound_trimmed
 
-case "$forgeflow_version" in
+case "$praxisbound_version" in
   '' | *[!0-9.]*)
-    printf 'ForgeFlow VERSION is not a protocol version: %s\n' \
-      "$forgeflow_root/VERSION" >&2
+    printf 'PraxisBound VERSION is not a protocol version: %s\n' \
+      "$praxisbound_root/VERSION" >&2
     exit 1
     ;;
 esac
@@ -258,7 +273,7 @@ esac
 # This source-to-destination manifest belongs solely to installation. It must
 # never be read as the repository conformance contract; see
 # protocol/repository-contract.md for the required entrypoints.
-forgeflow_managed_files='templates/AGENTS.md AGENTS.md
+praxisbound_managed_files='templates/AGENTS.md AGENTS.md
 templates/story/story.md specs/stories/_template/story.md
 templates/story/acceptance.md specs/stories/_template/acceptance.md
 templates/story/task.md specs/stories/_template/task.md
@@ -267,7 +282,7 @@ guidance/PRINCIPLES.md guidance/PRINCIPLES.md
 guidance/DECISIONS.md guidance/DECISIONS.md
 guidance/PRACTICES.md guidance/PRACTICES.md'
 
-forgeflow_managed_destinations="AGENTS.md
+praxisbound_managed_destinations="AGENTS.md
 specs/stories/_template/story.md
 specs/stories/_template/acceptance.md
 specs/stories/_template/task.md
@@ -275,197 +290,249 @@ guidance/ENTRY.md
 guidance/PRINCIPLES.md
 guidance/DECISIONS.md
 guidance/PRACTICES.md
-$forgeflow_marker_relative"
+$praxisbound_marker_relative"
 
 # An upgrade moves the templates and the marker only. AGENTS.md and guidance
 # become repository-owned once installed, so they leave the managed surface.
-forgeflow_upgrade_files='templates/story/story.md specs/stories/_template/story.md
+praxisbound_upgrade_files='templates/story/story.md specs/stories/_template/story.md
 templates/story/acceptance.md specs/stories/_template/acceptance.md
 templates/story/task.md specs/stories/_template/task.md'
 
-forgeflow_upgrade_destinations="specs/stories/_template/story.md
+praxisbound_upgrade_destinations="specs/stories/_template/story.md
 specs/stories/_template/acceptance.md
 specs/stories/_template/task.md
-$forgeflow_marker_relative"
+$praxisbound_marker_relative"
 
-if [ "$forgeflow_upgrade" -eq 1 ]; then
-  forgeflow_active_files=$forgeflow_upgrade_files
-  forgeflow_active_destinations=$forgeflow_upgrade_destinations
-  forgeflow_managed_directories='specs specs/stories specs/stories/_template'
+if [ "$praxisbound_upgrade" -eq 1 ]; then
+  praxisbound_active_files=$praxisbound_upgrade_files
+  praxisbound_active_destinations=$praxisbound_upgrade_destinations
+  praxisbound_managed_directories='specs specs/stories specs/stories/_template'
 else
-  forgeflow_active_files=$forgeflow_managed_files
-  forgeflow_active_destinations=$forgeflow_managed_destinations
-  forgeflow_managed_directories='specs specs/stories specs/stories/_template guidance'
+  praxisbound_active_files=$praxisbound_managed_files
+  praxisbound_active_destinations=$praxisbound_managed_destinations
+  praxisbound_managed_directories='specs specs/stories specs/stories/_template guidance'
 fi
 
-while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
-  forgeflow_source="$forgeflow_root/$forgeflow_template_relative"
+while IFS=' ' read -r praxisbound_template_relative praxisbound_relative_path; do
+  praxisbound_source="$praxisbound_root/$praxisbound_template_relative"
 
-  if [ ! -f "$forgeflow_source" ]; then
-    printf 'ForgeFlow template is missing: %s\n' "$forgeflow_source" >&2
+  if [ ! -f "$praxisbound_source" ]; then
+    printf 'PraxisBound template is missing: %s\n' "$praxisbound_source" >&2
     exit 1
   fi
 done <<EOF
-$forgeflow_active_files
+$praxisbound_active_files
 EOF
 
-if [ "$forgeflow_upgrade" -eq 1 ] &&
-  { [ -L "$forgeflow_target/specs/stories" ] ||
-    [ ! -d "$forgeflow_target/specs/stories" ]; }; then
-  printf 'No ForgeFlow adoption to upgrade: %s\n' \
-    "$forgeflow_target/specs/stories" >&2
+if [ "$praxisbound_upgrade" -eq 1 ] &&
+  { [ -L "$praxisbound_target/specs/stories" ] ||
+    [ ! -d "$praxisbound_target/specs/stories" ]; }; then
+  printf 'No PraxisBound adoption to upgrade: %s\n' \
+    "$praxisbound_target/specs/stories" >&2
   printf 'Run a fresh bootstrap before --upgrade.\n' >&2
   exit 1
 fi
 
-for forgeflow_relative_directory in $forgeflow_managed_directories
-do
-  forgeflow_directory="$forgeflow_target/$forgeflow_relative_directory"
+# A legacy adoption is migration input, not a second current identity.  Refuse
+# mixed or unsafe states before staging any owned file.
+if [ "$praxisbound_upgrade" -eq 1 ] &&
+  { [ -e "$praxisbound_target/$praxisbound_legacy_marker_relative" ] ||
+    [ -L "$praxisbound_target/$praxisbound_legacy_marker_relative" ]; }; then
+  if [ -e "$praxisbound_target/$praxisbound_marker_relative" ] ||
+    [ -L "$praxisbound_target/$praxisbound_marker_relative" ]; then
+    printf 'Refusing ambiguous current and legacy adoption markers.\n' >&2
+    exit 1
+  fi
+  if [ -L "$praxisbound_target/$praxisbound_legacy_marker_relative" ] ||
+    [ ! -f "$praxisbound_target/$praxisbound_legacy_marker_relative" ] ||
+    [ ! -r "$praxisbound_target/$praxisbound_legacy_marker_relative" ] ||
+    ! awk '
+      { sub(/\r$/, "");
+        if (NR == 1 && $0 != "version=0.9.0") bad = 1;
+        if (NR == 2) {
+          if ($0 !~ /^revision=/) bad = 1;
+          value = substr($0, 10);
+          if (value != "unknown") {
+            sub(/-dirty$/, "", value);
+            if ((length(value) != 40 && length(value) != 64) ||
+              value ~ /[^a-f0-9]/) bad = 1;
+          }
+        }
+        if (NR > 2) bad = 1
+      }
+      END { exit (NR == 2 && !bad) ? 0 : 1 }
+    ' "$praxisbound_target/$praxisbound_legacy_marker_relative"; then
+    printf 'Refusing malformed or unsupported legacy adoption marker.\n' >&2
+    exit 1
+  fi
+  praxisbound_legacy_revision=$(sed -n '2s/^revision=//p' \
+    "$praxisbound_target/$praxisbound_legacy_marker_relative" | tr -d '\r')
+  praxisbound_legacy_upgrade=1
+else
+  praxisbound_legacy_upgrade=0
+fi
 
-  if [ -L "$forgeflow_directory" ]; then
+for praxisbound_relative_directory in $praxisbound_managed_directories
+do
+  praxisbound_directory="$praxisbound_target/$praxisbound_relative_directory"
+
+  if [ -L "$praxisbound_directory" ]; then
     printf 'Refusing managed directory symlink: %s\n' \
-      "$forgeflow_directory" >&2
+      "$praxisbound_directory" >&2
     exit 1
   fi
 
-  if [ -e "$forgeflow_directory" ] && [ ! -d "$forgeflow_directory" ]; then
+  if [ -e "$praxisbound_directory" ] && [ ! -d "$praxisbound_directory" ]; then
     printf 'Managed directory path is not a directory: %s\n' \
-      "$forgeflow_directory" >&2
+      "$praxisbound_directory" >&2
     exit 1
   fi
 done
 
-while IFS= read -r forgeflow_relative_path; do
-  forgeflow_destination="$forgeflow_target/$forgeflow_relative_path"
+while IFS= read -r praxisbound_relative_path; do
+  praxisbound_destination="$praxisbound_target/$praxisbound_relative_path"
 
-  if [ -L "$forgeflow_destination" ]; then
+  if [ -L "$praxisbound_destination" ]; then
     printf 'Refusing managed file symlink: %s\n' \
-      "$forgeflow_destination" >&2
+      "$praxisbound_destination" >&2
     exit 1
   fi
 
-  if [ -e "$forgeflow_destination" ] && [ ! -f "$forgeflow_destination" ]; then
+  if [ -e "$praxisbound_destination" ] && [ ! -f "$praxisbound_destination" ]; then
     printf 'Managed file path is not a regular file: %s\n' \
-      "$forgeflow_destination" >&2
+      "$praxisbound_destination" >&2
     exit 1
   fi
 done <<EOF
-$forgeflow_active_destinations
+$praxisbound_active_destinations
 EOF
 
-if [ "$forgeflow_force" -eq 0 ] && [ "$forgeflow_upgrade" -eq 0 ]; then
-  forgeflow_conflicts=
+if [ "$praxisbound_force" -eq 0 ] && [ "$praxisbound_upgrade" -eq 0 ]; then
+  praxisbound_conflicts=
 
-  while IFS= read -r forgeflow_relative_path; do
-    if [ -e "$forgeflow_target/$forgeflow_relative_path" ]; then
-      forgeflow_conflicts="${forgeflow_conflicts}
-  $forgeflow_target/$forgeflow_relative_path"
+  while IFS= read -r praxisbound_relative_path; do
+    if [ -e "$praxisbound_target/$praxisbound_relative_path" ]; then
+      praxisbound_conflicts="${praxisbound_conflicts}
+  $praxisbound_target/$praxisbound_relative_path"
     fi
   done <<EOF
-$forgeflow_active_destinations
+$praxisbound_active_destinations
 EOF
 
-  if [ -n "$forgeflow_conflicts" ]; then
-    printf 'Refusing to overwrite existing ForgeFlow files:%s\n' \
-      "$forgeflow_conflicts" >&2
+  if [ -n "$praxisbound_conflicts" ]; then
+    printf 'Refusing to overwrite existing PraxisBound files:%s\n' \
+      "$praxisbound_conflicts" >&2
     printf 'Re-run with --force only if replacing these files is intended.\n' >&2
     exit 1
   fi
 fi
 
-if [ "$forgeflow_dry_run" -eq 1 ]; then
-  while IFS= read -r forgeflow_relative_path; do
-    forgeflow_destination="$forgeflow_target/$forgeflow_relative_path"
+if [ "$praxisbound_dry_run" -eq 1 ]; then
+  while IFS= read -r praxisbound_relative_path; do
+    praxisbound_destination="$praxisbound_target/$praxisbound_relative_path"
 
-    if [ -e "$forgeflow_destination" ]; then
-      printf 'Would replace %s\n' "$forgeflow_destination"
+    if [ -e "$praxisbound_destination" ]; then
+      printf 'Would replace %s\n' "$praxisbound_destination"
     else
-      printf 'Would install %s\n' "$forgeflow_destination"
+      printf 'Would install %s\n' "$praxisbound_destination"
     fi
   done <<EOF
-$forgeflow_active_destinations
+$praxisbound_active_destinations
 EOF
 
-  printf 'ForgeFlow dry run completed for %s\n' "$forgeflow_target"
+  printf 'PraxisBound dry run completed for %s\n' "$praxisbound_target"
   exit 0
 fi
 
-forgeflow_previous_version=
-if [ "$forgeflow_upgrade" -eq 1 ] &&
-  [ -f "$forgeflow_target/$forgeflow_marker_relative" ]; then
-  if ! forgeflow_previous_version=$(
+praxisbound_previous_version=
+if [ "$praxisbound_upgrade" -eq 1 ] &&
+  [ -f "$praxisbound_target/$praxisbound_marker_relative" ]; then
+  if ! praxisbound_previous_version=$(
     sed -n 's/^version=//p;/^version=/q' \
-      "$forgeflow_target/$forgeflow_marker_relative"
+      "$praxisbound_target/$praxisbound_marker_relative"
   ); then
     printf 'Could not read the adoption marker: %s\n' \
-      "$forgeflow_target/$forgeflow_marker_relative" >&2
+      "$praxisbound_target/$praxisbound_marker_relative" >&2
     exit 1
   fi
 
-  trim_trailing_blanks "$forgeflow_previous_version"
-  forgeflow_previous_version=$forgeflow_trimmed
+  trim_trailing_blanks "$praxisbound_previous_version"
+  praxisbound_previous_version=$praxisbound_trimmed
 fi
 
 resolve_snapshot_revision
-forgeflow_prepared=
-forgeflow_attempted=
-forgeflow_created_directories=
-forgeflow_committed=0
+if [ "$praxisbound_legacy_upgrade" -eq 1 ]; then
+  praxisbound_revision=$praxisbound_legacy_revision
+fi
+praxisbound_prepared=
+praxisbound_attempted=
+praxisbound_created_directories=
+praxisbound_committed=0
 trap finish_install 0
 trap 'exit 1' HUP INT TERM
 
-for forgeflow_relative_directory in $forgeflow_managed_directories
+for praxisbound_relative_directory in $praxisbound_managed_directories
 do
-  if [ ! -d "$forgeflow_target/$forgeflow_relative_directory" ]; then
-    forgeflow_created_directories="$forgeflow_relative_directory
-$forgeflow_created_directories"
-    mkdir "$forgeflow_target/$forgeflow_relative_directory"
+  if [ ! -d "$praxisbound_target/$praxisbound_relative_directory" ]; then
+    praxisbound_created_directories="$praxisbound_relative_directory
+$praxisbound_created_directories"
+    mkdir "$praxisbound_target/$praxisbound_relative_directory"
   fi
 done
 
-while IFS=' ' read -r forgeflow_template_relative forgeflow_relative_path; do
-  if ! prepare_managed_file "$forgeflow_root/$forgeflow_template_relative" "$forgeflow_relative_path"; then
-    printf 'Preparation failed: %s\n' "$forgeflow_target/$forgeflow_relative_path" >&2
+while IFS=' ' read -r praxisbound_template_relative praxisbound_relative_path; do
+  if ! prepare_managed_file "$praxisbound_root/$praxisbound_template_relative" "$praxisbound_relative_path"; then
+    printf 'Preparation failed: %s\n' "$praxisbound_target/$praxisbound_relative_path" >&2
     exit 1
   fi
 done <<EOF
-$forgeflow_active_files
+$praxisbound_active_files
 EOF
-if ! prepare_managed_file '' "$forgeflow_marker_relative"; then
-  printf 'Preparation failed: %s\n' "$forgeflow_target/$forgeflow_marker_relative" >&2
+if ! prepare_managed_file '' "$praxisbound_marker_relative"; then
+  printf 'Preparation failed: %s\n' "$praxisbound_target/$praxisbound_marker_relative" >&2
   exit 1
 fi
 
-while IFS= read -r forgeflow_relative_path; do
-  managed_stage "$forgeflow_relative_path"
+while IFS= read -r praxisbound_relative_path; do
+  managed_stage "$praxisbound_relative_path"
   # Include the attempted path before rename: a failing command may have written.
-  forgeflow_attempted="$forgeflow_relative_path
-$forgeflow_attempted"
-  if ! mv -f "$forgeflow_stage/new" "$forgeflow_destination"; then
-    printf 'Replacement failed: %s\n' "$forgeflow_destination" >&2
+  praxisbound_attempted="$praxisbound_relative_path
+$praxisbound_attempted"
+  if [ "$praxisbound_relative_path" = "$praxisbound_marker_relative" ] &&
+    [ "$praxisbound_legacy_upgrade" -eq 1 ]; then
+    if ! cp -p "$praxisbound_target/$praxisbound_legacy_marker_relative" \
+      "$praxisbound_stage/legacy-original" ||
+      ! rm -f "$praxisbound_target/$praxisbound_legacy_marker_relative"; then
+      printf 'Legacy marker replacement failed: %s\n' \
+        "$praxisbound_target/$praxisbound_legacy_marker_relative" >&2
+      exit 1
+    fi
+  fi
+  if ! mv -f "$praxisbound_stage/new" "$praxisbound_destination"; then
+    printf 'Replacement failed: %s\n' "$praxisbound_destination" >&2
     exit 1
   fi
 done <<EOF
-$forgeflow_active_destinations
+$praxisbound_active_destinations
 EOF
 trap '' HUP INT TERM
-forgeflow_committed=1
+praxisbound_committed=1
 
 # Finish cleanup before printing success. The same handler also runs on errors.
 finish_install
 
-if [ "$forgeflow_upgrade" -eq 1 ]; then
+if [ "$praxisbound_upgrade" -eq 1 ]; then
   printf 'AGENTS.md and guidance/ were left unchanged; they are owned by this repository.\n'
 
-  if [ -n "$forgeflow_previous_version" ] &&
-    [ "$forgeflow_previous_version" != "$forgeflow_version" ]; then
-    printf 'WARNING: this adoption last recorded ForgeFlow %s and these templates are %s.\n' \
-      "$forgeflow_previous_version" "$forgeflow_version" >&2
+  if [ -n "$praxisbound_previous_version" ] &&
+    [ "$praxisbound_previous_version" != "$praxisbound_version" ]; then
+    printf 'WARNING: this adoption last recorded PraxisBound %s and these templates are %s.\n' \
+      "$praxisbound_previous_version" "$praxisbound_version" >&2
     printf 'AGENTS.md and guidance/ were not written and may predate either version; see docs/upgrading.md.\n' >&2
   fi
 
-  printf 'ForgeFlow templates upgraded in %s\n' "$forgeflow_target"
+  printf 'PraxisBound templates upgraded in %s\n' "$praxisbound_target"
   exit 0
 fi
 
-printf 'ForgeFlow initialized in %s\n' "$forgeflow_target"
+printf 'PraxisBound initialized in %s\n' "$praxisbound_target"

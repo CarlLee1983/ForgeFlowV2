@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { Buffer } from "node:buffer";
 import { spawnSync } from "node:child_process";
 import {
   lstat,
@@ -21,7 +22,8 @@ import {
   activationDestinations,
   evaluateActivationMutation,
   planActivation,
-} from "@forgeflow/core";
+  posixCksum,
+} from "@praxisbound/core";
 
 import { nodeActivationFilesystemAdapter } from "../dist/activation.js";
 import { executeActivationMutation } from "../dist/activation-mutation.js";
@@ -44,6 +46,36 @@ async function adopted(root, name) {
     mode: 0o600,
   });
   return target;
+}
+
+async function seedLegacyActivation(target) {
+  const directory = join(target, ".agents/skills/forgeflow");
+  const skill = new TextEncoder().encode("# Legacy ForgeFlow skill\n");
+  const workflow = new TextEncoder().encode("# Legacy ForgeFlow workflow\n");
+  const block = new TextEncoder().encode(
+    "<!-- ForgeFlow Codex: begin -->\n" +
+      "<!-- snapshot version=0.9.0 revision=unknown adoption=0.9.0 -->\n" +
+      "Use the local ForgeFlow skill.\n" +
+      "<!-- ForgeFlow Codex: end -->\n",
+  );
+  const snapshot =
+    "format=1\nversion=0.9.0\nrevision=unknown\nadoption=0.9.0\n" +
+    `skill=${posixCksum(skill)}\n` +
+    `workflow=${posixCksum(workflow)}\n` +
+    `block=${posixCksum(block)}\n`;
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, "SKILL.md"), skill);
+  await writeFile(join(directory, "story-development.md"), workflow);
+  await writeFile(join(directory, ".forgeflow-snapshot"), snapshot);
+  await writeFile(
+    join(target, "AGENTS.md"),
+    Buffer.concat([
+      Buffer.from("unrelated prefix\n"),
+      Buffer.from(block),
+      Buffer.from("unrelated suffix\n"),
+    ]),
+    { mode: 0o600 },
+  );
 }
 
 async function planned(root) {
@@ -85,8 +117,104 @@ function withOperation(name, implementation) {
   });
 }
 
+test("PB002-AC-002/003: legacy activation migrates once and an interrupted removal restores exact bytes", async () => {
+  const root = await mkdtemp(join(tmpdir(), "praxisbound-legacy-activation-"));
+  try {
+    const migratedTarget = await adopted(root, "migrated");
+    await seedLegacyActivation(migratedTarget);
+    const migration = await planned(migratedTarget);
+    assert.deepEqual(
+      migration.plan.effects.slice(0, 3).map(({ kind, path }) => [kind, path]),
+      [
+        ["remove", ".agents/skills/forgeflow/SKILL.md"],
+        ["remove", ".agents/skills/forgeflow/story-development.md"],
+        ["remove", ".agents/skills/forgeflow/.forgeflow-snapshot"],
+      ],
+    );
+    const migratedObservation = await executeActivationMutation(
+      migratedTarget,
+      migration.plan,
+      migration.payloads,
+    );
+    assert.equal(
+      evaluateActivationMutation(migration.plan, migratedObservation).result
+        .outcome,
+      "ACTIVATION_APPLIED",
+    );
+    await assert.rejects(
+      lstat(join(migratedTarget, ".agents/skills/forgeflow")),
+      { code: "ENOENT" },
+    );
+    const migratedAgents = await readFile(
+      join(migratedTarget, "AGENTS.md"),
+      "utf8",
+    );
+    assert.match(migratedAgents, /^unrelated prefix$/m);
+    assert.match(migratedAgents, /^unrelated suffix$/m);
+    assert.match(migratedAgents, /<!-- PraxisBound Codex: begin -->/);
+    assert.doesNotMatch(migratedAgents, /<!-- ForgeFlow Codex:/);
+
+    const recoveredTarget = await adopted(root, "recovered");
+    await seedLegacyActivation(recoveredTarget);
+    const before = await manifest(recoveredTarget);
+    const recovery = await planned(recoveredTarget);
+    let injected = false;
+    const recoveredObservation = await executeActivationMutation(
+      recoveredTarget,
+      recovery.plan,
+      recovery.payloads,
+      withOperation("removeFile", async (path) => {
+        if (!injected && path.endsWith(".agents/skills/forgeflow/SKILL.md")) {
+          injected = true;
+          await nodeInitMutationOperations.removeFile(path);
+          throw new Error("injected legacy removal failure");
+        }
+        await nodeInitMutationOperations.removeFile(path);
+      }),
+    );
+    assert.equal(injected, true);
+    assert.equal(
+      evaluateActivationMutation(recovery.plan, recoveredObservation).result
+        .outcome,
+      "ACTIVATION_APPLY_FAILED_RECOVERED",
+    );
+    assert.deepEqual(await manifest(recoveredTarget), before);
+
+    for (const timing of ["before", "after"]) {
+      const directoryTarget = await adopted(root, `legacy-directory-${timing}`);
+      await seedLegacyActivation(directoryTarget);
+      const directoryBefore = await manifest(directoryTarget);
+      const directoryPlan = await planned(directoryTarget);
+      let failed = false;
+      const directoryObservation = await executeActivationMutation(
+        directoryTarget,
+        directoryPlan.plan,
+        directoryPlan.payloads,
+        withOperation("removeDirectory", async (path) => {
+          if (!failed && path.endsWith(".agents/skills/forgeflow")) {
+            failed = true;
+            if (timing === "after")
+              await nodeInitMutationOperations.removeDirectory(path);
+            throw new Error(`injected ${timing}-effect legacy rmdir failure`);
+          }
+          await nodeInitMutationOperations.removeDirectory(path);
+        }),
+      );
+      assert.equal(failed, true);
+      assert.equal(
+        evaluateActivationMutation(directoryPlan.plan, directoryObservation)
+          .result.outcome,
+        "ACTIVATION_APPLY_FAILED_RECOVERED",
+      );
+      assert.deepEqual(await manifest(directoryTarget), directoryBefore);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("TST014-AC-005: changed target content and occupied stages are refused before mutation", async () => {
-  const root = await mkdtemp(join(tmpdir(), "forgeflow-activation-stale-"));
+  const root = await mkdtemp(join(tmpdir(), "praxisbound-activation-stale-"));
   try {
     const target = await adopted(root, "target");
     const first = await planned(target);
@@ -157,11 +285,11 @@ test("TST014-AC-005: changed target content and occupied stages are refused befo
         if (
           !injected &&
           operation === "makeDirectory" &&
-          path.includes(".forgeflow-activate.")
+          path.includes(".praxisbound-activate.")
         ) {
           injected = true;
           await writeFile(
-            join(membershipTarget, ".agents/skills/forgeflow/local-note.md"),
+            join(membershipTarget, ".agents/skills/praxisbound/local-note.md"),
             "concurrent owner\n",
           );
         }
@@ -176,7 +304,7 @@ test("TST014-AC-005: changed target content and occupied stages are refused befo
     assert.equal(membershipObservation.attempted.length, 0);
     assert.equal(
       await readFile(
-        join(membershipTarget, ".agents/skills/forgeflow/local-note.md"),
+        join(membershipTarget, ".agents/skills/praxisbound/local-note.md"),
         "utf8",
       ),
       "concurrent owner\n",
@@ -208,7 +336,7 @@ test("TST014-AC-005: changed target content and occupied stages are refused befo
 });
 
 test("TST014-AC-005/006: preparation and before/after rename faults recover exact target bytes", async () => {
-  const root = await mkdtemp(join(tmpdir(), "forgeflow-activation-recover-"));
+  const root = await mkdtemp(join(tmpdir(), "praxisbound-activation-recover-"));
   try {
     const cases = [
       { kind: "prepare" },
@@ -273,7 +401,7 @@ test("TST014-AC-005/006: preparation and before/after rename faults recover exac
 });
 
 test("TST014-AC-005/006: a changed backup read is stale and can never become recovered target content", async () => {
-  const root = await mkdtemp(join(tmpdir(), "forgeflow-activation-backup-"));
+  const root = await mkdtemp(join(tmpdir(), "praxisbound-activation-backup-"));
   try {
     const target = await adopted(root, "target");
     const { plan, payloads } = await planned(target);
@@ -302,7 +430,7 @@ test("TST014-AC-005/006: a changed backup read is stale and can never become rec
 
 test("TST014-AC-006: failed restoration continues recovery and retains every stage", async () => {
   const root = await mkdtemp(
-    join(tmpdir(), "forgeflow-activation-incomplete-"),
+    join(tmpdir(), "praxisbound-activation-incomplete-"),
   );
   try {
     const target = await adopted(root, "target");
@@ -335,7 +463,7 @@ test("TST014-AC-006: failed restoration continues recovery and retains every sta
       plan.stagePreconditions.map(({ path }) => path),
     );
     assert.deepEqual(result.data.invalidated, [
-      ".agents/skills/forgeflow/.forgeflow-snapshot",
+      ".agents/skills/praxisbound/.praxisbound-snapshot",
     ]);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -344,7 +472,7 @@ test("TST014-AC-006: failed restoration continues recovery and retains every sta
 
 test("TST014-AC-006: failed snapshot invalidation remains incomplete with retained recovery evidence", async () => {
   const root = await mkdtemp(
-    join(tmpdir(), "forgeflow-activation-invalidation-"),
+    join(tmpdir(), "praxisbound-activation-invalidation-"),
   );
   try {
     const target = await adopted(root, "target");
@@ -364,7 +492,8 @@ test("TST014-AC-006: failed snapshot invalidation remains incomplete with retain
       },
       async removeFile(path) {
         if (
-          path === join(target, ".agents/skills/forgeflow/.forgeflow-snapshot")
+          path ===
+          join(target, ".agents/skills/praxisbound/.praxisbound-snapshot")
         )
           throw new Error("injected invalidation failure");
         return nodeInitMutationOperations.removeFile(path);
@@ -390,13 +519,13 @@ test("TST014-AC-006: failed snapshot invalidation remains incomplete with retain
 });
 
 test("TST014-AC-007: committed stage cleanup residue has its distinct result", async () => {
-  const root = await mkdtemp(join(tmpdir(), "forgeflow-activation-cleanup-"));
+  const root = await mkdtemp(join(tmpdir(), "praxisbound-activation-cleanup-"));
   try {
     const target = await adopted(root, "target");
     const { plan, payloads } = await planned(target);
     let failed = false;
     const operations = withOperation("removeDirectory", async (path) => {
-      if (!failed && path.includes(".forgeflow-activate.")) {
+      if (!failed && path.includes(".praxisbound-activate.")) {
         failed = true;
         throw new Error("injected cleanup failure");
       }
@@ -419,7 +548,7 @@ test("TST014-AC-007: committed stage cleanup residue has its distinct result", a
 
 test("TST014-AC-006/007: complete reverse recovery with cleanup residue stays cleanup-incomplete", async () => {
   const root = await mkdtemp(
-    join(tmpdir(), "forgeflow-activation-recovery-cleanup-"),
+    join(tmpdir(), "praxisbound-activation-recovery-cleanup-"),
   );
   try {
     const target = await adopted(root, "target");
@@ -438,7 +567,7 @@ test("TST014-AC-006/007: complete reverse recovery with cleanup residue stays cl
         return nodeInitMutationOperations.rename(source, destination);
       },
       async removeDirectory(path) {
-        if (!cleanupFailed && path.includes(".forgeflow-activate.")) {
+        if (!cleanupFailed && path.includes(".praxisbound-activate.")) {
           cleanupFailed = true;
           throw new Error("injected cleanup failure");
         }
@@ -465,7 +594,7 @@ test("TST014-AC-006/007: complete reverse recovery with cleanup residue stays cl
 
 test("TST014-AC-006/007: preparation directory cleanup failure reports every retained owned directory", async () => {
   const root = await mkdtemp(
-    join(tmpdir(), "forgeflow-activation-directory-cleanup-"),
+    join(tmpdir(), "praxisbound-activation-directory-cleanup-"),
   );
   try {
     const target = await adopted(root, "target");
@@ -486,7 +615,7 @@ test("TST014-AC-006/007: preparation directory cleanup failure reports every ret
         );
       },
       async removeDirectory(path) {
-        if (path === join(target, ".agents/skills/forgeflow"))
+        if (path === join(target, ".agents/skills/praxisbound"))
           throw new Error("injected directory cleanup failure");
         return nodeInitMutationOperations.removeDirectory(path);
       },
@@ -502,7 +631,7 @@ test("TST014-AC-006/007: preparation directory cleanup failure reports every ret
     assert.deepEqual(result.data.cleanupResidue, [
       ".agents",
       ".agents/skills",
-      ".agents/skills/forgeflow",
+      ".agents/skills/praxisbound",
     ]);
   } finally {
     await rm(root, { recursive: true, force: true });

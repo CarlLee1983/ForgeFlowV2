@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   evaluateVerificationResult,
   validateResultEnvelope,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 const acceptance = `# Acceptance Criteria
 
@@ -82,7 +82,7 @@ test("TST006-AC-001: a complete record evaluates to PASS", () => {
   assert.deepEqual(evaluation.planIssues, []);
   assert.deepEqual(evaluation.result, {
     schemaVersion: "1.0.0",
-    protocolVersion: "0.9.0",
+    protocolVersion: "0.10.0",
     status: "pass",
     outcome: "success",
     exit: 0,

@@ -9,7 +9,7 @@ import {
   type InitPathKind,
   type InitPathObservation,
   type InitStageObservation,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 export function initFilesystemIdentity(stats: {
   readonly dev: number;
@@ -83,6 +83,7 @@ export async function observeInitPath(
         readable: true,
         digest: createHash("sha256").update(bytes).digest("hex"),
         identity: initFilesystemIdentity(after),
+        text: new TextDecoder("utf-8", { fatal: true }).decode(bytes),
       });
     } finally {
       await handle.close();

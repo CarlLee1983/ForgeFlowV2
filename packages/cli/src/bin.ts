@@ -36,16 +36,16 @@ const manifest = JSON.parse(readFileSync(manifestUrl, "utf8")) as {
 };
 
 if (typeof manifest.version !== "string") {
-  throw new Error("The ForgeFlow CLI package manifest has no version.");
+  throw new Error("The PraxisBound CLI package manifest has no version.");
 }
 
-const help = `ForgeFlow CLI v${manifest.version}
+const help = `PraxisBound CLI v${manifest.version}
 
 Usage:
-  forgeflow [command]
+  praxisbound [command]
 
 Commands:
-  init               Plan or apply ForgeFlow initialization
+  init               Plan or apply PraxisBound initialization
   codex activate     Preview or apply project-local Codex activation
   doctor             Inspect the static Repository Contract
   verify             Run the canonical repository verification target
@@ -59,7 +59,7 @@ Commands:
 Other migration commands are unavailable.
 `;
 const unavailable =
-  "forgeflow: command unavailable; this command is not available. Run forgeflow --help.\n";
+  "praxisbound: command unavailable; this command is not available. Run praxisbound --help.\n";
 const args = process.argv.slice(2);
 
 function activationGlobalOption(

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ForgeFlow Protocol: Technical Architecture &amp; Determinism</title>
+  <title>PraxisBound Protocol: Technical Architecture &amp; Determinism</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet">
@@ -671,7 +671,7 @@
     <div class="brand-meta">
       <div class="brand-name">
         <span class="status-beacon"></span>
-        FORGEFLOW SPECIFICATION
+        PRAXISBOUND SPECIFICATION
       </div>
       <div class="brand-version">SYSTEM ARCHITECTURE PROTOCOL</div>
     </div>
@@ -704,7 +704,7 @@
   <section class="slide-container" id="slide-1">
     <div class="slide-index-tag">PHASE 01 • SPECIFICATION REVOLUTION</div>
     <h1 class="deck-title">從口頭提示，<br>轉向確定性軟體契約</h1>
-    <p class="deck-summary">向團隊解說：為什麼傳統的「Prompt 道德勸說」永遠會失效，而 ForgeFlow 如何將規格化為實體卡榫。</p>
+    <p class="deck-summary">向團隊解說：為什麼傳統的「Prompt 道德勸說」永遠會失效，而 PraxisBound 如何將規格化為實體卡榫。</p>
 
     <div class="axiom-banner">
       <p>「用不可篡改的軟體合約限制代理人權限，用作業系統確定性的測試命令取代 AI 的主觀自信。」</p>
@@ -791,7 +791,7 @@ sed -n <span class="syntax-string">'s/^[[:space:]]*test("\(AC-[0-9][0-9]*\):.*/\
         <span class="tech-pill">標記機制：Regex String Anchoring</span>
       </div>
       <h4>單元測試與 AC 的語義錨定技術</h4>
-      <p>現代測試框架原生支援字串標籤過濾。ForgeFlow 利用測試描述字串作為 AST 錨定點（<code>test("AC-01: ...")</code>），在編譯期與執行期均保持單一檔案的內聚性，同時提供粒度達到單一斷言（Assertion）層級的檢驗報告。</p>
+      <p>現代測試框架原生支援字串標籤過濾。PraxisBound 利用測試描述字串作為 AST 錨定點（<code>test("AC-01: ...")</code>），在編譯期與執行期均保持單一檔案的內聚性，同時提供粒度達到單一斷言（Assertion）層級的檢驗報告。</p>
     </div>
 
     <div class="console-frame">
@@ -899,7 +899,7 @@ test(<span class="syntax-string">"AC-03: rejects invalid unit prices"</span>, ()
         <span class="tech-pill">驗證原則：Zero Ambiguity / Zero Placeholder</span>
       </div>
       <h4>為什麼「看似 Markdown」卻能做到編譯器等級的語法查核？</h4>
-      <p>一般人把 Markdown 當隨筆筆記；ForgeFlow 則將其視為一門**受限的領域特定語言（DSL）**。人類閱讀時好讀美觀，但 Shell 腳本在底層會啟動狀態機，將每一個符號拆解為 Token 並嚴格核對欄位數與字面量，杜絕 AI 產生任何模糊發揮的空間。</p>
+      <p>一般人把 Markdown 當隨筆筆記；PraxisBound 則將其視為一門**受限的領域特定語言（DSL）**。人類閱讀時好讀美觀，但 Shell 腳本在底層會啟動狀態機，將每一個符號拆解為 Token 並嚴格核對欄位數與字面量，杜絕 AI 產生任何模糊發揮的空間。</p>
     </div>
 
     <div class="grammar-deck-grid">
@@ -918,7 +918,7 @@ test(<span class="syntax-string">"AC-03: rejects invalid unit prices"</span>, ()
           <span class="grammar-title">2. 宣告式鍵值對 (Declaration Bullet)</span>
           <span class="grammar-source-tag">Section FSM</span>
         </div>
-        <p>所有系統參數使用單行嚴格宣告，底層函式 <code>forgeflow_read_declaration()</code> 逐行讀取冒號後的值。</p>
+        <p>所有系統參數使用單行嚴格宣告，底層函式 <code>praxisbound_read_declaration()</code> 逐行讀取冒號後的值。</p>
         <div class="grammar-syntax-box">* &lt;Key&gt;: &lt;Value&gt;  (例：* Security sensitive: yes)</div>
         <div class="grammar-rule">限制：值限定為布林或特定列舉，<strong>嚴禁跨行縮排或未定義關鍵字</strong></div>
       </div>
@@ -926,7 +926,7 @@ test(<span class="syntax-string">"AC-03: rejects invalid unit prices"</span>, ()
       <div class="grammar-card">
         <div class="grammar-header">
           <span class="grammar-title">3. 驗收核取方塊 (Checkbox AC Notation)</span>
-          <span class="grammar-source-tag">forgeflow_is_placeholder</span>
+          <span class="grammar-source-tag">praxisbound_is_placeholder</span>
         </div>
         <p>驗收條款必須使用標準方塊符號，底層函式會主動掃描角括號，<strong>全面禁止任何占位符</strong>。</p>
         <div class="grammar-syntax-box">* [ ] AC-&lt;Number&gt;: &lt;Criterion Prose&gt;</div>
@@ -936,7 +936,7 @@ test(<span class="syntax-string">"AC-03: rejects invalid unit prices"</span>, ()
       <div class="grammar-card">
         <div class="grammar-header">
           <span class="grammar-title">4. 固定五欄表格 (Strict 5-Column Table)</span>
-          <span class="grammar-source-tag">forgeflow_is_five_column_separator</span>
+          <span class="grammar-source-tag">praxisbound_is_five_column_separator</span>
         </div>
         <p>證據對照表欄位完全固定。底層逐行計算管線符號 <code>|</code>，多一欄或少一欄均直接語法錯誤。</p>
         <div class="grammar-syntax-box">| AC | Method | Evidence | Fixture | Expected observation |</div>
@@ -959,7 +959,7 @@ test(<span class="syntax-string">"AC-03: rejects invalid unit prices"</span>, ()
   <section class="slide-container" id="slide-6">
     <div class="slide-index-tag">PHASE 06 • THE CLOSED-LOOP PIPELINE</div>
     <h2 class="slide-title">SDD + TDD 雙重閉環：工程流水線全景</h2>
-    <p class="deck-summary">向團隊做最後總結：ForgeFlow 不是外掛插件，而是讓「規格驅動（SDD）」與「測試驅動（TDD）」在機器層面完美咬合的閉環管線。</p>
+    <p class="deck-summary">向團隊做最後總結：PraxisBound 不是外掛插件，而是讓「規格驅動（SDD）」與「測試驅動（TDD）」在機器層面完美咬合的閉環管線。</p>
 
     <div class="pipeline-flow">
       <div class="flow-step">

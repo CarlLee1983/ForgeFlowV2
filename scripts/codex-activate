@@ -13,7 +13,7 @@ fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
 stage_path() {
   destination="$target/$1"
-  stage="${destination%/*}/.forgeflow-activate.$$-${destination##*/}"
+  stage="${destination%/*}/.praxisbound-activate.$$-${destination##*/}"
 }
 
 # Adapted from bootstrap: stage beside each leaf, track attempts before rename,
@@ -23,6 +23,18 @@ finish() {
   trap - 0
   trap '' HUP INT TERM
   recovery_failed=0
+  if [ "$finish_status" -ne 0 ] && [ "${legacy_cleanup_started:-0}" -eq 1 ]; then
+    [ -d "$legacy_dir" ] || mkdir "$legacy_dir" || recovery_failed=1
+    for member in SKILL.md story-development.md .forgeflow-snapshot; do
+      restore_path="$legacy_dir/.praxisbound-activate.$$-restore-$member"
+      if [ ! -d "$legacy_dir" ] ||
+        ! cp -p "$scratch/legacy-$member" "$restore_path" ||
+        ! mv -f "$restore_path" "$legacy_dir/$member"; then
+        recovery_failed=1
+        printf 'UNRESTORED: %s\n' "$legacy_dir/$member" >&2
+      fi
+    done
+  fi
   if [ "$finish_status" -ne 0 ] && [ "$committed" -eq 0 ]; then
     while IFS= read -r relative; do
       [ -n "$relative" ] || continue
@@ -70,12 +82,18 @@ $created
 EOF
     printf 'Activation failed; original managed contents and existence restored.\n' >&2
   fi
-  rm -f "$scratch/block" "$scratch/current-block" "$scratch/AGENTS.md" \
-    "$scratch/SKILL.md" "$scratch/story-development.md" "$scratch/.forgeflow-snapshot" \
-    "$scratch/expected-snapshot"
-  if ! rmdir "$scratch"; then
-    printf 'Cleanup incomplete: %s\n' "$scratch" >&2
-    finish_status=1
+  if [ "$recovery_failed" -eq 1 ]; then
+    printf 'Recovery copies retained: %s\n' "$scratch" >&2
+  else
+    rm -f "$scratch/block" "$scratch/current-block" "$scratch/AGENTS.md" \
+      "$scratch/SKILL.md" "$scratch/story-development.md" "$scratch/.praxisbound-snapshot" \
+      "$scratch/expected-snapshot" "$scratch/legacy-expected" \
+      "$scratch/legacy-SKILL.md" "$scratch/legacy-story-development.md" \
+      "$scratch/legacy-.forgeflow-snapshot"
+    if ! rmdir "$scratch"; then
+      printf 'Cleanup incomplete: %s\n' "$scratch" >&2
+      finish_status=1
+    fi
   fi
   [ "$finish_status" -eq 0 ] || exit 1
 }
@@ -90,13 +108,15 @@ case "$1" in -*) usage; exit 2 ;; esac
 [ -d "$1" ] || fail 'Target is not a directory'
 target=$(CDPATH='' cd -P "$1" && pwd)
 root=$(CDPATH='' cd -P "$(dirname "$0")/.." && pwd)
-skill_relative=.agents/skills/forgeflow
+skill_relative=.agents/skills/praxisbound
 skill_dir="$target/$skill_relative"
-directories='specs specs/stories .agents .agents/skills .agents/skills/forgeflow'
+legacy_relative=.agents/skills/forgeflow
+legacy_dir="$target/$legacy_relative"
+directories='specs specs/stories .agents .agents/skills .agents/skills/praxisbound'
 files="AGENTS.md
 $skill_relative/SKILL.md
 $skill_relative/story-development.md
-$skill_relative/.forgeflow-snapshot"
+$skill_relative/.praxisbound-snapshot"
 
 for relative in $directories; do
   path="$target/$relative"
@@ -111,30 +131,70 @@ while IFS= read -r relative; do
   fi
 done <<EOF
 $files
+specs/.praxisbound-adoption
 specs/.forgeflow-adoption
 EOF
+[ ! -L "$legacy_dir" ] || fail "Refusing directory symlink: $legacy_dir"
+if [ -e "$legacy_dir" ] && [ ! -d "$legacy_dir" ]; then
+  fail "Not a directory: $legacy_dir"
+fi
 [ -s "$target/AGENTS.md" ] && [ -d "$target/specs/stories" ] ||
   fail 'No existing adoption: require AGENTS.md and specs/stories; use bootstrap first'
 
 # Only these three files belong to this integration. An unknown file or missing
 # member requires reconciliation before any mkdir, stage, or target write.
 installed=0
+migrating=0
 if [ -d "$skill_dir" ]; then
   for path in "$skill_dir"/* "$skill_dir"/.[!.]* "$skill_dir"/..?*; do
     [ -e "$path" ] || [ -L "$path" ] || continue
     case "${path##*/}" in
-      SKILL.md|story-development.md|.forgeflow-snapshot) ;;
+      SKILL.md|story-development.md|.praxisbound-snapshot) ;;
       *) fail "Unknown integration content: $path" ;;
     esac
   done
-  for member in SKILL.md story-development.md .forgeflow-snapshot; do
+  for member in SKILL.md story-development.md .praxisbound-snapshot; do
     [ -s "$skill_dir/$member" ] || fail "Incomplete or unowned integration: $skill_dir/$member"
   done
   installed=1
 fi
 
-begin='<!-- ForgeFlow Codex: begin -->'
-end='<!-- ForgeFlow Codex: end -->'
+# A ForgeFlow tuple is migration input only. Validate every owned byte before
+# planning any PraxisBound write; a mixed tuple is never a valid target state.
+if [ -d "$legacy_dir" ]; then
+  [ "$installed" -eq 0 ] || fail 'Both legacy and PraxisBound activation directories exist; reconcile first'
+  for path in "$legacy_dir"/* "$legacy_dir"/.[!.]* "$legacy_dir"/..?*; do
+    [ -e "$path" ] || [ -L "$path" ] || continue
+    case "${path##*/}" in SKILL.md|story-development.md|.forgeflow-snapshot) ;; *) fail "Unknown legacy integration content: $path" ;; esac
+  done
+  for member in SKILL.md story-development.md .forgeflow-snapshot; do
+    [ -f "$legacy_dir/$member" ] && [ ! -L "$legacy_dir/$member" ] && [ -r "$legacy_dir/$member" ] ||
+      fail "Incomplete or unsafe legacy integration: $legacy_dir/$member"
+  done
+  legacy_begin='<!-- ForgeFlow Codex: begin -->'
+  legacy_end='<!-- ForgeFlow Codex: end -->'
+  legacy_bytes=$(wc -c <"$target/AGENTS.md" | tr -d '[:space:]')
+  legacy_offsets=$(awk -v total="$legacy_bytes" -v begin="$legacy_begin" -v end="$legacy_end" '
+    { raw=$0; line=$0; sub(/\r$/, "", line); width=length(raw); if(pos+width<total) width++
+      if(index(line, "<!-- ForgeFlow Codex:")) { if(line==begin && count==0){start=pos;count=1} else if(line==end && count==1){stop=pos+width;count=2}else bad=1 }; pos+=width }
+    END { if(bad || count!=2) exit 1; print start+0, stop+0 }
+  ' "$target/AGENTS.md") || fail 'Ambiguous or malformed ForgeFlow section; reconcile AGENTS.md'
+  read -r legacy_start legacy_stop <<EOF
+$legacy_offsets
+EOF
+  legacy_version=$(sed -n '2s/^version=//p' "$legacy_dir/.forgeflow-snapshot")
+  legacy_revision=$(sed -n '3s/^revision=//p' "$legacy_dir/.forgeflow-snapshot")
+  legacy_adoption=$(sed -n '4s/^adoption=//p' "$legacy_dir/.forgeflow-snapshot")
+  [ "$legacy_version" = 0.9.0 ] ||
+    fail 'Unsupported legacy activation snapshot version'
+  printf '%s\n' "$legacy_revision" | grep -Eq '^(unknown|[a-f0-9]{40}|[a-f0-9]{64})(-dirty)?$' ||
+    fail 'Malformed legacy activation snapshot revision'
+  case "$legacy_adoption" in unknown|[0-9]*.[0-9]*.[0-9]*) ;; *) fail 'Malformed legacy activation snapshot adoption' ;; esac
+  migrating=1
+fi
+
+begin='<!-- PraxisBound Codex: begin -->'
+end='<!-- PraxisBound Codex: end -->'
 bytes=$(wc -c <"$target/AGENTS.md" | tr -d '[:space:]')
 # Locate bytes only; dd copies the actual data so CRLF and a missing final LF
 # outside the block survive unchanged. Reject marker-like malformed lines too.
@@ -142,7 +202,7 @@ offsets=$(awk -v total="$bytes" -v begin="$begin" -v end="$end" '
   {
     raw=$0; line=$0; sub(/\r$/, "", line)
     width=length(raw); if (pos+width < total) width++
-    if (index(line, "<!-- ForgeFlow Codex:")) {
+    if (index(line, "<!-- PraxisBound Codex:")) {
       if (line==begin && count==0) {start=pos; count=1}
       else if (line==end && count==1) {stop=pos+width; count=2}
       else bad=1
@@ -150,16 +210,22 @@ offsets=$(awk -v total="$bytes" -v begin="$begin" -v end="$end" '
     pos+=width
   }
   END {if(bad || count==1) exit 1; print count+0, start+0, stop+0}
-' "$target/AGENTS.md") || fail 'Ambiguous or malformed ForgeFlow section; reconcile AGENTS.md'
+' "$target/AGENTS.md") || fail 'Ambiguous or malformed PraxisBound section; reconcile AGENTS.md'
 read -r block_count block_start block_stop <<EOF
 $offsets
 EOF
 [ "$block_count" -eq $((installed * 2)) ] || fail 'AGENTS section and installed snapshot ownership disagree'
 
-scratch=$(mktemp -d "${TMPDIR:-/tmp}/forgeflow-activate.XXXXXX")
-prepared= attempted= created= committed=0 applied=0
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/praxisbound-activate.XXXXXX")
+prepared= attempted= created= committed=0 applied=0 legacy_cleanup_started=0
 trap finish 0
 trap 'exit 1' HUP INT TERM
+if [ "$migrating" -eq 1 ]; then
+  for member in SKILL.md story-development.md .forgeflow-snapshot; do
+    cp -p "$legacy_dir/$member" "$scratch/legacy-$member"
+  done
+fi
+if [ "$migrating" -eq 1 ]; then block_start=$legacy_start; block_stop=$legacy_stop; fi
 dd if="$target/AGENTS.md" of="$scratch/current-block" bs=1 skip="$block_start" \
   count="$((block_stop - block_start))" 2>/dev/null
 
@@ -172,23 +238,41 @@ snapshot() {
 }
 
 if [ "$installed" -eq 1 ]; then
-  version=$(sed -n '2s/^version=//p' "$skill_dir/.forgeflow-snapshot")
-  revision=$(sed -n '3s/^revision=//p' "$skill_dir/.forgeflow-snapshot")
-  adoption=$(sed -n '4s/^adoption=//p' "$skill_dir/.forgeflow-snapshot")
+  version=$(sed -n '2s/^version=//p' "$skill_dir/.praxisbound-snapshot")
+  revision=$(sed -n '3s/^revision=//p' "$skill_dir/.praxisbound-snapshot")
+  adoption=$(sed -n '4s/^adoption=//p' "$skill_dir/.praxisbound-snapshot")
   snapshot "$skill_dir" "$scratch/current-block" >"$scratch/expected-snapshot"
-  cmp -s "$scratch/expected-snapshot" "$skill_dir/.forgeflow-snapshot" ||
+  cmp -s "$scratch/expected-snapshot" "$skill_dir/.praxisbound-snapshot" ||
     fail 'Locally edited or malformed integration; restore the recorded snapshot before updating'
   grep -Fqx "<!-- snapshot version=$version revision=$revision adoption=$adoption -->" \
     "$scratch/current-block" || fail 'Snapshot identity and AGENTS section disagree'
+fi
+if [ "$migrating" -eq 1 ]; then
+  version=$legacy_version
+  revision=$legacy_revision
+  adoption=$legacy_adoption
+  snapshot "$legacy_dir" "$scratch/current-block" >"$scratch/legacy-expected"
+  cmp -s "$scratch/legacy-expected" "$legacy_dir/.forgeflow-snapshot" ||
+    fail 'Locally edited or malformed legacy integration; restore the recorded snapshot before migrating'
+  grep -Fqx "<!-- snapshot version=$version revision=$revision adoption=$adoption -->" "$scratch/current-block" ||
+    fail 'Legacy snapshot identity and AGENTS section disagree'
 fi
 
 version=$(sed -n '1p' "$root/VERSION")
 printf '%s\n' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || fail 'Invalid source VERSION'
 adoption=unknown
-if [ -f "$target/specs/.forgeflow-adoption" ]; then
-  [ "$(awk '/^version=/{n++} END{print n+0}' "$target/specs/.forgeflow-adoption")" -eq 1 ] ||
+[ ! -f "$target/specs/.praxisbound-adoption" ] || [ ! -f "$target/specs/.forgeflow-adoption" ] ||
+  fail 'Both legacy and PraxisBound adoption markers exist; reconcile first'
+adoption_marker=
+if [ -f "$target/specs/.praxisbound-adoption" ]; then
+  adoption_marker="$target/specs/.praxisbound-adoption"
+elif [ -f "$target/specs/.forgeflow-adoption" ]; then
+  adoption_marker="$target/specs/.forgeflow-adoption"
+fi
+if [ -n "$adoption_marker" ]; then
+  [ "$(awk '/^version=/{n++} END{print n+0}' "$adoption_marker")" -eq 1 ] ||
     fail 'Invalid adoption marker version: require exactly one version line'
-  adoption=$(sed -n 's/^version=//p' "$target/specs/.forgeflow-adoption" | tr -d '\r')
+  adoption=$(sed -n 's/^version=//p' "$adoption_marker" | tr -d '\r')
   case "$adoption" in
     ''|*[!0-9.]*) fail 'Invalid adoption marker version: require one numeric version line' ;;
   esac
@@ -205,11 +289,11 @@ if command -v git >/dev/null 2>&1; then
   ) || revision=unknown
 fi
 sed 's|../story-development/SKILL.md|story-development.md|g' \
-  "$root/skills/forgeflow/SKILL.md" >"$scratch/SKILL.md"
+  "$root/skills/praxisbound/SKILL.md" >"$scratch/SKILL.md"
 cp "$root/skills/story-development/SKILL.md" "$scratch/story-development.md"
 {
   printf '%s\n' "$begin" "<!-- snapshot version=$version revision=$revision adoption=$adoption -->"
-  cat "$root/skills/forgeflow/agents-block.md"
+  cat "$root/skills/praxisbound/agents-block.md"
   printf '%s\n' "$end"
 } >"$scratch/block"
 {
@@ -217,7 +301,7 @@ cp "$root/skills/story-development/SKILL.md" "$scratch/story-development.md"
   cat "$scratch/block"
   dd if="$target/AGENTS.md" bs=1 skip="$block_stop" 2>/dev/null
 } >"$scratch/AGENTS.md"
-snapshot "$scratch" "$scratch/block" >"$scratch/.forgeflow-snapshot"
+snapshot "$scratch" "$scratch/block" >"$scratch/.praxisbound-snapshot"
 
 changed=0
 while IFS= read -r relative; do
@@ -228,7 +312,7 @@ while IFS= read -r relative; do
 done <<EOF
 $files
 EOF
-if [ "$changed" -eq 0 ]; then printf 'Already installed: ForgeFlow %s (%s)\n' "$version" "$revision"; exit 0; fi
+if [ "$changed" -eq 0 ]; then printf 'Already installed: PraxisBound %s (%s)\n' "$version" "$revision"; exit 0; fi
 diff_status=0
 diff -u "$target/AGENTS.md" "$scratch/AGENTS.md" || diff_status=$?
 [ "$diff_status" -le 1 ] || fail 'Could not preview AGENTS.md changes'
@@ -238,7 +322,7 @@ if [ "$apply" -eq 0 ]; then
 fi
 
 applied=1
-for relative in .agents .agents/skills .agents/skills/forgeflow; do
+for relative in .agents .agents/skills .agents/skills/praxisbound; do
   if [ ! -d "$target/$relative" ]; then
     created="$relative
 $created"
@@ -274,6 +358,11 @@ done <<EOF
 $files
 EOF
 trap '' HUP INT TERM
+if [ "$migrating" -eq 1 ]; then
+  legacy_cleanup_started=1
+  rm -f "$legacy_dir/SKILL.md" "$legacy_dir/story-development.md" "$legacy_dir/.forgeflow-snapshot"
+  rmdir "$legacy_dir"
+fi
 committed=1
 finish
-printf 'Installed ForgeFlow %s (%s) in %s\n' "$version" "$revision" "$target"
+printf 'Installed PraxisBound %s (%s) in %s\n' "$version" "$revision" "$target"

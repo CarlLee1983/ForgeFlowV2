@@ -137,7 +137,7 @@ source_scripts_remain_unchanged() {
 }
 
 canonical_verify_keeps_existing_dependencies() {
-  grep -Fqx 'verify: verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions verify-execution verify-tooling' \
+  grep -Fqx 'verify: verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions verify-execution verify-tooling verify-praxisbound' \
     "$forgeflow_repo/Makefile" || fail 'canonical verify dependencies changed'
   grep -Fqx 'release-check: verify' "$forgeflow_repo/Makefile" ||
     fail 'release-check no longer depends on canonical verify'

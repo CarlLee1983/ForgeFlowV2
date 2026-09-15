@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { validateResultEnvelope } from "@forgeflow/core";
+import { validateResultEnvelope } from "@praxisbound/core";
 
 import { runDoctor } from "../dist/doctor.js";
 import { runDoctorVerification } from "../dist/doctor-execution.js";
@@ -89,7 +89,7 @@ test("TST010-AC-001: direct verification invokes make once from the resolved phy
 test("TST010-AC-001/002: advisory Doctor drift permits execution, but incomplete Doctor structure does not", async (t) => {
   const root = await fixture(t);
   await writeFile(
-    join(root, "specs", ".forgeflow-adoption"),
+    join(root, "specs", ".praxisbound-adoption"),
     "version=0.0.0\n",
   );
   const calls = [];
@@ -253,7 +253,7 @@ test("TST010-AC-001/003: direct and Doctor execution stream human output, while 
 
   const human = runCli(["verify"], root);
   assert.equal(human.status, 0);
-  assert.match(human.stdout, /^ForgeFlow Canonical Verification$/m);
+  assert.match(human.stdout, /^PraxisBound Canonical Verification$/m);
   assert.match(human.stdout, /child stdout/);
   assert.match(human.stderr, /child stderr/);
   assert.match(human.stdout, /^Result: VERIFIED_LOCAL$/m);

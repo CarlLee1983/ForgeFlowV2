@@ -3,21 +3,21 @@
 ## Recommended command hierarchy
 
 ```text
-forgeflow init [repository]
-forgeflow doctor [repository]
-forgeflow verify [repository]
+praxisbound init [repository]
+praxisbound doctor [repository]
+praxisbound verify [repository]
 
-forgeflow story check [story ...]
-forgeflow verification check [story ...]
-forgeflow handoff check [handoff-file]
-forgeflow release check [repository]
+praxisbound story check [story ...]
+praxisbound verification check [story ...]
+praxisbound handoff check [handoff-file]
+praxisbound release check [repository]
 
-forgeflow codex activate <repository>
+praxisbound codex activate <repository>
 ```
 
 This hierarchy uses short top-level verbs for the three common repository
 workflows and `<noun> check` for artifact-specific static evaluation.
-`forgeflow verify` means exactly “run the repository-owned `make verify` once.”
+`praxisbound verify` means exactly “run the repository-owned `make verify` once.”
 It does not mean `verification check`, which evaluates declared execution plans
 and recorded results without executing them.
 
@@ -25,7 +25,7 @@ and recorded results without executing them.
 
 - Consistency: artifact validators use `noun check`; actual gate execution uses
   the existing Protocol verb `verify`.
-- Discoverability: `forgeflow --help` exposes common workflows; noun help exposes
+- Discoverability: `praxisbound --help` exposes common workflows; noun help exposes
   related artifact operations without dashed historical names.
 - Backward compatibility: legacy `./scripts/*` forms remain unchanged during
   coexistence. The npm CLI does not need confusing top-level `story-check`
@@ -35,7 +35,7 @@ and recorded results without executing them.
 - Agent friendliness: commands are explicit about static checking versus running
   repository-owned code, and structured issue codes remove prose parsing.
 
-`forgeflow verification check` is retained rather than shortening it to another
+`praxisbound verification check` is retained rather than shortening it to another
 `verify` form because both meanings must remain visible:
 
 ```text
@@ -47,14 +47,14 @@ verify             = execute make verify
 
 | New command                                | Legacy capability                     | Contract                                                                                         |
 | ------------------------------------------ | ------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `forgeflow init [repo]`                    | `scripts/bootstrap`                   | Apply fresh adoption by default; supports `--dry-run`, mutually exclusive `--force`/`--upgrade`. |
-| `forgeflow doctor [repo]`                  | `scripts/doctor`                      | Static, read-only by default; retains `--run-verify` during compatibility period.                |
-| `forgeflow verify [repo]`                  | Doctor execution mode / `make verify` | Explicitly runs target-owned `make verify` once from physical root.                              |
-| `forgeflow story check [story ...]`        | `scripts/story-check`                 | Discovers Stories when omitted; supports `--ready`.                                              |
-| `forgeflow verification check [story ...]` | `scripts/verification-check`          | Resolves plans by default; supports `--result`.                                                  |
-| `forgeflow handoff check [file]`           | `scripts/handoff-check`               | Defaults to `specs/handoff.md`.                                                                  |
-| `forgeflow release check [repo]`           | `scripts/release-check`               | Local, read-only release inspection; target defaults to `.`; never performs remote checks.       |
-| `forgeflow codex activate <repo>`          | `scripts/codex-activate`              | Preview by default; supports `--apply`; stays a late migration wave.                             |
+| `praxisbound init [repo]`                    | `scripts/bootstrap`                   | Apply fresh adoption by default; supports `--dry-run`, mutually exclusive `--force`/`--upgrade`. |
+| `praxisbound doctor [repo]`                  | `scripts/doctor`                      | Static, read-only by default; retains `--run-verify` during compatibility period.                |
+| `praxisbound verify [repo]`                  | Doctor execution mode / `make verify` | Explicitly runs target-owned `make verify` once from physical root.                              |
+| `praxisbound story check [story ...]`        | `scripts/story-check`                 | Discovers Stories when omitted; supports `--ready`.                                              |
+| `praxisbound verification check [story ...]` | `scripts/verification-check`          | Resolves plans by default; supports `--result`.                                                  |
+| `praxisbound handoff check [file]`           | `scripts/handoff-check`               | Defaults to `specs/handoff.md`.                                                                  |
+| `praxisbound release check [repo]`           | `scripts/release-check`               | Local, read-only release inspection; target defaults to `.`; never performs remote checks.       |
+| `praxisbound codex activate <repo>`          | `scripts/codex-activate`              | Preview by default; supports `--apply`; stays a late migration wave.                             |
 
 Global options may appear after the selected command path and before or among
 that command's options. They may appear once; `--` ends option parsing.
@@ -74,22 +74,22 @@ exact versions fail closed with exit `2`; no network fetch or fallback occurs.
 Human output remains the default. `--json` changes presentation only, never the
 operation, authorization, result, or exit status.
 
-`release check` is a ForgeFlow-maintainer command. The npm executable cannot use
+`release check` is a PraxisBound-maintainer command. The npm executable cannot use
 the legacy script's own installation directory as the candidate, so it accepts
 one optional repository directory and defaults to the current directory. It
 resolves that target physically and requires it to be the Git worktree root.
-Parity invokes both Implementations with the fixture's ForgeFlow checkout as
+Parity invokes both Implementations with the fixture's PraxisBound checkout as
 their candidate; calling the new npm command from an unrelated directory is new
 additive behavior, not a reinterpretation of the legacy script path.
 
-## `forgeflow init` contract
+## `praxisbound init` contract
 
 ### Repository and version detection
 
 1. Resolve the target as an existing physical directory; a Git repository is not
    required.
 2. Inspect all managed parent and leaf path types before any target write.
-3. Detect `specs/.forgeflow-adoption`, required adoption entrypoints, and legacy
+3. Detect `specs/.praxisbound-adoption`, required adoption entrypoints, and legacy
    markerless adoption separately. Do not infer current lifecycle state.
 4. Resolve the selected bundled Protocol snapshot and its source provenance.
    Never fetch templates or versions from the network.
@@ -99,11 +99,11 @@ additive behavior, not a reinterpretation of the legacy script path.
 
 | Invocation                                  | Meaning                                                                                                                                  |
 | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `forgeflow init [repo]`                     | Fresh safe mode. Refuse if any managed destination exists.                                                                               |
-| `forgeflow init --dry-run [repo]`           | Run the same preflight and emit the exact intended install/replace set; no target write.                                                 |
-| `forgeflow init --force [repo]`             | Explicitly replace only the exact fresh-install managed destinations, including repository-owned `AGENTS.md` and Guidance starter files. |
-| `forgeflow init --upgrade [repo]`           | Require an existing adoption; replace only Story templates and marker; preserve repository-owned `AGENTS.md` and Guidance.               |
-| `forgeflow init --upgrade --dry-run [repo]` | Preview that upgrade without writing.                                                                                                    |
+| `praxisbound init [repo]`                     | Fresh safe mode. Refuse if any managed destination exists.                                                                               |
+| `praxisbound init --dry-run [repo]`           | Run the same preflight and emit the exact intended install/replace set; no target write.                                                 |
+| `praxisbound init --force [repo]`             | Explicitly replace only the exact fresh-install managed destinations, including repository-owned `AGENTS.md` and Guidance starter files. |
+| `praxisbound init --upgrade [repo]`           | Require an existing adoption; replace only Story templates and marker; preserve repository-owned `AGENTS.md` and Guidance.               |
+| `praxisbound init --upgrade --dry-run [repo]` | Preview that upgrade without writing.                                                                                                    |
 
 `--force` is allowed because it is existing explicit behavior and is useful for
 deliberate reset/recovery. Its semantics are narrow:
@@ -389,7 +389,7 @@ machine contract and must be versioned accordingly.
 
 `toolingVersion` and non-null `protocolVersion` are SemVer values.
 `supportedProtocolRange` uses the documented npm-compatible range grammar. Its
-schema declares the required custom format `forgeflow-npm-semver-range`; CLI
+schema declares the required custom format `praxisbound-npm-semver-range`; CLI
 serialization and conforming schema consumers must register a semantic range
 validator rather than treating the lexical pattern alone as sufficient.
 

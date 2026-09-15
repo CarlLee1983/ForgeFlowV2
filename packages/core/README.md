@@ -1,16 +1,16 @@
-# @forgeflow/core
+# @praxisbound/core
 
-Dependency-free ForgeFlow contracts for machine results and Protocol selection.
+Dependency-free PraxisBound contracts for machine results and Protocol selection.
 Only the package root is public.
 
 Install the exact tooling version used by the caller:
 
 ```sh
-npm install @forgeflow/core@<tooling-version>
+npm install @praxisbound/core@<tooling-version>
 ```
 
 Consumers require a supported Node 22, 24, or 26 release and npm; pnpm is used
-only for development in the ForgeFlow repository.
+only for development in the PraxisBound repository.
 
 ## Codex activation planning and execution evaluation
 
@@ -61,7 +61,7 @@ value or throws `ResultEnvelopeValidationError` with the same issues.
 ```json
 {
   "schemaVersion": "1.0.0",
-  "protocolVersion": "0.9.0",
+  "protocolVersion": "0.10.0",
   "status": "fail",
   "outcome": "failure",
   "exit": 1,
@@ -119,8 +119,8 @@ are rejected. Unknown envelope and issue properties are rejected.
 
 ```js
 { kind: "current" }
-{ kind: "adopted", version: "0.9.0" }
-{ kind: "explicit", version: "0.9.0" }
+{ kind: "adopted", version: "0.10.0" }
+{ kind: "explicit", version: "0.10.0" }
 ```
 
 It returns a discriminated success or typed error. Selection is exact: there is
@@ -129,5 +129,5 @@ version themselves and pass it to the `adopted` selector; Core performs no
 filesystem or repository inspection.
 
 `getToolingCapabilities()` returns immutable metadata for result schema
-`1.0.0`, implemented Protocol `0.9.0`, and the inclusive supported range
-`0.9.0` through `0.9.0`.
+`1.0.0`, implemented Protocol `0.10.0`, and the inclusive supported range
+`0.10.0` through `0.10.0`.

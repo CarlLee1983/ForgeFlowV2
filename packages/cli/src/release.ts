@@ -6,7 +6,7 @@ import {
   type ReleaseReadinessState,
   type ResultEnvelope,
   type ResultIssue,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 import { nodeReleaseGitAdapter } from "./release-git.js";
 
@@ -47,11 +47,11 @@ export interface ReleaseRenderedOutput {
   readonly stderr: string;
 }
 
-export const releaseHelp = `ForgeFlow Local Release Check
+export const releaseHelp = `PraxisBound Local Release Check
 
 Usage:
-  forgeflow release check [--json] [repository-directory]
-  forgeflow release check --help
+  praxisbound release check [--json] [repository-directory]
+  praxisbound release check --help
 
 Checks only local Git state for release readiness. It does not contact remotes,
 fetch, push, run hooks, or modify the repository.

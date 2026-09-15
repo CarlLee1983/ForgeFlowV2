@@ -10,7 +10,7 @@ import {
   RESULT_SCHEMA_VERSION,
   evaluateHandoff,
   type HandoffEvaluation,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 export type HandoffOutputMode = "human" | "json";
 
@@ -35,11 +35,11 @@ export interface HandoffRenderedOutput {
 
 export const DEFAULT_HANDOFF_PATH = "specs/handoff.md";
 
-export const handoffHelp = `ForgeFlow Handoff Contract Check
+export const handoffHelp = `PraxisBound Handoff Contract Check
 
 Usage:
-  forgeflow handoff check [--json] [handoff-file]
-  forgeflow handoff check --help
+  praxisbound handoff check [--json] [handoff-file]
+  praxisbound handoff check --help
 
 The handoff file defaults to specs/handoff.md.
 
@@ -147,8 +147,8 @@ function renderError(
       stdout: "",
       stderr:
         `ERROR ${message}\n` +
-        "Usage: forgeflow handoff check [--json] [handoff-file]\n" +
-        "       forgeflow handoff check --help\n\n" +
+        "Usage: praxisbound handoff check [--json] [handoff-file]\n" +
+        "       praxisbound handoff check --help\n\n" +
         "Result: ERROR\n",
     };
   }
@@ -159,7 +159,7 @@ function renderError(
       : `Handoff is missing, unreadable, or empty: ${execution.path}`;
 
   return {
-    stdout: "ForgeFlow Handoff Contract Check\n\n\nResult: ERROR\n",
+    stdout: "PraxisBound Handoff Contract Check\n\n\nResult: ERROR\n",
     stderr: `ERROR ${detail}\n`,
   };
 }
@@ -181,7 +181,7 @@ function renderIncomplete(
 
   return {
     stdout:
-      "ForgeFlow Handoff Contract Check\n\n" +
+      "PraxisBound Handoff Contract Check\n\n" +
       failures +
       "\nResult: HANDOFF_CONTRACT_INCOMPLETE\n\n" +
       "Next:\n" +
@@ -207,7 +207,7 @@ function renderSuccess(
 
   return {
     stdout:
-      "ForgeFlow Handoff Contract Check\n\n" +
+      "PraxisBound Handoff Contract Check\n\n" +
       `PASS  Story evidence: ${evidence.story}\n` +
       `PASS  recorded at: ${evidence.recordedAt}\n` +
       `PASS  repository revision: ${evidence.repository} ${evidence.revision}\n` +

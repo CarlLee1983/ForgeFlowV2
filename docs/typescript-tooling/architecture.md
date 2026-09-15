@@ -2,20 +2,20 @@
 
 ## Decision summary
 
-ForgeFlow keeps one language-independent Protocol and adds one official,
+PraxisBound keeps one language-independent Protocol and adds one official,
 optional TypeScript Reference Tooling implementation. The repository adopts a
 two-package workspace:
 
 ```text
-ForgeFlow Protocol
+PraxisBound Protocol
         ^
         | implements
         |
-@forgeflow/core
+@praxisbound/core
         ^
         | consumes
         |
-@forgeflow/cli
+@praxisbound/cli
 ```
 
 The packages are Modules with separate Interfaces, not separate sources of
@@ -105,7 +105,7 @@ discovery. This provides Depth without exposing parser stages or filesystem
 ports as the public Interface.
 
 ```ts
-export interface ForgeFlowCore {
+export interface PraxisBoundCore {
   evaluate(request: EvaluationRequest): SemanticResult;
   planMutation(request: MutationRequest): MutationPlanResult;
   capabilities(): CapabilityManifest;
@@ -282,7 +282,7 @@ through parsers.
 Adopt a small pnpm workspace when implementation begins:
 
 ```text
-ForgeFlowV2/
+PraxisBound/
 |-- protocol/                   # stays language independent and initially flat
 |-- packages/
 |   |-- core/
@@ -319,16 +319,16 @@ Reasons:
 
 Recommended logical packages:
 
-- `@forgeflow/core`: public typed Core Interface and Semantic Result types;
+- `@praxisbound/core`: public typed Core Interface and Semantic Result types;
   initially zero third-party runtime dependencies.
-- `@forgeflow/cli`: public CLI with `bin: { "forgeflow": "..." }`; runtime
+- `@praxisbound/cli`: public CLI with `bin: { "praxisbound": "..." }`; runtime
   dependency on the exact lockstep Core version, the published CLI result
   envelope schema, and no other third-party runtime dependency initially.
 
 The supported zero-install spelling is:
 
 ```sh
-npx @forgeflow/cli init
+npx @praxisbound/cli init
 ```
 
 That unpinned spelling is a human convenience: npm may consult the registry,
@@ -336,25 +336,22 @@ select the latest dist-tag, and ask before package acquisition. Reproducible
 automation pins the tooling version and suppresses the prompt:
 
 ```sh
-npx --yes @forgeflow/cli@<tooling-version> init
+npx --yes @praxisbound/cli@<tooling-version> init
 ```
 
 After installing a packed or published CLI locally, offline validation invokes
-`./node_modules/.bin/forgeflow`; package acquisition itself is not claimed to be
-offline. `npx --no-install forgeflow init` may be used as an equivalent local-
+`./node_modules/.bin/praxisbound`; package acquisition itself is not claimed to be
+offline. `npx --no-install praxisbound init` may be used as an equivalent local-
 binary convenience. The unscoped registry package `forgeflow@0.6.0` was owned by
 an unrelated TypeScript CI/CD pipeline compiler when checked on 2026-09-12, so
-public docs must not currently direct users to unpinned `npx forgeflow`.
+public docs must not direct users to its unpinned command.
 Registry observations:
 
-- <https://registry.npmjs.org/forgeflow>
-- <https://registry.npmjs.org/@forgeflow%2fcore> (public `E404` on lookup)
-- <https://registry.npmjs.org/@forgeflow%2fcli> (public `E404` on lookup)
+- <https://registry.npmjs.org/forgeflow> (unrelated `forgeflow@0.6.0`)
 
-An `E404` does not prove the team controls the `@forgeflow` scope. Proving npm
-organization/scope ownership is a publication prerequisite. If it is not
-available, substitute a scope the ForgeFlow maintainers demonstrably control;
-the Core/CLI architecture and `forgeflow` binary name do not change.
+Package ownership and provenance are publication prerequisites. If the current
+scope is unavailable, substitute one the PraxisBound maintainers demonstrably
+control; the Core/CLI architecture and `praxisbound` binary name do not change.
 See npm's scope ownership model at <https://docs.npmjs.com/about-scopes/>.
 
 No package is published in this planning phase.
@@ -389,7 +386,7 @@ only Core in CLI:
 | Need                | Initial decision                        | Reason                                                             |
 | ------------------- | --------------------------------------- | ------------------------------------------------------------------ |
 | Restricted YAML     | purpose-built existing-subset parser    | A general parser accepts forms the Protocol intentionally rejects. |
-| Markdown            | purpose-built scanner                   | ForgeFlow documents an exact subset, not CommonMark.               |
+| Markdown            | purpose-built scanner                   | PraxisBound documents an exact subset, not CommonMark.               |
 | Schema validation   | development-only validator if needed    | CLI produces known types; consumers receive the JSON Schema.       |
 | CLI parsing         | Node `util.parseArgs` plus small router | The command tree is bounded.                                       |
 | Filesystem          | Node `fs`/`path`                        | Required safety primitives are built in.                           |
@@ -407,10 +404,10 @@ Two modes are intentionally distinct:
 
 ```text
 Process Boundary
-ForgePilot -> `forgeflow ... --json` -> versioned result envelope
+ForgePilot -> `praxisbound ... --json` -> versioned result envelope
 
 Library Boundary
-ForgePilot -> public `@forgeflow/core` Interface -> Semantic Result
+ForgePilot -> public `@praxisbound/core` Interface -> Semantic Result
 ```
 
 The Process Boundary is the first stable and preferred integration. It isolates
@@ -423,9 +420,9 @@ root exports and supplies immutable observations; it never imports parser,
 filesystem, or version-registry internals. Core SemVer then becomes an additional
 compatibility dependency.
 
-ForgePilot remains optional. Neither integration permits ForgeFlow to read or
+ForgePilot remains optional. Neither integration permits PraxisBound to read or
 own ForgePilot's current lifecycle state. ForgePilot may consume evidence and
-results; it does not become part of ForgeFlow correctness.
+results; it does not become part of PraxisBound correctness.
 
 ## Architecture constraints inherited from the current Protocol
 

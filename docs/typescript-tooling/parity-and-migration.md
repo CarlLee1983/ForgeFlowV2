@@ -103,7 +103,7 @@ Minimum baseline:
 | `missing-evidence`            | story readiness, verification result    | Missing AC map or passing observation never becomes PASS.                                                   |
 | `handoff-failure`             | handoff, doctor                         | Mutable fields, bad timestamp/SHA/scalar, and fence failures are distinguishable.                           |
 | `release-failure`             | release                                 | Dirty tree, VERSION mismatch, wrong tag, and remote-not-checked evidence.                                   |
-| `legacy-forgeflow-repository` | init upgrade, doctor, all static checks | Markerless or older marker behavior; no automatic protocol upgrade.                                         |
+| `legacy-forgeflow-repository` | init upgrade, doctor, all static checks | Legacy ForgeFlow marker behavior; migration requires an explicit supported upgrade.                         |
 | `fresh-repository`            | init                                    | Exact safe install plan/artifacts; default conflict on repeated init.                                       |
 
 Required edge families expand that baseline:
@@ -175,7 +175,7 @@ expected fixtures before parity is re-baselined.
 ### Wave 4 — Repository Doctor and canonical verification execution
 
 - Migrate static Doctor only after TypeScript Story and Handoff evaluation pass.
-- Add `forgeflow verify`, then parity for `doctor --run-verify` using the same
+- Add `praxisbound verify`, then parity for `doctor --run-verify` using the same
   exact-once process Adapter.
 - Rationale for not starting with Doctor: current Doctor composes Story and
   Handoff; migrating it first would either shell out to legacy prose or create a
@@ -203,9 +203,9 @@ expected fixtures before parity is re-baselined.
 ### Wave 8 — packaging, adoption validation, and default decisions
 
 - Validate `npm pack`, clean install, version-pinned
-  `npx --yes @forgeflow/cli@<tooling-version>` acquisition, package contents,
+  `npx --yes @praxisbound/cli@<tooling-version>` acquisition, package contents,
   direct local-binary offline execution after acquisition, supported Node
-  matrix, and existing ForgeFlow repository adoption.
+  matrix, and existing PraxisBound repository adoption.
 - Validate ForgePilot against CLI JSON first and optionally Core root exports.
 - Decide each default switch independently; do not batch commands.
 
@@ -234,12 +234,12 @@ No legacy Implementation may be removed until all of these are observed:
 - the complete golden corpus and retained legacy tests pass;
 - all command, JSON, issue, evidence, and exit contracts are documented;
 - both packages build and `npm pack` contains only intended artifacts;
-- version-pinned `npx --yes @forgeflow/cli@<tooling-version>` acquisition and
+- version-pinned `npx --yes @praxisbound/cli@<tooling-version>` acquisition and
   execution succeed in clean npm consumer fixtures;
 - direct installed-binary execution succeeds with network unavailable after
   package acquisition;
 - supported Node/OS CI passes and root `make verify` passes;
-- a fresh repository and at least one existing ForgeFlow adoption are validated;
+- a fresh repository and at least one existing PraxisBound adoption are validated;
 - ForgePilot's supported process integration is unchanged or explicitly migrated;
 - Protocol/tooling/version/package migration and rollback docs are complete;
 - npm namespace ownership and provenance are verified;

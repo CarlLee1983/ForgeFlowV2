@@ -2,7 +2,7 @@
 
 ## Development Workflow
 
-This repository follows the ForgeFlow development protocol.
+This repository follows the PraxisBound development protocol.
 
 For implementation work:
 
@@ -107,5 +107,5 @@ When work changes hands, report the result to the human or external control plan
 that owns mutable lifecycle state. A repository handoff is optional,
 immutable historical evidence only; create one only for a known Story, UTC
 time, repository, exact committed revision, command, and observed result. Never
-persist current/next/status/Gate/completion state in ForgeFlow files or attach
+persist current/next/status/Gate/completion state in PraxisBound files or attach
 dirty-worktree verification to an unchanged HEAD revision.

@@ -29,7 +29,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@forgeflow/core':
+      '@praxisbound/core':
         specifier: 0.1.0
         version: link:../core
 

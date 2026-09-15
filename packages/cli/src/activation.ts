@@ -23,7 +23,7 @@ import {
   type ActivationSourceSnapshot,
   type ResultEnvelope,
   type ResultIssue,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 import { executeActivationMutationWithSignals } from "./activation-mutation.js";
 import { captureActivationObservations } from "./activation-observation.js";
@@ -85,11 +85,11 @@ export interface ActivationRenderedOutput {
   readonly stderr: string;
 }
 
-export const activationHelp = `ForgeFlow Codex Activation
+export const activationHelp = `PraxisBound Codex Activation
 
 Usage:
-  forgeflow codex activate [--apply] [--json] repository-directory
-  forgeflow codex activate --help
+  praxisbound codex activate [--apply] [--json] repository-directory
+  praxisbound codex activate --help
 
 Previews the bounded project-local Codex integration by default. --apply
 explicitly installs or updates the packaged offline snapshot. Activation never
@@ -236,7 +236,7 @@ export const nodeActivationScratchAdapter: ActivationScratchAdapter =
       }
       let path: string;
       try {
-        path = await mkdtemp(join(base, "forgeflow-activation-"));
+        path = await mkdtemp(join(base, "praxisbound-activation-"));
       } catch {
         return Object.freeze({ prepared: false, cleaned: true });
       }
@@ -517,13 +517,13 @@ export function renderActivationHuman(
   }
   if (execution.result.outcome === "ACTIVATION_UNCHANGED") {
     return Object.freeze({
-      stdout: `Already installed: ForgeFlow ${String(data?.version)} (${String(data?.revision)})\n`,
+      stdout: `Already installed: PraxisBound ${String(data?.version)} (${String(data?.revision)})\n`,
       stderr: "",
     });
   }
   if (execution.result.outcome === "ACTIVATION_APPLIED") {
     return Object.freeze({
-      stdout: `Installed ForgeFlow ${String(data?.version)} (${String(data?.revision)}) in ${execution.root ?? "."}\n`,
+      stdout: `Installed PraxisBound ${String(data?.version)} (${String(data?.revision)}) in ${execution.root ?? "."}\n`,
       stderr: "",
     });
   }

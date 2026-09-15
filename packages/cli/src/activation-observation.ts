@@ -5,11 +5,12 @@ import { basename, dirname, resolve } from "node:path";
 
 import {
   activationSkillDirectory,
+  legacyActivationSkillDirectory,
   getActivationObservationScope,
   type ActivationPathObservation,
   type MutationPathKind,
   type MutationStageObservation,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 import { initFilesystemIdentity } from "./init-observation.js";
 
@@ -75,7 +76,10 @@ export async function observeActivationPath(
     if (stats.isDirectory()) {
       const readable = await canAccess(path, constants.R_OK);
       const searchable = await canAccess(path, constants.X_OK);
-      if (relativePath !== activationSkillDirectory)
+      if (
+        relativePath !== activationSkillDirectory &&
+        relativePath !== legacyActivationSkillDirectory
+      )
         return Object.freeze({
           path: relativePath,
           kind: "directory",

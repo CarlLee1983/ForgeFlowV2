@@ -6,7 +6,7 @@ import { fileURLToPath, URL } from "node:url";
 import { promisify } from "node:util";
 import test from "node:test";
 
-import { evaluateHandoff } from "@forgeflow/core";
+import { evaluateHandoff } from "@praxisbound/core";
 
 import { runHandoffCheck } from "../dist/handoff.js";
 import { runDifferentialParity } from "./support/differential-parity-harness.mjs";
@@ -21,7 +21,7 @@ const handoffCheck = fileURLToPath(
 
 const resultBase = Object.freeze({
   schemaVersion: "1.0.0",
-  protocolVersion: "0.9.0",
+  protocolVersion: "0.10.0",
   subject: "handoff",
 });
 
@@ -163,7 +163,7 @@ function normalizeLegacyDiagnostic(diagnostic) {
 function diagnosticLines(output) {
   const ignored = [
     /^$/,
-    /^ForgeFlow Handoff Contract Check$/,
+    /^PraxisBound Handoff Contract Check$/,
     /^PASS {2}Story evidence: .+$/,
     /^PASS {2}recorded at: .+$/,
     /^PASS {2}repository revision: .+$/,
@@ -320,7 +320,7 @@ function completeSource(overrides = {}) {
     result: "pass",
     ...overrides,
   };
-  return `# ForgeFlow Handoff Evidence
+  return `# PraxisBound Handoff Evidence
 
 \`\`\`yaml
 handoff:

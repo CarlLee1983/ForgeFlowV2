@@ -23,7 +23,7 @@ A Story may declare one task mode in `## Classification`:
 | `evidence` | Inspection, review, or diagnosis only. The repository must not change. |
 | `mixed` | The Story contains both a decision and the change that follows it. |
 
-The default is `execution`, because that is what an approved ForgeFlow Story has
+The default is `execution`, because that is what an approved PraxisBound Story has
 always meant.
 
 A review task is not a fix task. `evidence` never authorizes repository
@@ -112,7 +112,7 @@ from words such as “queue”, “parallel”, or “database”.
 
 ## Execution invariants
 
-These hold for every ForgeFlow implementation. They are contract, not guidance:
+These hold for every PraxisBound implementation. They are contract, not guidance:
 a repository does not opt into them and an agent does not trade them away for a
 green gate.
 

@@ -44,6 +44,8 @@ export interface RepositoryDoctorSnapshot {
   readonly stories: RepositoryPathObservation;
   readonly makefile: RepositoryPathObservation;
   readonly adoptionMarker: RepositoryPathObservation;
+  /** Legacy input only; it is never a current adoption marker. */
+  readonly legacyAdoptionMarker?: RepositoryPathObservation;
   readonly guidance: RepositoryPathObservation;
   readonly guidanceEntry: RepositoryPathObservation;
   readonly skills: RepositoryPathObservation;
@@ -68,7 +70,8 @@ export interface RepositoryDoctorFact {
     | "skills"
     | "ci"
     | "verify-rule"
-    | "makefile-limited";
+    | "makefile-limited"
+    | "adoption-migration";
   readonly value: string;
 }
 
@@ -396,7 +399,7 @@ export function evaluateRepositoryDoctor(
     issues.push(
       issue(
         "REPOSITORY_MARKER_UNCONFIRMABLE",
-        "adoption marker cannot be safely read: specs/.forgeflow-adoption",
+        "adoption marker cannot be safely read: specs/.praxisbound-adoption",
       ),
     );
   } else if (snapshot.adoptionMarker.kind === "file") {
@@ -413,12 +416,46 @@ export function evaluateRepositoryDoctor(
       issues.push(
         issue(
           "REPOSITORY_MARKER_VERSION",
-          "adoption marker records no version: specs/.forgeflow-adoption",
+          "adoption marker records no version: specs/.praxisbound-adoption",
         ),
       );
     else {
       adopted = version;
       drift = version !== snapshot.checkoutVersion;
+    }
+  }
+  const legacy = snapshot.legacyAdoptionMarker;
+  if (legacy !== undefined && legacy.kind !== "missing") {
+    if (snapshot.adoptionMarker.kind !== "missing")
+      issues.push(
+        issue(
+          "REPOSITORY_MARKER_AMBIGUOUS",
+          "current and legacy adoption markers are both present.",
+        ),
+      );
+    else if (
+      legacy.kind !== "file" ||
+      legacy.readable !== true ||
+      typeof legacy.text !== "string"
+    )
+      issues.push(
+        issue(
+          "REPOSITORY_LEGACY_MARKER_UNCONFIRMABLE",
+          "legacy adoption marker cannot be safely read: specs/.forgeflow-adoption",
+        ),
+      );
+    else if (!/^version=0\.9\.0\r?\nrevision=[^\r\n]+\r?\n?$/.test(legacy.text))
+      issues.push(
+        issue(
+          "REPOSITORY_LEGACY_MARKER_INVALID",
+          "legacy adoption marker requires migration but is malformed or unsupported.",
+        ),
+      );
+    else {
+      facts.push(
+        Object.freeze({ name: "adoption-migration", value: "REQUIRED" }),
+      );
+      drift = true;
     }
   }
   facts.push(Object.freeze({ name: "adopted-version", value: adopted }));

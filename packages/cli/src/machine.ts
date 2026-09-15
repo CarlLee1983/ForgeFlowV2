@@ -2,7 +2,7 @@ import {
   assertResultEnvelope,
   type ResultEnvelope,
   type ResultIssue,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 function hasOwn(value: object, field: string): boolean {
   return Object.prototype.hasOwnProperty.call(value, field);

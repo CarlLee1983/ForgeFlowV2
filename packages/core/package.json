@@ -1,12 +1,12 @@
 {
-  "name": "@forgeflow/core",
+  "name": "@praxisbound/core",
   "version": "0.1.0",
-  "description": "ForgeFlow result and Protocol-selection contracts",
+  "description": "PraxisBound result and Protocol-selection contracts",
   "license": "MIT",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/CarlLee1983/ForgeFlowV2.git",
+    "url": "git+https://github.com/CarlLee1983/PraxisBound.git",
     "directory": "packages/core"
   },
   "publishConfig": {

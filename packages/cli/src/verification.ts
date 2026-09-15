@@ -10,7 +10,7 @@ import {
   type ResultIssue,
   type VerificationPlan,
   type VerificationResultEvaluation,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 import {
   nodeFileAccess,
@@ -103,13 +103,13 @@ const TEMPLATE_DIRECTORY = "_template";
 const REQUIRED_STORY_FILES = ["story.md", "acceptance.md"] as const;
 const RECORD_FILE = "verification.md";
 const RESIDUAL_RISK_REQUIRED = "VERIFICATION_RESIDUAL_RISK_REQUIRED";
-const BANNER = "ForgeFlow Verification Check\n";
+const BANNER = "PraxisBound Verification Check\n";
 
-export const verificationHelp = `ForgeFlow Verification Check
+export const verificationHelp = `PraxisBound Verification Check
 
 Usage:
-  forgeflow verification check [--result] [--json] [story-directory ...]
-  forgeflow verification check --help
+  praxisbound verification check [--result] [--json] [story-directory ...]
+  praxisbound verification check --help
 
 Without a story directory, every directory under specs/stories/ except
 _template/ is checked relative to the current directory.
@@ -552,8 +552,8 @@ export function renderVerificationHuman(
       stdout: "\nResult: ERROR\nStories checked: 0\n",
       stderr:
         "ERROR Invalid arguments\n" +
-        "Usage: forgeflow verification check [--result] [--json] [story-directory ...]\n" +
-        "       forgeflow verification check --help\n",
+        "Usage: praxisbound verification check [--result] [--json] [story-directory ...]\n" +
+        "       praxisbound verification check --help\n",
     };
 
   let stdout = BANNER;

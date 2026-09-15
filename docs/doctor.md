@@ -1,16 +1,16 @@
 # Repository Doctor
 
-ForgeFlow Repository Doctor is an optional diagnostic command for a repository
-that adopts ForgeFlow. It checks the small required repository surface without
+PraxisBound Repository Doctor is an optional diagnostic command for a repository
+that adopts PraxisBound. It checks the small required repository surface without
 changing the target, and can run the repository's canonical gate only when the
 caller explicitly authorizes that execution.
 
 Doctor is not an installer, repair tool, global CLI framework, or merge gate.
-Existing ForgeFlow adopters do not need to install or run it.
+Existing PraxisBound adopters do not need to install or run it.
 
 ## Command forms
 
-Run Doctor from a ForgeFlow checkout in one of these three forms:
+Run Doctor from a PraxisBound checkout in one of these three forms:
 
 ```sh
 ./scripts/doctor [repository-directory]
@@ -84,7 +84,7 @@ Once the required structure is confirmed, static mode composes the two
 optional capability detection alongside them:
 
 ```text
-Adopted version: 0.9.0
+Adopted version: 0.10.0
 Story contract: STORY_CONTRACT_OK
 Handoff: HANDOFF_CONTRACT_OK
 Guidance: GUIDANCE_CONTRACT_OK
@@ -93,7 +93,7 @@ CI capability: NOT_PRESENT
 ```
 
 `Adopted version:` is the `version` field of the FF-210 adoption marker
-`specs/.forgeflow-adoption`, or `UNKNOWN` when the repository has no marker.
+`specs/.praxisbound-adoption`, or `UNKNOWN` when the repository has no marker.
 `Story contract:` runs `scripts/story-check` over every directory under
 `specs/stories/` except `_template/`, and is `NO_STORIES` when there are none.
 `Handoff:` runs `scripts/handoff-check` on the optional immutable evidence
@@ -122,7 +122,7 @@ inside the target, and never follow a symlink. They share Doctor's builtin-only
 property, so the composed verdict does not change with the caller's `PATH`.
  A handoff, marker, or Story
 directory that is a symlink, is unreadable, or that a checker cannot parse
-reports `ERROR` and exits `2`. So does an incomplete ForgeFlow checkout: Doctor
+reports `ERROR` and exits `2`. So does an incomplete PraxisBound checkout: Doctor
 needs its own `VERSION`, `scripts/story-check`, and `scripts/handoff-check`, and
 says so rather than blaming the target repository. Run Doctor from a checkout
 rather than through a symlink placed on `PATH`.

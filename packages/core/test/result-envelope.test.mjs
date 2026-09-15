@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { validateResultEnvelope } from "@forgeflow/core";
+import { validateResultEnvelope } from "@praxisbound/core";
 
 const base = {
   schemaVersion: "1.0.0",
-  protocolVersion: "0.9.0",
+  protocolVersion: "0.10.0",
   subject: "repository",
   issues: [],
 };

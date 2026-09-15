@@ -15,6 +15,7 @@ export type StoryDecisionRecord =
   | { readonly kind: "missing" }
   | { readonly kind: "ambiguous" }
   | { readonly kind: "unreadable" }
+  | { readonly kind: "retired"; readonly message: string }
   | { readonly kind: "found"; readonly source: string };
 
 function issue(code: string, message: string): ResultIssue {
@@ -66,6 +67,9 @@ export function checkDecision(
           `referenced decision record is unreadable: ${id}`,
         ),
       );
+      return;
+    case "retired":
+      issues.push(issue("STORY_LEGACY_DECISIONS_ROOT", record.message));
       return;
     default:
       break;

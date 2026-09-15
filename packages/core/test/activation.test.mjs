@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { TextDecoder, TextEncoder } from "node:util";
@@ -8,10 +9,11 @@ import {
   evaluateActivationAcquisition,
   evaluateActivationMutation,
   evaluateActivationScratchCleanup,
+  legacyActivationDestinations,
   planActivation,
   posixCksum,
   validateResultEnvelope,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 const encode = (value) => new TextEncoder().encode(value);
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -24,12 +26,12 @@ function asset(value, mode = 0o644) {
 
 function source(overrides = {}) {
   return {
-    version: "0.9.0",
+    version: "0.10.0",
     revision: "unknown",
     provenance: "fixture activation snapshot",
     skill: asset("See ../story-development/SKILL.md\n"),
     workflow: asset("# Story development\n"),
-    agentBlock: asset("Use the local ForgeFlow skill.\n"),
+    agentBlock: asset("Use the local PraxisBound skill.\n"),
     ...overrides,
   };
 }
@@ -66,12 +68,18 @@ function freshRequest(overrides = {}) {
     directory("specs/stories"),
     { path: ".agents", kind: "missing" },
     { path: ".agents/skills", kind: "missing" },
+    { path: ".agents/skills/praxisbound", kind: "missing" },
     { path: ".agents/skills/forgeflow", kind: "missing" },
     file("AGENTS.md", "custom policy\r\nno final newline", 0o600),
-    file("specs/.forgeflow-adoption", "version=0.9.0\nrevision=unknown\n"),
+    file("specs/.praxisbound-adoption", "version=0.10.0\nrevision=unknown\n"),
     ...activationDestinations
       .slice(1)
       .map((path) => ({ path, kind: "missing" })),
+    ...[
+      ".agents/skills/forgeflow/SKILL.md",
+      ".agents/skills/forgeflow/story-development.md",
+      ".agents/skills/forgeflow/.forgeflow-snapshot",
+    ].map((path) => ({ path, kind: "missing" })),
   ];
   return {
     rootIdentity: "fixture-root:1",
@@ -126,7 +134,7 @@ test("TST014-AC-001/003: Core creates deterministic marker-last activation bytes
   assert.equal(first.payloads[0].mode, 0o600);
   assert.match(
     new TextDecoder().decode(first.payloads[0].bytes),
-    /^<!-- ForgeFlow Codex: begin -->\n<!-- snapshot version=0\.9\.0 revision=unknown adoption=0\.9\.0 -->\n/,
+    /^<!-- PraxisBound Codex: begin -->\n<!-- snapshot version=0\.10\.0 revision=unknown adoption=0\.10\.0 -->\n/,
   );
   assert.equal(
     new TextDecoder().decode(first.payloads[1].bytes),
@@ -138,14 +146,93 @@ test("TST014-AC-001/003: Core creates deterministic marker-last activation bytes
   });
 });
 
+test("PB002-AC-002/003: Core plans a validated one-way legacy activation migration", () => {
+  const skill = encode("See story-development.md\n");
+  const workflow = encode("# Story development\n");
+  const legacyBlock = encode(
+    "<!-- ForgeFlow Codex: begin -->\n" +
+      "<!-- snapshot version=0.9.0 revision=unknown adoption=0.9.0 -->\n" +
+      "Use the local ForgeFlow skill.\n" +
+      "<!-- ForgeFlow Codex: end -->\n",
+  );
+  const legacySnapshot = encode(
+    "format=1\nversion=0.9.0\nrevision=unknown\nadoption=0.9.0\n" +
+      `skill=${posixCksum(skill)}\nworkflow=${posixCksum(workflow)}\n` +
+      `block=${posixCksum(legacyBlock)}\n`,
+  );
+  const legacyPayloads = new Map([
+    [legacyActivationDestinations[0], skill],
+    [legacyActivationDestinations[1], workflow],
+    [legacyActivationDestinations[2], legacySnapshot],
+  ]);
+  const paths = freshRequest().paths.map((entry) => {
+    if (entry.path === "AGENTS.md") {
+      return file(
+        entry.path,
+        Buffer.concat([legacyBlock, encode("custom policy\n")]),
+        0o600,
+      );
+    }
+    if (entry.path === ".agents/skills/forgeflow") {
+      return directory(entry.path, [
+        ".forgeflow-snapshot",
+        "SKILL.md",
+        "story-development.md",
+      ]);
+    }
+    const bytes = legacyPayloads.get(entry.path);
+    return bytes === undefined ? entry : file(entry.path, bytes);
+  });
+
+  const migration = planActivation({ ...freshRequest(), paths });
+  assert.equal(migration.result.outcome, "ACTIVATION_PREVIEW");
+  assert.deepEqual(
+    migration.changes.slice(0, 3).map(({ kind, path }) => [kind, path]),
+    legacyActivationDestinations.map((path) => ["remove", path]),
+  );
+  assert.equal(migration.changes.at(-1).path, activationDestinations.at(-1));
+  assert.equal(migration.plan.commitMarker, activationDestinations.at(-1));
+  const agents = new TextDecoder().decode(migration.payloads[0].bytes);
+  assert.match(agents, /^<!-- PraxisBound Codex: begin -->/);
+  assert.doesNotMatch(agents, /<!-- ForgeFlow Codex:/);
+  assert.ok(agents.endsWith("custom policy\n"));
+
+  const unsupportedBlock = encode(
+    new TextDecoder()
+      .decode(legacyBlock)
+      .replace("snapshot version=0.9.0", "snapshot version=0.8.0"),
+  );
+  const unsupportedBytes = encode(
+    new TextDecoder()
+      .decode(legacySnapshot)
+      .replace("version=0.9.0", "version=0.8.0")
+      .replace(
+        `block=${posixCksum(legacyBlock)}`,
+        `block=${posixCksum(unsupportedBlock)}`,
+      ),
+  );
+  const unsupportedPaths = paths.map((entry) => {
+    if (entry.path === "AGENTS.md")
+      return file(entry.path, unsupportedBlock, 0o600);
+    if (entry.path === legacyActivationDestinations[2])
+      return file(entry.path, unsupportedBytes);
+    return entry;
+  });
+  assert.equal(
+    planActivation({ ...freshRequest(), paths: unsupportedPaths }).result
+      .outcome,
+    "ACTIVATION_CONFLICT",
+  );
+});
+
 test("TST014-AC-002/004: installed bytes validate, remain unchanged, and drift fails closed", () => {
   const preview = planActivation(freshRequest());
-  const members = [".forgeflow-snapshot", "SKILL.md", "story-development.md"];
+  const members = [".praxisbound-snapshot", "SKILL.md", "story-development.md"];
   const installedPaths = freshRequest().paths.map((entry) => {
     if (entry.path === ".agents") return directory(".agents");
     if (entry.path === ".agents/skills") return directory(".agents/skills");
-    if (entry.path === ".agents/skills/forgeflow")
-      return directory(".agents/skills/forgeflow", members);
+    if (entry.path === ".agents/skills/praxisbound")
+      return directory(".agents/skills/praxisbound", members);
     const payload = preview.payloads.find(({ path }) => path === entry.path);
     return payload === undefined
       ? entry
@@ -158,7 +245,7 @@ test("TST014-AC-002/004: installed bytes validate, remain unchanged, and drift f
   assert.equal(unchanged.result.outcome, "ACTIVATION_UNCHANGED");
 
   const drifted = installedPaths.map((entry) =>
-    entry.path === ".agents/skills/forgeflow/SKILL.md"
+    entry.path === ".agents/skills/praxisbound/SKILL.md"
       ? file(entry.path, "local edit\n")
       : entry,
   );
@@ -173,8 +260,8 @@ test("TST014-AC-002/004: installed bytes validate, remain unchanged, and drift f
           new TextDecoder()
             .decode(entry.bytes)
             .replace(
-              "Use the local ForgeFlow skill.",
-              "Locally edited ForgeFlow block.",
+              "Use the local PraxisBound skill.",
+              "Locally edited PraxisBound block.",
             ),
           entry.mode,
         )
@@ -198,12 +285,12 @@ test("TST014-AC-002/004: installed bytes validate, remain unchanged, and drift f
 
 test("TST014-AC-002: a later source updates only owned destinations and preserves adoption and surrounding AGENTS bytes", () => {
   const installed = planActivation(freshRequest());
-  const members = [".forgeflow-snapshot", "SKILL.md", "story-development.md"];
+  const members = [".praxisbound-snapshot", "SKILL.md", "story-development.md"];
   const installedPaths = freshRequest().paths.map((entry) => {
     if (entry.path === ".agents") return directory(".agents");
     if (entry.path === ".agents/skills") return directory(".agents/skills");
-    if (entry.path === ".agents/skills/forgeflow")
-      return directory(".agents/skills/forgeflow", members);
+    if (entry.path === ".agents/skills/praxisbound")
+      return directory(".agents/skills/praxisbound", members);
     const payload = installed.payloads.find(({ path }) => path === entry.path);
     return payload === undefined
       ? entry
@@ -212,11 +299,11 @@ test("TST014-AC-002: a later source updates only owned destinations and preserve
   const updated = planActivation({
     ...freshRequest(),
     source: source({
-      version: "0.9.1",
+      version: "0.10.1",
       revision: "0123456789abcdef0123456789abcdef01234567",
       skill: asset("Updated. See ../story-development/SKILL.md\n"),
       workflow: asset("# Updated Story development\n"),
-      agentBlock: asset("Use the updated local ForgeFlow skill.\n"),
+      agentBlock: asset("Use the updated local PraxisBound skill.\n"),
     }),
     paths: installedPaths,
   });
@@ -226,16 +313,16 @@ test("TST014-AC-002: a later source updates only owned destinations and preserve
     updated.changes.map(({ path }) => path),
     activationDestinations,
   );
-  assert.equal(updated.plan.adoption, "0.9.0");
+  assert.equal(updated.plan.adoption, "0.10.0");
   const agents = new TextDecoder().decode(updated.payloads[0].bytes);
   assert.match(
     agents,
-    /snapshot version=0\.9\.1 revision=0123456789abcdef0123456789abcdef01234567 adoption=0\.9\.0/,
+    /snapshot version=0\.10\.1 revision=0123456789abcdef0123456789abcdef01234567 adoption=0\.10\.0/,
   );
   assert.ok(agents.endsWith("custom policy\r\nno final newline"));
   const snapshot = new TextDecoder().decode(updated.payloads.at(-1).bytes);
-  assert.match(snapshot, /^format=1\nversion=0\.9\.1\n/);
-  assert.match(snapshot, /\nadoption=0\.9\.0\n/);
+  assert.match(snapshot, /^format=1\nversion=0\.10\.1\n/);
+  assert.match(snapshot, /\nadoption=0\.10\.0\n/);
   assert.match(snapshot, /\nskill=\d+ \d+\nworkflow=\d+ \d+\nblock=\d+ \d+\n$/);
 });
 

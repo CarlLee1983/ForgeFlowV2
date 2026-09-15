@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { planMutation, validateResultEnvelope } from "@forgeflow/core";
+import { planMutation, validateResultEnvelope } from "@praxisbound/core";
 
 const directories = [
   "specs",
@@ -19,11 +19,12 @@ const payloads = [
   "guidance/DECISIONS.md",
   "guidance/PRACTICES.md",
 ];
-const marker = "specs/.forgeflow-adoption";
+const marker = "specs/.praxisbound-adoption";
+const legacyMarker = "specs/.forgeflow-adoption";
 
 function snapshot(overrides = {}) {
   return {
-    protocolVersion: "0.9.0",
+    protocolVersion: "0.10.0",
     provenance: "fixture bundled snapshot",
     revision: "unknown",
     snapshotDigest: "b".repeat(64),
@@ -35,7 +36,10 @@ function snapshot(overrides = {}) {
 function request(mode = "safe", overrides = {}) {
   const entries = new Map([
     ...directories.map((path) => [path, { path, kind: "missing" }]),
-    ...[...payloads, marker].map((path) => [path, { path, kind: "missing" }]),
+    ...[...payloads, marker, legacyMarker].map((path) => [
+      path,
+      { path, kind: "missing" },
+    ]),
   ]);
   for (const [path, entry] of Object.entries(overrides))
     entries.set(path, entry);

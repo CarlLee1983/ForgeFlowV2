@@ -1,0 +1,117 @@
+name: PraxisBound package publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Full SHA approved after local and exact-SHA remote verification
+        required: true
+        type: string
+      package:
+        description: Package to publish after its predecessor is verified
+        required: true
+        type: choice
+        options:
+          - core
+          - cli
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: praxisbound-npm-publication
+  cancel-in-progress: false
+
+jobs:
+  publish-next:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out the exact publication revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Refuse a different revision from the approved candidate
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          DISPATCH_SHA: ${{ github.sha }}
+        run: |
+          case "$CANDIDATE_SHA" in
+            *[!a-f0-9]*|'') echo 'Candidate must be a lowercase full SHA' >&2; exit 2 ;;
+          esac
+          [ "${#CANDIDATE_SHA}" -eq 40 ] || exit 2
+          [ "$CANDIDATE_SHA" = "$DISPATCH_SHA" ] || {
+            echo 'Dispatch revision differs from the approved candidate' >&2
+            exit 1
+          }
+          [ "$(git rev-parse HEAD)" = "$CANDIDATE_SHA" ]
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.x
+          registry-url: https://registry.npmjs.org
+
+      - name: Require npm with provenance and trusted-publishing support
+        run: |
+          node --input-type=module - "$(npm --version)" <<'NODE'
+          const [major, minor] = process.argv[2].split(".").map(Number);
+          if (major < 11 || (major === 11 && minor < 5)) {
+            throw new Error("npm 11.5.1 or newer is required");
+          }
+          NODE
+
+      - name: Install locked tooling dependencies
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          cache: false
+          require-lockfile: true
+
+      - name: Install TypeScript example dependencies
+        run: pnpm --dir examples/typescript install --frozen-lockfile
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: examples/go/go.mod
+          cache-dependency-path: examples/go/go.sum
+
+      - name: Download Go modules
+        run: go -C examples/go mod download
+
+      - name: Build and verify the exact publication revision
+        run: |
+          pnpm install --frozen-lockfile
+          make verify
+
+      - name: Verify publication order and unused version
+        env:
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          case "$PACKAGE" in
+            core|cli) ;;
+            *) exit 2 ;;
+          esac
+          VERSION=$(node -p "require('./packages/$PACKAGE/package.json').version")
+          LOOKUP_DIR=$(mktemp -d)
+          trap 'rm -rf "$LOOKUP_DIR"' EXIT
+          if npm view "@praxisbound/$PACKAGE@$VERSION" version >"$LOOKUP_DIR/version" 2>"$LOOKUP_DIR/error"; then
+            echo "@praxisbound/$PACKAGE@$VERSION already exists" >&2
+            exit 1
+          fi
+          if ! grep -Eq '(^|[[:space:]])E404([[:space:]]|$)' "$LOOKUP_DIR/error"; then
+            echo "Cannot confirm @praxisbound/$PACKAGE@$VERSION is unused" >&2
+            exit 1
+          fi
+          if [ "$PACKAGE" = cli ]; then
+            CORE_VERSION=$(node -p "require('./packages/core/package.json').version")
+            [ "$(npm view "@praxisbound/core@$CORE_VERSION" version)" = "$CORE_VERSION" ]
+          fi
+
+      - name: Publish to the next tag with provenance
+        env:
+          PACKAGE: ${{ inputs.package }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish "./packages/$PACKAGE" --tag next --access public --provenance

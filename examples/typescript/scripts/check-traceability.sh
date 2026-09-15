@@ -15,7 +15,7 @@ if [ ! -f "$acceptance_file" ] || [ ! -f "$test_file" ]; then
   exit 1
 fi
 
-work_dir=$(mktemp -d "${TMPDIR:-/tmp}/forgeflow-typescript-traceability.XXXXXX")
+work_dir=$(mktemp -d "${TMPDIR:-/tmp}/praxisbound-typescript-traceability.XXXXXX")
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 
 acceptance_ids="$work_dir/acceptance-ids"

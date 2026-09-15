@@ -1,6 +1,6 @@
 # Execution Governance
 
-ForgeFlow used to answer one question: is this implementation verified? That
+PraxisBound used to answer one question: is this implementation verified? That
 left four questions unanswered around the gate, and an agent that cannot answer
 them guesses.
 
@@ -26,7 +26,7 @@ Evidence            which observation proves which criterion?
 Done · Partial · Blocked
 ```
 
-The agent executes. ForgeFlow defines what may be done, what must not break,
+The agent executes. PraxisBound defines what may be done, what must not break,
 what must be proven, and when the work is finished.
 
 ## The mental model in one paragraph
@@ -95,7 +95,7 @@ A change that carries real weight says so:
 **Task mode** does not route work to an agent or start anything. It records the
 kind of work so that a review task is not silently treated as a fix task.
 
-**Authority** does not enforce anything at runtime. ForgeFlow is not a sandbox
+**Authority** does not enforce anything at runtime. PraxisBound is not a sandbox
 and cannot stop a command. It makes the boundary explicit and makes crossing it
 visible: an operation recorded as used but not granted is an authority conflict,
 and the verification result is `FAIL`.
@@ -165,7 +165,7 @@ criterion actually did. Reproduce its verdicts with:
 
 ## What this is not
 
-ForgeFlow is not becoming a coding agent, a workflow engine, a state database,
+PraxisBound is not becoming a coding agent, a workflow engine, a state database,
 a scheduler, or a policy runtime. It stays what it was:
 
 ```text

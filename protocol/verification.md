@@ -1,6 +1,6 @@
 # Verification Contract
 
-ForgeFlow repositories expose one canonical command at the repository root:
+PraxisBound repositories expose one canonical command at the repository root:
 
 ```sh
 make verify
@@ -29,11 +29,11 @@ non-interactive, suitable for CI, and return a nonzero status on failure.
 Mutating commands such as automatic formatting remain separate so verification
 does not rewrite source files to obtain PASS.
 
-ForgeFlow constrains the verification interface and its PASS/FAIL semantics,
+PraxisBound constrains the verification interface and its PASS/FAIL semantics,
 not the tools behind it. It does not require a language, framework, formatter,
 linter, type checker, architecture checker, test runner, CI provider, or an
 additional Make target. Project-specific commands and setup remain in
-repository tooling and documentation rather than in the ForgeFlow protocol.
+repository tooling and documentation rather than in the PraxisBound protocol.
 `make verify` remains the one canonical verification command and the
 deterministic authority for its point-in-time PASS or FAIL result.
 
@@ -62,7 +62,7 @@ change invalidates that PASS for review and requires another complete
 
 This result is evidence, not persisted current state. When a control plane is
 present, it owns whether verification is currently running, stale, blocked, or
-accepted in the workflow and whether work is currently complete. ForgeFlow
+accepted in the workflow and whether work is currently complete. PraxisBound
 defines the verification semantics and may preserve immutable evidence without
 maintaining a synchronized status field.
 
@@ -85,7 +85,7 @@ verification surface a Story owes:
 An `architecture` check is added when the Story declares
 `Architecture impact: medium` or `high`.
 
-A profile names verification *layers*, not commands. ForgeFlow does not assume
+A profile names verification *layers*, not commands. PraxisBound does not assume
 that any repository has a command for each layer: the repository maps a layer to
 its own tooling behind `make verify`, exactly as it already does. A layer the
 repository does not have is recorded as `unsupported`. It is never recorded as

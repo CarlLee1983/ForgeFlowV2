@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   evaluateReleaseReadiness,
   validateResultEnvelope,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 const releaseState = (overrides = {}) => ({
   head: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",

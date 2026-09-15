@@ -1,4 +1,4 @@
-# ForgeFlow Handoff Evidence
+# PraxisBound Handoff Evidence
 
 Prose may explain the historical execution context. The block records one
 point-in-time observation; it is not current workflow state.
@@ -26,4 +26,4 @@ verification:
 * Do not add current or next work, lifecycle status, completed work, Gate state,
   review state, or completion state. Those facts belong to the external control
   plane when one is present.
-* ForgePilot is one possible control plane, not a ForgeFlow dependency.
+* ForgePilot is one possible control plane, not a PraxisBound dependency.

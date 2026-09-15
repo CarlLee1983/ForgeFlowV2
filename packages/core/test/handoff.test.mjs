@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { evaluateHandoff, validateResultEnvelope } from "@forgeflow/core";
+import { evaluateHandoff, validateResultEnvelope } from "@praxisbound/core";
 
 const revision = "0123456789abcdef0123456789abcdef01234567";
 const complete = (overrides = {}) => {
@@ -47,7 +47,7 @@ test("TST004-AC-001: complete CRLF source returns frozen evidence and a canonica
   const evaluation = evaluateHandoff(complete().replaceAll("\n", "\r\n"));
   assert.deepEqual(evaluation.result, {
     schemaVersion: "1.0.0",
-    protocolVersion: "0.9.0",
+    protocolVersion: "0.10.0",
     status: "pass",
     outcome: "success",
     exit: 0,

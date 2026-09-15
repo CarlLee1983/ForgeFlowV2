@@ -106,7 +106,7 @@ export function renderDoctorVerificationStart(
     staticExecution.evaluation.facts.map(({ name, value }) => [name, value]),
   );
   const preparation =
-    "ForgeFlow Doctor\n\n" +
+    "PraxisBound Doctor\n\n" +
     (facts.get("agents") === "OK" ? "PASS  Agent guide: AGENTS.md\n" : "") +
     (facts.get("stories") === "OK"
       ? "PASS  Story directory: specs/stories/\n"

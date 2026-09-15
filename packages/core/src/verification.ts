@@ -262,7 +262,7 @@ function readArchitectureImpact(
 
   // This resolver validates the shape of each declaration and nothing more.
   // Resolving a decision to a record, and an owner to a declared boundary, is
-  // the Story contract's job; ADR-003 records that ForgeFlow analyses no
+  // the Story contract's job; ADR-003 records that PraxisBound analyses no
   // further than this.
   readSection(source, "## Architecture", issues, (entry) => {
     if (entry.kind !== "declaration") {

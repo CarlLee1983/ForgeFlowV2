@@ -24,8 +24,8 @@ const payloads = [
   ["guidance/PRINCIPLES.md", "guidance/PRINCIPLES.md"],
   ["guidance/DECISIONS.md", "guidance/DECISIONS.md"],
   ["guidance/PRACTICES.md", "guidance/PRACTICES.md"],
-  ["skills/forgeflow/SKILL.md", "skills/forgeflow/SKILL.md"],
-  ["skills/forgeflow/agents-block.md", "skills/forgeflow/agents-block.md"],
+  ["skills/praxisbound/SKILL.md", "skills/praxisbound/SKILL.md"],
+  ["skills/praxisbound/agents-block.md", "skills/praxisbound/agents-block.md"],
   ["skills/story-development/SKILL.md", "skills/story-development/SKILL.md"],
 ];
 
@@ -52,7 +52,7 @@ writeFileSync(
   join(snapshotRoot, "provenance.json"),
   `${JSON.stringify({
     protocolVersion: version,
-    provenance: "@forgeflow/cli bundled Protocol snapshot",
+    provenance: "@praxisbound/cli bundled Protocol snapshot",
     revision: "unknown",
     snapshotDigest,
     payloads: manifestPayloads,

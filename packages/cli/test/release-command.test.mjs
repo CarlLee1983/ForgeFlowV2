@@ -14,7 +14,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
 
-import { validateResultEnvelope } from "@forgeflow/core";
+import { validateResultEnvelope } from "@praxisbound/core";
 
 import { runReleaseCheck } from "../dist/release.js";
 

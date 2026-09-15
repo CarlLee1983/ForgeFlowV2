@@ -98,7 +98,7 @@ Where the repository defines architecture rules, ask:
 
 When an architecture restriction can be checked deterministically, a later
 change should encode it as an architecture check behind `make verify`. That
-checker is the repository's to build: ForgeFlow records and resolves
+checker is the repository's to build: PraxisBound records and resolves
 architecture declarations and does not analyse source, as
 [Architecture](../protocol/architecture.md) states.
 

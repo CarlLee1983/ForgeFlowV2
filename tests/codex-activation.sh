@@ -3,7 +3,7 @@
 set -eu
 
 repo=$(CDPATH='' cd -P "$(dirname "$0")/.." && pwd)
-test_dir=$(mktemp -d "${TMPDIR:-/tmp}/forgeflow-activation-test.XXXXXX")
+test_dir=$(mktemp -d "${TMPDIR:-/tmp}/praxisbound-activation-test.XXXXXX")
 test_dir=$(CDPATH='' cd -P "$test_dir" && pwd)
 trap 'rm -rf "$test_dir"' 0
 trap 'exit 1' HUP INT TERM
@@ -25,7 +25,7 @@ cp "$repo/scripts/codex-activate" "$repo/scripts/bootstrap" "$repo/scripts/docto
   "$repo/scripts/story-check" "$repo/scripts/handoff-check" "$source_dir/scripts/"
 cp -R "$repo/templates" "$source_dir/templates"
 cp -R "$repo/guidance" "$source_dir/guidance"
-cp -R "$repo/skills/forgeflow" "$repo/skills/story-development" "$source_dir/skills/"
+cp -R "$repo/skills/praxisbound" "$repo/skills/story-development" "$source_dir/skills/"
 printf '0.5.1\n' >"$source_dir/VERSION"
 activate="$source_dir/scripts/codex-activate"
 target="$test_dir/target"
@@ -85,28 +85,28 @@ preview_and_install() {
   new_target 'preview with spaces'
   cp "$target/AGENTS.md" "$test_dir/original-agents"
   chmod 600 "$target/AGENTS.md"
-  cp "$target/specs/.forgeflow-adoption" "$test_dir/original-marker"
+  cp "$target/specs/.praxisbound-adoption" "$test_dir/original-marker"
   manifest >"$test_dir/before"
   run 0 "$activate" "$target"
   contains 'Preview only'
   contains "$target/AGENTS.md"
-  contains "$target/.agents/skills/forgeflow/.forgeflow-snapshot"
-  contains '+<!-- ForgeFlow Codex: begin -->'
+  contains "$target/.agents/skills/praxisbound/.praxisbound-snapshot"
+  contains '+<!-- PraxisBound Codex: begin -->'
   unchanged
   run 0 "$activate" --apply "$target"
-  contains 'Installed ForgeFlow 0.5.1'
+  contains 'Installed PraxisBound 0.5.1'
   case "$(ls -l "$target/AGENTS.md" | awk '{print $1}')" in
     -rw-------*) ;; # macOS may append an extended-attribute indicator.
     *) fail 'changed AGENTS permissions' ;;
   esac
   [ ! -e "$target/execution-canary" ] || fail 'executed adopter code'
-  cmp -s "$test_dir/original-marker" "$target/specs/.forgeflow-adoption" || fail 'changed adoption marker'
+  cmp -s "$test_dir/original-marker" "$target/specs/.praxisbound-adoption" || fail 'changed adoption marker'
   tail -c "$(wc -c <"$test_dir/original-agents" | tr -d ' ')" "$target/AGENTS.md" \
     >"$test_dir/suffix"
   cmp -s "$test_dir/original-agents" "$test_dir/suffix" || fail 'changed original AGENTS bytes'
   cmp -s "$source_dir/skills/story-development/SKILL.md" \
-    "$target/.agents/skills/forgeflow/story-development.md" || fail 'workflow differs from source'
-  grep -Fq '(story-development.md)' "$target/.agents/skills/forgeflow/SKILL.md" || fail 'reference not local'
+    "$target/.agents/skills/praxisbound/story-development.md" || fail 'workflow differs from source'
+  grep -Fq '(story-development.md)' "$target/.agents/skills/praxisbound/SKILL.md" || fail 'reference not local'
 }
 
 snapshot_updates() {
@@ -126,12 +126,12 @@ snapshot_updates() {
   cp "$target/AGENTS.md" "$test_dir/old-agents"
   { printf 'prefix\r\n'; cat "$test_dir/old-agents"; } >"$target/AGENTS.md"
   printf '0.5.2\n' >"$source_dir/VERSION"
-  printf '\nNew snapshot content.\n' >>"$source_dir/skills/forgeflow/SKILL.md"
+  printf '\nNew snapshot content.\n' >>"$source_dir/skills/praxisbound/SKILL.md"
   manifest >"$test_dir/before"
   run 0 "$activate" "$target"
   unchanged
   run 0 "$activate" --apply "$target"
-  contains 'Installed ForgeFlow 0.5.2'
+  contains 'Installed PraxisBound 0.5.2'
   head -c 8 "$target/AGENTS.md" >"$test_dir/prefix"
   printf 'prefix\r\n' >"$test_dir/expected-prefix"
   cmp -s "$test_dir/prefix" "$test_dir/expected-prefix" || fail 'prefix changed'
@@ -139,17 +139,17 @@ snapshot_updates() {
   suffix_bytes=$(wc -c <"$test_dir/expected-suffix" | tr -d ' ')
   tail -c "$suffix_bytes" "$target/AGENTS.md" >"$test_dir/suffix"
   cmp -s "$test_dir/suffix" "$test_dir/expected-suffix" || fail 'suffix changed'
-  grep -Fqx 'version=0.5.2' "$target/.agents/skills/forgeflow/.forgeflow-snapshot" || fail 'version missing'
-  grep -Fqx 'adoption=0.5.1' "$target/.agents/skills/forgeflow/.forgeflow-snapshot" || fail 'template identity lost'
+  grep -Fqx 'version=0.5.2' "$target/.agents/skills/praxisbound/.praxisbound-snapshot" || fail 'version missing'
+  grep -Fqx 'adoption=0.5.1' "$target/.agents/skills/praxisbound/.praxisbound-snapshot" || fail 'template identity lost'
   mv "$source_dir" "$test_dir/source-unavailable"
-  [ -s "$target/.agents/skills/forgeflow/story-development.md" ] || fail 'workflow unavailable'
-  if grep -Fq "$source_dir" "$target/.agents/skills/forgeflow/SKILL.md"; then fail 'source path leaked'; fi
+  [ -s "$target/.agents/skills/praxisbound/story-development.md" ] || fail 'workflow unavailable'
+  if grep -Fq "$source_dir" "$target/.agents/skills/praxisbound/SKILL.md"; then fail 'source path leaked'; fi
   mv "$test_dir/source-unavailable" "$source_dir"
-  printf '\nlocal edit\n' >>"$target/.agents/skills/forgeflow/SKILL.md"
+  printf '\nlocal edit\n' >>"$target/.agents/skills/praxisbound/SKILL.md"
   refuse
   contains 'Locally edited'
   printf '0.5.1\n' >"$source_dir/VERSION"
-  cp "$repo/skills/forgeflow/SKILL.md" "$source_dir/skills/forgeflow/SKILL.md"
+  cp "$repo/skills/praxisbound/SKILL.md" "$source_dir/skills/praxisbound/SKILL.md"
 }
 
 # Unit level: the argument vector and one file's format, decided before the
@@ -166,22 +166,22 @@ invocation_and_marker_validation() {
   refuse
 
   new_target marker-injection
-  printf 'version=0.5.1\nversion=--><!-- ForgeFlow Codex: end -->\nrevision=unknown\n' \
-    >"$target/specs/.forgeflow-adoption"
+  printf 'version=0.5.1\nversion=--><!-- PraxisBound Codex: end -->\nrevision=unknown\n' \
+    >"$target/specs/.praxisbound-adoption"
   refuse
   contains 'Invalid adoption marker version'
   new_target marker-empty-duplicate
-  printf 'version=0.5.1\nversion=\nrevision=unknown\n' >"$target/specs/.forgeflow-adoption"
+  printf 'version=0.5.1\nversion=\nrevision=unknown\n' >"$target/specs/.praxisbound-adoption"
   refuse
   contains 'Invalid adoption marker version'
   new_target marker-nonnumeric
-  printf 'version=0.5.x\nrevision=unknown\n' >"$target/specs/.forgeflow-adoption"
+  printf 'version=0.5.x\nrevision=unknown\n' >"$target/specs/.praxisbound-adoption"
   refuse
   contains 'Invalid adoption marker version'
 }
 
 unsafe_inputs() {
-  for leaf in AGENTS.md .agents .agents/skills .agents/skills/forgeflow specs specs/stories; do
+  for leaf in AGENTS.md .agents .agents/skills .agents/skills/praxisbound specs specs/stories; do
     new_target "symlink-$(printf '%s' "$leaf" | tr / _)"
     outside="$test_dir/outside-$(printf '%s' "$leaf" | tr / _)"
     mkdir "$outside"
@@ -192,16 +192,16 @@ unsafe_inputs() {
     ln -s "$outside/sentinel" "$target/$leaf"
     refuse "$outside"
   done
-  for member in SKILL.md story-development.md .forgeflow-snapshot; do
+  for member in SKILL.md story-development.md .praxisbound-snapshot; do
     new_target "leaf-$member"
     run 0 "$activate" --apply "$target"
     outside="$test_dir/outside-$member"
     mkdir "$outside"
-    mv "$target/.agents/skills/forgeflow/$member" "$outside/sentinel"
-    ln -s "$outside/sentinel" "$target/.agents/skills/forgeflow/$member"
+    mv "$target/.agents/skills/praxisbound/$member" "$outside/sentinel"
+    ln -s "$outside/sentinel" "$target/.agents/skills/praxisbound/$member"
     refuse "$outside"
   done
-  for parent in specs specs/stories .agents .agents/skills .agents/skills/forgeflow; do
+  for parent in specs specs/stories .agents .agents/skills .agents/skills/praxisbound; do
     new_target "file-parent-$(printf '%s' "$parent" | tr / _)"
     if [ -e "$target/$parent" ]; then mv "$target/$parent" "$target/saved-parent"; fi
     mkdir -p "$(dirname "$target/$parent")"
@@ -209,8 +209,8 @@ unsafe_inputs() {
     refuse
     contains 'Not a directory:'
   done
-  for leaf in AGENTS.md specs/.forgeflow-adoption .agents/skills/forgeflow/SKILL.md \
-    .agents/skills/forgeflow/story-development.md .agents/skills/forgeflow/.forgeflow-snapshot; do
+  for leaf in AGENTS.md specs/.praxisbound-adoption .agents/skills/praxisbound/SKILL.md \
+    .agents/skills/praxisbound/story-development.md .agents/skills/praxisbound/.praxisbound-snapshot; do
     for wrong_type in directory fifo; do
       new_target "$wrong_type-leaf-$(printf '%s' "$leaf" | tr / _)"
       run 0 "$activate" --apply "$target"
@@ -225,12 +225,12 @@ unsafe_inputs() {
     new_target "$malformed"
     run 0 "$activate" --apply "$target"
     case "$malformed" in
-      duplicate) printf '\n<!-- ForgeFlow Codex: begin -->\r\n<!-- ForgeFlow Codex: end -->\r\n' >>"$target/AGENTS.md" ;;
-      unmatched) printf '\n<!-- ForgeFlow Codex: begin -->\n' >>"$target/AGENTS.md" ;;
-      lookalike) printf '\n<!-- ForgeFlow Codex: broken -->\n' >>"$target/AGENTS.md" ;;
+      duplicate) printf '\n<!-- PraxisBound Codex: begin -->\r\n<!-- PraxisBound Codex: end -->\r\n' >>"$target/AGENTS.md" ;;
+      unmatched) printf '\n<!-- PraxisBound Codex: begin -->\n' >>"$target/AGENTS.md" ;;
+      lookalike) printf '\n<!-- PraxisBound Codex: broken -->\n' >>"$target/AGENTS.md" ;;
       edited-block) sed 's/General questions/Changed questions/' "$target/AGENTS.md" >"$test_dir/changed"; mv "$test_dir/changed" "$target/AGENTS.md" ;;
-      unknown-content) printf 'user file' >"$target/.agents/skills/forgeflow/custom.md" ;;
-      missing-member) rm "$target/.agents/skills/forgeflow/story-development.md" ;;
+      unknown-content) printf 'user file' >"$target/.agents/skills/praxisbound/custom.md" ;;
+      missing-member) rm "$target/.agents/skills/praxisbound/story-development.md" ;;
     esac
     refuse
   done
@@ -248,9 +248,9 @@ case "$kind" in mv) real=$real_mv ;; cp) real=$real_cp ;; mkdir) real=$real_mkdi
 if [ "$kind" = mv ]; then
   source_path=$2; destination_path=$3
   case "$source_path" in
-    */.forgeflow-activate.*/restore)
+    */.praxisbound-activate.*/restore)
       if [ "${fail_restore:-0}" -eq 1 ]; then exit 1; fi ;;
-    */.forgeflow-activate.*/new)
+    */.praxisbound-activate.*/new)
       if [ "$destination_path" = "$fault_target/$fault_leaf" ] && [ ! -e "$fault_fired" ]; then
         : >"$fault_fired"
         if [ "$fault_after" -eq 1 ]; then "$real" "$@"; fi
@@ -259,7 +259,7 @@ if [ "$kind" = mv ]; then
   esac
 elif [ "$kind" = cp ] && [ "${fail_prepare:-0}" -eq 1 ]; then
   for argument in "$@"; do
-    case "$argument" in */.forgeflow-activate.*/new) exit 1 ;; esac
+    case "$argument" in */.praxisbound-activate.*/new) exit 1 ;; esac
   done
 elif [ "$kind" = mkdir ] && [ "${fail_mkdir:-0}" -eq 1 ]; then
   if [ "$1" = "$fault_target/.agents/skills" ]; then "$real" "$@"; exit 1; fi
@@ -274,11 +274,11 @@ failures_and_hardlinks() {
   make_fault_tools
   for mode in fresh update; do
     for fault_after in 0 1; do
-      for fault_leaf in AGENTS.md .agents/skills/forgeflow/SKILL.md \
-        .agents/skills/forgeflow/story-development.md .agents/skills/forgeflow/.forgeflow-snapshot; do
+      for fault_leaf in AGENTS.md .agents/skills/praxisbound/SKILL.md \
+        .agents/skills/praxisbound/story-development.md .agents/skills/praxisbound/.praxisbound-snapshot; do
         new_target "fault-$mode-$fault_after-$(printf '%s' "$fault_leaf" | tr / _)"
         if [ "$mode" = update ]; then run 0 "$activate" --apply "$target"; fi
-        printf '\nrevision B\n' >>"$source_dir/skills/forgeflow/SKILL.md"
+        printf '\nrevision B\n' >>"$source_dir/skills/praxisbound/SKILL.md"
         cp "$target/AGENTS.md" "$test_dir/expected-hardlink"
         ln "$target/AGENTS.md" "$target/../external-sentinel"
         fault_target=$target; fault_fired="$test_dir/fired"
@@ -308,20 +308,20 @@ failures_and_hardlinks() {
   run 0 "$activate" --apply "$target"
   cp "$target/AGENTS.md" "$test_dir/recovery-original"
   ln "$target/AGENTS.md" "$test_dir/recovery-sentinel"
-  printf '\nrevision C\n' >>"$source_dir/skills/forgeflow/SKILL.md"
+  printf '\nrevision C\n' >>"$source_dir/skills/praxisbound/SKILL.md"
   fault_target=$target; fault_leaf=AGENTS.md; fault_after=1; export fault_target fault_leaf fault_after
   rm -f "$fault_fired"
   run 1 env PATH="$test_dir/bin:$PATH" fail_restore=1 "$activate" --apply "$target"
   contains 'UNRESTORED:'
   contains 'Recovery copies retained:'
   # Select the AGENTS stage specifically; every attempted original is retained.
-  for stage_dir in "$target"/.forgeflow-activate.*-AGENTS.md; do
+  for stage_dir in "$target"/.praxisbound-activate.*-AGENTS.md; do
     cmp -s "$test_dir/recovery-original" "$stage_dir/original" || fail 'recovery bytes unavailable'
   done
   cmp -s "$test_dir/recovery-original" "$test_dir/recovery-sentinel" ||
     fail 'external hardlink changed during failed recovery'
-  if grep -Fq 'Installed ForgeFlow' "$test_dir/output"; then fail 'failure claimed success'; fi
-  cp "$repo/skills/forgeflow/SKILL.md" "$source_dir/skills/forgeflow/SKILL.md"
+  if grep -Fq 'Installed PraxisBound' "$test_dir/output"; then fail 'failure claimed success'; fi
+  cp "$repo/skills/praxisbound/SKILL.md" "$source_dir/skills/praxisbound/SKILL.md"
 }
 
 legacy_compatibility() {
@@ -346,11 +346,11 @@ legacy_compatibility() {
 
   # A pre-marker adoption stays valid and records adoption=unknown.
   new_target legacy-no-marker
-  rm "$target/specs/.forgeflow-adoption"
+  rm "$target/specs/.praxisbound-adoption"
   run 0 "$activate" --apply "$target"
-  grep -Fqx 'adoption=unknown' "$target/.agents/skills/forgeflow/.forgeflow-snapshot" ||
+  grep -Fqx 'adoption=unknown' "$target/.agents/skills/praxisbound/.praxisbound-snapshot" ||
     fail 'legacy adoption without a marker was not recorded as unknown'
-  [ ! -e "$target/specs/.forgeflow-adoption" ] || fail 'activation created an adoption marker'
+  [ ! -e "$target/specs/.praxisbound-adoption" ] || fail 'activation created an adoption marker'
 }
 
 run_case FF225-AC-001 preview_and_install

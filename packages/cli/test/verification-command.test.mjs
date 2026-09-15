@@ -17,7 +17,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { validateResultEnvelope } from "@forgeflow/core";
+import { validateResultEnvelope } from "@praxisbound/core";
 
 import {
   createNodeStoryReader,
@@ -92,7 +92,7 @@ test("TST005-AC-001: a resolved plan has exact human output and exit 0", async (
   assert.equal(human.stderr, "");
   assert.equal(
     human.stdout,
-    `ForgeFlow Verification Check
+    `PraxisBound Verification Check
 
 specs/stories/TST-500-fixture:
   Task mode: execution
@@ -181,7 +181,7 @@ test("TST005-AC-003: an incomplete plan reports ordered failures and exit 1", as
   assert.equal(human.stderr, "");
   assert.equal(
     human.stdout,
-    `ForgeFlow Verification Check
+    `PraxisBound Verification Check
 FAIL  specs/stories/TST-502-incomplete: plan: authority declares an unknown operation: merge
 FAIL  specs/stories/TST-502-incomplete: plan: authority modify must be declared as yes or no
 
@@ -409,10 +409,10 @@ test("TST005-AC-004: the verification subcommand exposes focused help", () => {
   const result = runCli(["verification", "check", "--help"]);
   assert.equal(result.status, 0);
   assert.equal(result.stderr, "");
-  assert.match(result.stdout, /^ForgeFlow Verification Check\n\n/);
+  assert.match(result.stdout, /^PraxisBound Verification Check\n\n/);
   assert.match(
     result.stdout,
-    /forgeflow verification check \[--result\] \[--json\] \[story-directory \.\.\.\]/,
+    /praxisbound verification check \[--result\] \[--json\] \[story-directory \.\.\.\]/,
   );
   assert.match(result.stdout, /static and read-only/);
 });
@@ -564,7 +564,7 @@ test("TST006-AC-001: a complete record has exact human output and exit 0", async
   assert.equal(human.stderr, "");
   assert.equal(
     human.stdout,
-    `ForgeFlow Verification Check
+    `PraxisBound Verification Check
 
 specs/stories/TST-600-fixture:
   Task mode: execution

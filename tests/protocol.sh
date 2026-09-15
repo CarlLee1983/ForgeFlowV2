@@ -304,7 +304,7 @@ for forgeflow_versioning_term in \
   'Breaking' \
   'Additive' \
   'Corrective' \
-  'Before ForgeFlow 1.0' \
+  'Before PraxisBound 1.0' \
   'Starting with 1.0' \
   'vMAJOR.MINOR.PATCH' \
   'private TypeScript example'
@@ -807,13 +807,16 @@ configurable_decision_root_is_additive_for_0_7_0() {
     protocol/architecture.md \
     templates/story/story.md \
     docs/contract-checks.md \
-    docs/upgrading.md \
-    docs/releases/0.7.0.md
+    docs/upgrading.md
   do
-    grep -Fq 'FORGEFLOW_DECISIONS_ROOT' \
+    grep -Fq 'PRAXISBOUND_DECISIONS_ROOT' \
       "$forgeflow_repo/$forgeflow_configuration_document" ||
       fail "$forgeflow_configuration_document omits the decision-root override"
   done
+
+  grep -Fq 'FORGEFLOW_DECISIONS_ROOT' \
+    "$forgeflow_repo/docs/releases/0.7.0.md" ||
+    fail 'the immutable 0.7.0 release record lost its decision-root identity'
 
   grep -Fq 'same-line backticked signal' \
     "$forgeflow_repo/templates/story/story.md" ||
@@ -821,8 +824,8 @@ configurable_decision_root_is_additive_for_0_7_0() {
 }
 
 mutable_lifecycle_state_is_removed_for_0_8_0() {
-  grep -Fqx '0.9.0' "$forgeflow_repo/VERSION" ||
-    fail 'VERSION is not 0.9.0'
+  grep -Fqx '0.10.0' "$forgeflow_repo/VERSION" ||
+    fail 'VERSION is not 0.10.0'
 
   for forgeflow_authority_document in \
     protocol/handoff.md \
@@ -830,7 +833,7 @@ mutable_lifecycle_state_is_removed_for_0_8_0() {
     protocol/story.md \
     README.md \
     templates/AGENTS.md \
-    skills/forgeflow/SKILL.md \
+    skills/praxisbound/SKILL.md \
     skills/story-development/SKILL.md
   do
     grep -Fq 'control plane' "$forgeflow_repo/$forgeflow_authority_document" ||
@@ -852,7 +855,7 @@ mutable_lifecycle_state_is_removed_for_0_8_0() {
   grep -Fq 'does not store what state the work is currently in' \
     "$forgeflow_repo/README.md" ||
     fail 'README omits the final authority principle'
-  grep -Fq 'not persisted ForgeFlow repository state' \
+  grep -Fq 'not persisted PraxisBound repository state' \
     "$forgeflow_repo/protocol/lifecycle.md" ||
     fail 'lifecycle does not disclaim repository state persistence'
   for forgeflow_story_note_rule in \
@@ -921,8 +924,8 @@ structural_contract_is_capability_based_for_0_9_0() {
   grep -Fq 'P1-003 is **Breaking** for `0.9.0`' \
     "$forgeflow_repo/protocol/versioning.md" ||
     fail 'versioning omits the P1-003 Breaking classification'
-  grep -Fqx '0.9.0' "$forgeflow_repo/VERSION" ||
-    fail 'VERSION is not 0.9.0'
+  grep -Fqx '0.10.0' "$forgeflow_repo/VERSION" ||
+    fail 'VERSION is not 0.10.0'
 
   for forgeflow_contract_term in \
     'AGENTS.md' 'Makefile' 'specs/stories/' 'story.md' 'acceptance.md' \

@@ -294,7 +294,7 @@ expect_exit_status 2 "$forgeflow_repo/scripts/bootstrap" "$forgeflow_fresh" --dr
 expect_exit_status 2 "$forgeflow_repo/scripts/bootstrap" "$forgeflow_fresh" "$forgeflow_conflict"
 expect_exit_status 2 "$forgeflow_repo/scripts/bootstrap" --dry-run "$forgeflow_test_dir/missing"
 
-forgeflow_marker_relative='specs/.forgeflow-adoption'
+forgeflow_marker_relative='specs/.praxisbound-adoption'
 
 marker_field() {
   sed -n "s/^$2=//p" "$1"
@@ -888,7 +888,7 @@ adopter_documentation_agrees_on_the_upgrade_contract() {
     '--upgrade' \
     '--dry-run' \
     '--force' \
-    'specs/.forgeflow-adoption' \
+    'specs/.praxisbound-adoption' \
     'AGENTS.md' \
     '../protocol/versioning.md'
   do
@@ -911,9 +911,9 @@ adopter_documentation_agrees_on_the_upgrade_contract() {
       fail "$forgeflow_case_page does not link the upgrade page"
   done
 
-  grep -Fq -- 'specs/.forgeflow-adoption' "$forgeflow_repo/docs/getting-started.md" ||
+  grep -Fq -- 'specs/.praxisbound-adoption' "$forgeflow_repo/docs/getting-started.md" ||
     fail 'docs/getting-started.md does not name the adoption marker path'
-  grep -Fq -- 'specs/.forgeflow-adoption' "$forgeflow_repo/protocol/versioning.md" ||
+  grep -Fq -- 'specs/.praxisbound-adoption' "$forgeflow_repo/protocol/versioning.md" ||
     fail 'protocol/versioning.md does not classify the adoption marker'
   grep -Fq -- '--upgrade' "$forgeflow_repo/docs/getting-started.md" ||
     fail 'docs/getting-started.md does not name the --upgrade option'
@@ -974,7 +974,7 @@ if [ ! -f "$FF_FAULT_ROOT/triggered" ]; then
     mkdir:mkdir)
       if [ "$FF_FAULT_RELATIVE" = stage ]; then
         case "$fault_destination" in
-          "$FF_FAULT_TARGET"/.forgeflow-install.*|"$FF_FAULT_TARGET"/*/.forgeflow-install.*) fault_match=1 ;;
+          "$FF_FAULT_TARGET"/.praxisbound-install.*|"$FF_FAULT_TARGET"/*/.praxisbound-install.*) fault_match=1 ;;
         esac
       elif [ "$fault_destination" = "$FF_FAULT_TARGET/$FF_FAULT_RELATIVE" ]; then
         fault_match=1
@@ -996,7 +996,7 @@ if [ -f "$FF_FAULT_ROOT/triggered" ]; then
       fi ;;
     rm:*)
       if [ "$FF_FAULT_INVALIDATE" -eq 1 ] &&
-        [ "$fault_destination" = "$FF_FAULT_TARGET/specs/.forgeflow-adoption" ]; then
+        [ "$fault_destination" = "$FF_FAULT_TARGET/specs/.praxisbound-adoption" ]; then
         printf 'Injected invalidation failure\n' >&2
         exit 75
       fi ;;
@@ -1039,11 +1039,11 @@ replacement_failures_restore_every_original() {
   forgeflow_recovery_mismatches=0
   for forgeflow_failure_phase in 0 1
   do
-    for forgeflow_failure_path in specs/stories/_template/acceptance.md specs/stories/_template/task.md specs/.forgeflow-adoption
+    for forgeflow_failure_path in specs/stories/_template/acceptance.md specs/stories/_template/task.md specs/.praxisbound-adoption
     do
       prepare_recovery_fault "replace-$forgeflow_failure_phase-${forgeflow_failure_path##*/}"
       make_prior_adoption "$forgeflow_fault_target"
-      printf 'version=0.2.1\nrevision=unknown\n' >"$forgeflow_fault_target/specs/.forgeflow-adoption"
+      printf 'version=0.2.1\nrevision=unknown\n' >"$forgeflow_fault_target/specs/.praxisbound-adoption"
       cp -R "$forgeflow_fault_target" "$forgeflow_fault_root/before"
       forgeflow_fault_relative=$forgeflow_failure_path
       forgeflow_fault_after=$forgeflow_failure_phase
@@ -1088,13 +1088,13 @@ preparation_failures_leave_originals_unchanged() {
   done
   prepare_recovery_fault collision
   if /bin/sh -c '
-    mkdir "$1/.forgeflow-install.$$-AGENTS.md"
-    printf "unrelated staging\n" >"$1/.forgeflow-install.$$-AGENTS.md/sentinel"
+    mkdir "$1/.praxisbound-install.$$-AGENTS.md"
+    printf "unrelated staging\n" >"$1/.praxisbound-install.$$-AGENTS.md/sentinel"
     exec "$2" "$1"
   ' sh "$forgeflow_fault_target" "$forgeflow_repo/scripts/bootstrap" >"$forgeflow_fault_output" 2>&1; then
     fail 'existing staging collision returned success'
   fi
-  for forgeflow_collision_file in "$forgeflow_fault_target"/.forgeflow-install.*/sentinel
+  for forgeflow_collision_file in "$forgeflow_fault_target"/.praxisbound-install.*/sentinel
   do
     [ "$(cat "$forgeflow_collision_file")" = 'unrelated staging' ] || fail 'deleted pre-existing staging'
   done
@@ -1114,7 +1114,7 @@ recovery_preserves_existing_and_absent_files() {
     fi
     printf 'unmanaged\n' >"$forgeflow_fault_target/notes.txt"
     cp -R "$forgeflow_fault_target" "$forgeflow_fault_root/before"
-    forgeflow_fault_relative=specs/.forgeflow-adoption
+    forgeflow_fault_relative=specs/.praxisbound-adoption
     forgeflow_fault_after=1
     if [ "$forgeflow_recovery_mode" = force ]; then run_recovery_fault --force; else run_recovery_fault; fi
     assert_recovery_failed_safely
@@ -1124,12 +1124,12 @@ recovery_preserves_existing_and_absent_files() {
 }
 
 rollback_failure_retains_recovery_evidence() {
-  for forgeflow_restore_path in specs/stories/_template/story.md specs/.forgeflow-adoption
+  for forgeflow_restore_path in specs/stories/_template/story.md specs/.praxisbound-adoption
   do
     prepare_recovery_fault "rollback-${forgeflow_restore_path##*/}"
     make_prior_adoption "$forgeflow_fault_target"
-    printf 'version=0.2.1\nrevision=unknown\n' >"$forgeflow_fault_target/specs/.forgeflow-adoption"
-    forgeflow_fault_relative=specs/.forgeflow-adoption
+    printf 'version=0.2.1\nrevision=unknown\n' >"$forgeflow_fault_target/specs/.praxisbound-adoption"
+    forgeflow_fault_relative=specs/.praxisbound-adoption
     forgeflow_fault_after=1
     forgeflow_fault_rollback=$forgeflow_restore_path
     run_recovery_fault --upgrade
@@ -1141,18 +1141,18 @@ rollback_failure_retains_recovery_evidence() {
     done
     [ "$(cat "$forgeflow_fault_target/specs/stories/_template/acceptance.md")" = 'old template' ] ||
       fail 'rollback stopped before restoring siblings'
-    if [ "$forgeflow_restore_path" = specs/.forgeflow-adoption ]; then
-      [ ! -e "$forgeflow_fault_target/specs/.forgeflow-adoption" ] || fail 'failed marker restore left a new marker'
+    if [ "$forgeflow_restore_path" = specs/.praxisbound-adoption ]; then
+      [ ! -e "$forgeflow_fault_target/specs/.praxisbound-adoption" ] || fail 'failed marker restore left a new marker'
     fi
     forgeflow_recovery_copies=$(find "$forgeflow_fault_target" -name original -type f)
     [ -n "$forgeflow_recovery_copies" ] || fail 'recovery destroyed original backups'
   done
   prepare_recovery_fault invalidation
   make_prior_adoption "$forgeflow_fault_target"
-  printf 'version=0.2.1\nrevision=unknown\n' >"$forgeflow_fault_target/specs/.forgeflow-adoption"
-  forgeflow_fault_relative=specs/.forgeflow-adoption
+  printf 'version=0.2.1\nrevision=unknown\n' >"$forgeflow_fault_target/specs/.praxisbound-adoption"
+  forgeflow_fault_relative=specs/.praxisbound-adoption
   forgeflow_fault_after=1
-  forgeflow_fault_rollback=specs/.forgeflow-adoption
+  forgeflow_fault_rollback=specs/.praxisbound-adoption
   forgeflow_fault_invalidate=1
   run_recovery_fault --upgrade
   assert_recovery_failed_safely
@@ -1171,7 +1171,7 @@ recovery_preserves_normal_and_dry_run_behavior() {
   "$forgeflow_repo/scripts/bootstrap" --upgrade "$forgeflow_fault_target" >/dev/null
   cmp "$forgeflow_repo/templates/story/story.md" "$forgeflow_fault_target/specs/stories/_template/story.md" ||
     fail 'normal installation failed'
-  [ -z "$(find "$forgeflow_fault_target" -name '.forgeflow-install.*')" ] || fail 'success leaked staging'
+  [ -z "$(find "$forgeflow_fault_target" -name '.praxisbound-install.*')" ] || fail 'success leaked staging'
 }
 
 recovery_guarantees_are_documented() {
@@ -1309,7 +1309,7 @@ bootstrap_inventory_is_not_the_adoption_contract() {
   "$forgeflow_repo/scripts/bootstrap" "$forgeflow_case_target" >/dev/null
   rm -rf "$forgeflow_case_target/guidance" \
     "$forgeflow_case_target/specs/stories/_template"
-  rm "$forgeflow_case_target/specs/.forgeflow-adoption"
+  rm "$forgeflow_case_target/specs/.praxisbound-adoption"
   printf 'verify:\n\t@:\n' >"$forgeflow_case_target/Makefile"
 
   forgeflow_case_output=$(

@@ -14,13 +14,21 @@ import {
   type ResultIssue,
 } from "./result.js";
 
-export const activationSkillDirectory = ".agents/skills/forgeflow";
+export const activationSkillDirectory = ".agents/skills/praxisbound";
 export const activationSnapshotPath =
+  ".agents/skills/praxisbound/.praxisbound-snapshot";
+export const legacyActivationSkillDirectory = ".agents/skills/forgeflow";
+export const legacyActivationSnapshotPath =
   ".agents/skills/forgeflow/.forgeflow-snapshot";
-export const activationDestinations = Object.freeze([
-  "AGENTS.md",
+export const legacyActivationDestinations = Object.freeze([
   ".agents/skills/forgeflow/SKILL.md",
   ".agents/skills/forgeflow/story-development.md",
+  legacyActivationSnapshotPath,
+] as const);
+export const activationDestinations = Object.freeze([
+  "AGENTS.md",
+  ".agents/skills/praxisbound/SKILL.md",
+  ".agents/skills/praxisbound/story-development.md",
   activationSnapshotPath,
 ] as const);
 export const activationDirectories = Object.freeze([
@@ -29,17 +37,26 @@ export const activationDirectories = Object.freeze([
   ".agents",
   ".agents/skills",
   activationSkillDirectory,
+  legacyActivationSkillDirectory,
 ] as const);
-export const activationAdoptionPath = "specs/.forgeflow-adoption";
+export const activationAdoptionPath = "specs/.praxisbound-adoption";
 
-const beginMarker = "<!-- ForgeFlow Codex: begin -->";
-const endMarker = "<!-- ForgeFlow Codex: end -->";
-const markerPrefix = "<!-- ForgeFlow Codex:";
+const beginMarker = "<!-- PraxisBound Codex: begin -->";
+const endMarker = "<!-- PraxisBound Codex: end -->";
+const markerPrefix = "<!-- PraxisBound Codex:";
+const legacyBeginMarker = "<!-- ForgeFlow Codex: begin -->";
+const legacyEndMarker = "<!-- ForgeFlow Codex: end -->";
+const legacyMarkerPrefix = "<!-- ForgeFlow Codex:";
 const sha256Pattern = /^[a-f0-9]{64}$/;
 const revisionPattern = /^(?:unknown|[a-f0-9]{40}|[a-f0-9]{64})(?:-dirty)?$/;
 const semverPattern =
   /^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/;
 const expectedMembers = Object.freeze([
+  ".praxisbound-snapshot",
+  "SKILL.md",
+  "story-development.md",
+]);
+const legacyExpectedMembers = Object.freeze([
   ".forgeflow-snapshot",
   "SKILL.md",
   "story-development.md",
@@ -94,7 +111,7 @@ export interface ActivationAcquisitionObservation {
 
 export interface ActivationPlannedChange {
   readonly [key: string]: ResultDataValue;
-  readonly kind: "install" | "replace";
+  readonly kind: "install" | "replace" | "remove";
   readonly path: string;
   readonly digest: string;
   readonly mode: number;
@@ -251,7 +268,7 @@ function validSource(source: ActivationSourceSnapshot): string | undefined {
     return "The packaged AGENTS block is invalid.";
   const skill = decode(source.skill.bytes);
   if (skill === undefined)
-    return "The packaged ForgeFlow skill is not valid UTF-8.";
+    return "The packaged PraxisBound skill is not valid UTF-8.";
   return undefined;
 }
 
@@ -361,7 +378,12 @@ function containsAscii(bytes: Uint8Array, value: string): boolean {
   return false;
 }
 
-function findMarkerSpan(bytes: Uint8Array): MarkerSpan | undefined {
+function findMarkerSpan(
+  bytes: Uint8Array,
+  begin = beginMarker,
+  end = endMarker,
+  prefix = markerPrefix,
+): MarkerSpan | undefined {
   let position = 0;
   let state: 0 | 1 | 2 = 0;
   let start = 0;
@@ -374,11 +396,11 @@ function findMarkerSpan(bytes: Uint8Array): MarkerSpan | undefined {
     const line = bytes.slice(position, contentEnd);
     const width =
       lineEnd < bytes.byteLength ? lineEnd - position + 1 : lineEnd - position;
-    if (containsAscii(line, markerPrefix)) {
-      if (asciiEquals(line, beginMarker) && state === 0) {
+    if (containsAscii(line, prefix)) {
+      if (asciiEquals(line, begin) && state === 0) {
         start = position;
         state = 1;
-      } else if (asciiEquals(line, endMarker) && state === 1) {
+      } else if (asciiEquals(line, end) && state === 1) {
         stop = position + width;
         state = 2;
       } else {
@@ -535,10 +557,15 @@ export function evaluateActivationAcquisition(
 }
 
 function stagePath(path: string, seed: string): string {
+  if (path.startsWith(`${legacyActivationSkillDirectory}/`)) {
+    // Legacy removal copies must outlive the old directory until the final
+    // rmdir succeeds, so they are siblings of it rather than children.
+    return `.agents/skills/.praxisbound-activate.${seed.slice(0, 16)}-forgeflow-${path.slice(legacyActivationSkillDirectory.length + 1)}`;
+  }
   const separator = path.lastIndexOf("/");
   const parent = separator === -1 ? "" : `${path.slice(0, separator + 1)}`;
   const name = path.slice(separator + 1);
-  return `${parent}.forgeflow-activate.${seed.slice(0, 16)}-${name}`;
+  return `${parent}.praxisbound-activate.${seed.slice(0, 16)}-${name}`;
 }
 
 function planBody(plan: Omit<ActivationMutationPlan, "planId">): object {
@@ -587,6 +614,7 @@ export function getActivationObservationScope(): {
       "AGENTS.md",
       activationAdoptionPath,
       ...activationDestinations.slice(1),
+      ...legacyActivationDestinations,
     ]),
   });
 }
@@ -636,7 +664,10 @@ export function planActivation(
         path,
       );
     if (entry.kind === "directory") {
-      if (path === activationSkillDirectory) {
+      if (
+        path === activationSkillDirectory ||
+        path === legacyActivationSkillDirectory
+      ) {
         const members = entry.members;
         if (!validMembers(members) || entry.digest !== membersDigest(members))
           return refused(
@@ -663,7 +694,7 @@ export function planActivation(
   for (const path of ["specs", "specs/stories"] as const) {
     if (observed.get(path)?.kind !== "directory")
       return conflict(
-        "The target is not an adopted ForgeFlow repository.",
+        "The target is not an adopted PraxisBound repository.",
         path,
       );
   }
@@ -700,6 +731,15 @@ export function planActivation(
     activationSkillDirectory,
   ) as ActivationPathObservation;
   const installed = integrationDirectory.kind === "directory";
+  const legacyDirectory = observed.get(
+    legacyActivationSkillDirectory,
+  ) as ActivationPathObservation;
+  const legacyInstalled = legacyDirectory.kind === "directory";
+  if (installed && legacyInstalled)
+    return conflict(
+      "Both legacy and PraxisBound activation directories exist.",
+      legacyActivationSkillDirectory,
+    );
   const members = integrationDirectory.members ?? Object.freeze([]);
   if (
     installed &&
@@ -715,10 +755,25 @@ export function planActivation(
       "Activation ownership evidence is inconsistent.",
       activationSkillDirectory,
     );
+  const legacyMembers = legacyDirectory.members ?? Object.freeze([]);
+  if (
+    legacyInstalled &&
+    (legacyMembers.length !== legacyExpectedMembers.length ||
+      legacyMembers.some(
+        (member, index) => member !== legacyExpectedMembers[index],
+      ))
+  )
+    return conflict(
+      "The legacy activation contains unknown or incomplete content.",
+      legacyActivationSkillDirectory,
+    );
 
   const installedEntries = activationDestinations
     .slice(1)
     .map((path) => observed.get(path));
+  const legacyEntries = legacyActivationDestinations.map((path) =>
+    observed.get(path),
+  );
   for (const [index, entry] of installedEntries.entries()) {
     if (entry?.kind !== "missing" && entry?.kind !== "file")
       return refused(
@@ -745,16 +800,43 @@ export function planActivation(
       "The installed activation is incomplete or unowned.",
       activationSkillDirectory,
     );
+  if (
+    legacyInstalled
+      ? legacyEntries.some(
+          (entry) =>
+            !safeFileObservation(entry) || entry.bytes.byteLength === 0,
+        )
+      : legacyEntries.some((entry) => entry?.kind !== "missing")
+  )
+    return conflict(
+      "The legacy activation is incomplete or unowned.",
+      legacyActivationSkillDirectory,
+    );
 
   const marker = findMarkerSpan(agents.bytes);
+  const legacyMarker = findMarkerSpan(
+    agents.bytes,
+    legacyBeginMarker,
+    legacyEndMarker,
+    legacyMarkerPrefix,
+  );
   if (marker === undefined)
     return conflict(
-      "AGENTS.md has an ambiguous or malformed ForgeFlow section.",
+      "AGENTS.md has an ambiguous or malformed PraxisBound section.",
       "AGENTS.md",
     );
   if ((installed && marker.count !== 2) || (!installed && marker.count !== 0))
     return conflict(
       "The AGENTS section and installed snapshot ownership disagree.",
+      "AGENTS.md",
+    );
+  if (
+    legacyMarker === undefined ||
+    (legacyInstalled && legacyMarker.count !== 2) ||
+    (!legacyInstalled && legacyMarker.count !== 0)
+  )
+    return conflict(
+      "The legacy AGENTS section and snapshot ownership disagree.",
       "AGENTS.md",
     );
 
@@ -793,6 +875,47 @@ export function planActivation(
         "AGENTS.md",
       );
   }
+  if (legacyInstalled) {
+    const [skill, workflow, snapshot] = legacyEntries as unknown as readonly [
+      ActivationPathObservation & { readonly bytes: Uint8Array },
+      ActivationPathObservation & { readonly bytes: Uint8Array },
+      ActivationPathObservation & { readonly bytes: Uint8Array },
+    ];
+    if (
+      !validInstalledSnapshot(
+        snapshot.bytes,
+        skill.bytes,
+        workflow.bytes,
+        legacyMarker.bytes,
+      )
+    )
+      return conflict(
+        "The legacy activation is locally edited or malformed.",
+        legacyActivationSnapshotPath,
+      );
+    const snapshotSource = decode(snapshot.bytes) as string;
+    const version = snapshotSource.split("\n")[1]?.slice("version=".length);
+    const revision = snapshotSource.split("\n")[2]?.slice("revision=".length);
+    const legacyAdoption = snapshotSource
+      .split("\n")[3]
+      ?.slice("adoption=".length);
+    if (version !== "0.9.0")
+      return conflict(
+        "The legacy activation snapshot version is unsupported.",
+        legacyActivationSnapshotPath,
+      );
+    if (
+      !decode(legacyMarker.bytes)
+        ?.split(/\r?\n/)
+        .includes(
+          `<!-- snapshot version=${version} revision=${revision} adoption=${legacyAdoption} -->`,
+        )
+    )
+      return conflict(
+        "The legacy snapshot identity and AGENTS section disagree.",
+        "AGENTS.md",
+      );
+  }
 
   const sourceSkillText = decode(request.source.skill.bytes) as string;
   const desiredSkill = encode(
@@ -807,13 +930,14 @@ export function planActivation(
     request.source.agentBlock.bytes,
     encode(`${endMarker}\n`),
   ]);
+  const replaceMarker = legacyInstalled ? legacyMarker : marker;
   const desiredAgents =
-    marker.count === 0
+    replaceMarker.count === 0
       ? concatBytes([block, agents.bytes])
       : concatBytes([
-          agents.bytes.slice(0, marker.start),
+          agents.bytes.slice(0, replaceMarker.start),
           block,
-          agents.bytes.slice(marker.stop),
+          agents.bytes.slice(replaceMarker.stop),
         ]);
   const desiredWorkflow = request.source.workflow.bytes.slice();
   const desiredSnapshot = snapshotBytes(
@@ -862,6 +986,7 @@ export function planActivation(
     }),
   );
   if (
+    !legacyInstalled &&
     payloads.every(({ path, bytes }) => {
       const current = observed.get(path);
       return current?.bytes !== undefined && bytesEqual(bytes, current.bytes);
@@ -885,8 +1010,19 @@ export function planActivation(
     });
   }
 
-  const effects = Object.freeze(
-    payloads.map(({ path, digest, mode }) =>
+  const effects = Object.freeze([
+    ...(legacyInstalled
+      ? legacyActivationDestinations.map((path) => {
+          const entry = observed.get(path) as ActivationPathObservation;
+          return Object.freeze({
+            kind: "remove" as const,
+            path,
+            digest: entry.digest as string,
+            mode: entry.mode as number,
+          });
+        })
+      : []),
+    ...payloads.map(({ path, digest, mode }) =>
       Object.freeze({
         kind:
           observed.get(path)?.kind === "file"
@@ -897,7 +1033,7 @@ export function planActivation(
         mode,
       }),
     ),
-  );
+  ]);
   const preconditions = Object.freeze(request.paths.map(immutablePrecondition));
   const seed = hash(
     JSON.stringify({

@@ -6,7 +6,7 @@ import {
   RESULT_SCHEMA_VERSION,
   type ResultEnvelope,
   type ResultIssue,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 export interface VerificationProcessRequest {
   readonly command: "make";

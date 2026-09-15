@@ -120,7 +120,7 @@ go_gate_keeps_quality_and_traceability_checks() {
 readme_explains_enforcement_and_github_boundary() {
   for forgeflow_term in \
     '[Code Quality](docs/code-quality.md)' \
-    'ForgeFlow can enforce Code Style' \
+    'PraxisBound can enforce Code Style' \
     'adopting repository owns' \
     'canonical command' \
     'merge policy' \

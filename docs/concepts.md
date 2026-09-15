@@ -1,6 +1,6 @@
-# ForgeFlow Concepts
+# PraxisBound Concepts
 
-ForgeFlow separates intent, guidance, implementation, verification, and approval so an AI
+PraxisBound separates intent, guidance, implementation, verification, and approval so an AI
 agent can be replaced without replacing the development process.
 
 ## Protocol first
@@ -10,7 +10,7 @@ Rules that can be evaluated mechanically belong in formatters, linters, type
 checkers, architecture checks, tests, or other commands behind
 `make verify`.
 
-The repository owns those tools and rules; ForgeFlow standardizes only the
+The repository owns those tools and rules; PraxisBound standardizes only the
 verification interface. Naming, abstraction quality, and other contextual
 design judgments remain with Human Review. See [Code Quality](code-quality.md)
 and [Human Review](human-review.md).
@@ -41,11 +41,11 @@ These boundaries are intentionally separate:
 Agents read an approved Story first, then load only relevant guidance. Specific,
 explicitly approved repository context takes precedence over generic principles.
 An unresolved conflict belongs in Human Review, not in an automatic override.
-ForgeFlow does not use a runtime, memory service, RAG, or semantic judge to make
+PraxisBound does not use a runtime, memory service, RAG, or semantic judge to make
 that judgment.
 
 The control plane is optional. ForgePilot is one example; direct human
-coordination is sufficient when no control plane exists. ForgeFlow stores
+coordination is sufficient when no control plane exists. PraxisBound stores
 approved contracts and immutable evidence, never a second current-state
 projection that must be synchronized with either one.
 
@@ -100,7 +100,7 @@ every criterion has a passing observation; anything less is partial. See
 
 ## Agent agnosticism
 
-ForgeFlow stores the process in ordinary repository artifacts rather than a
+PraxisBound stores the process in ordinary repository artifacts rather than a
 vendor-specific agent runtime. Codex, Claude Code, Cursor, OpenCode, Gemini CLI,
 future agents, and human engineers can all follow the same Story and gate.
 
@@ -112,6 +112,6 @@ canonical.
 ## Conceptual lifecycle
 
 The shared state vocabulary defines transition semantics without requiring
-ForgeFlow repository state or orchestration. See
+PraxisBound repository state or orchestration. See
 [the Story Lifecycle](../protocol/lifecycle.md). A handoff may record what was
 observed at one time and revision, but it never supplies the current state.

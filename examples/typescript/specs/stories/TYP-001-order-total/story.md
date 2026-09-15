@@ -2,7 +2,7 @@
 
 ## Goal
 
-Demonstrate a complete, executable ForgeFlow Story using the existing
+Demonstrate a complete, executable PraxisBound Story using the existing
 TypeScript order-total example.
 
 ## Context
@@ -29,7 +29,7 @@ approved requirements to acceptance criteria to `node:test` cases visible.
 ### Out of Scope
 
 - Changing order-total behavior, errors, or data types.
-- Requiring TypeScript, `node:test`, or this directory layout for ForgeFlow
+- Requiring TypeScript, `node:test`, or this directory layout for PraxisBound
   users.
 - Sharing this Story with the Go example or defining a cross-language schema.
 - Parsing arbitrary Markdown or TypeScript source.
@@ -68,7 +68,7 @@ approved requirements to acceptance criteria to `node:test` cases visible.
 ## Dependencies
 
 - The existing `calculateOrderTotal` implementation and `node:test` suite.
-- The ForgeFlow Story Contract.
+- The PraxisBound Story Contract.
 
 ## Constraints
 

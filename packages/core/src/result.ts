@@ -1,7 +1,7 @@
 import { isStrictNumericSemVer } from "./version.js";
 
 export const RESULT_SCHEMA_VERSION = "1.0.0" as const;
-export const IMPLEMENTED_PROTOCOL_VERSION = "0.9.0" as const;
+export const IMPLEMENTED_PROTOCOL_VERSION = "0.10.0" as const;
 
 export type ResultStatus = "pass" | "fail" | "warning" | "error";
 
@@ -81,7 +81,9 @@ export class ResultEnvelopeValidationError extends TypeError {
   readonly issues: readonly ResultValidationIssue[];
 
   constructor(issues: readonly ResultValidationIssue[]) {
-    super("The value does not satisfy the ForgeFlow result envelope contract.");
+    super(
+      "The value does not satisfy the PraxisBound result envelope contract.",
+    );
     this.name = "ResultEnvelopeValidationError";
     this.issues = Object.freeze(
       issues.map((issue) => Object.freeze({ ...issue })),

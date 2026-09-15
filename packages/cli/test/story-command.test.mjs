@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { constants } from "node:fs";
 import test from "node:test";
 
-import { validateResultEnvelope } from "@forgeflow/core";
+import { validateResultEnvelope } from "@praxisbound/core";
 
 import {
   createNodeStoryReader,
@@ -83,7 +83,7 @@ test("TST007-AC-001: a complete Story reports the documented output and exit 0",
       assert.equal(
         rendered.stdout,
         [
-          "ForgeFlow Story Contract Check",
+          "PraxisBound Story Contract Check",
           "",
           "INFO  specs/stories/TST-901-case: Story ID TST-901",
           "PASS  specs/stories/TST-901-case: classification security=no baseline=no",
@@ -171,7 +171,7 @@ Check minimum Story content.
       assert.equal(
         renderStoryHuman(readyExecution).stdout,
         [
-          "ForgeFlow Story Contract Check",
+          "PraxisBound Story Contract Check",
           "",
           "INFO  specs/stories/TST-901-case: Story ID TST-901",
           "PASS  specs/stories/TST-901-case: classification security=no baseline=no",
@@ -335,8 +335,8 @@ test("TST007-AC-005: an unknown flag is a usage error", async () => {
         assert.equal(
           rendered.stderr,
           "ERROR Invalid arguments\n" +
-            "Usage: forgeflow story check [--ready] [--json] [story-directory ...]\n" +
-            "       forgeflow story check --help\n",
+            "Usage: praxisbound story check [--ready] [--json] [story-directory ...]\n" +
+            "       praxisbound story check --help\n",
           args.join(" "),
         );
       }
@@ -344,7 +344,7 @@ test("TST007-AC-005: an unknown flag is a usage error", async () => {
   );
 });
 
-test("TST007-AC-004: FORGEFLOW_DECISIONS_ROOT redirects decision resolution", async () => {
+test("PB001-AC-004: PraxisBound decision root is canonical and the legacy variable fails closed", async () => {
   const source = `# Story: TST-901 Fixture
 
 ## Classification
@@ -376,10 +376,21 @@ test("TST007-AC-004: FORGEFLOW_DECISIONS_ROOT redirects decision resolution", as
         ["STORY_DECISION_MISSING"],
       );
 
-      const withRoot = await runStoryCheck(
+      const withLegacyRoot = await runStoryCheck(
         ["specs/stories/TST-901-case"],
         createNodeStoryReader(undefined, root, {
           FORGEFLOW_DECISIONS_ROOT: join(root, "elsewhere"),
+        }),
+      );
+      assert.deepEqual(
+        withLegacyRoot.result.issues.map((issue) => issue.code),
+        ["STORY_LEGACY_DECISIONS_ROOT"],
+      );
+
+      const withRoot = await runStoryCheck(
+        ["specs/stories/TST-901-case"],
+        createNodeStoryReader(undefined, root, {
+          PRAXISBOUND_DECISIONS_ROOT: join(root, "elsewhere"),
         }),
       );
       assert.deepEqual(withRoot.result.issues, []);

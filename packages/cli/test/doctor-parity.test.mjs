@@ -32,7 +32,10 @@ async function writeFixture(root, options = {}) {
     "# Acceptance Criteria\n",
   );
   if (options.marker !== undefined)
-    await writeFile(join(root, "specs", ".forgeflow-adoption"), options.marker);
+    await writeFile(
+      join(root, "specs", ".praxisbound-adoption"),
+      options.marker,
+    );
   if (options.makefile !== undefined)
     await writeFile(join(root, "Makefile"), options.makefile);
   if (options.handoff !== undefined)

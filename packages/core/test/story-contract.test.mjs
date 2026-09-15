@@ -5,7 +5,7 @@ import {
   evaluateStoryContract,
   readStoryDecisions,
   validateResultEnvelope,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 const story = [
   "# Story: TST-007 Fixture",

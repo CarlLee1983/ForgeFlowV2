@@ -18,8 +18,8 @@ if (
 
 const packageFixtures = new Map();
 for (const [name, tarballPath, manifestPath] of [
-  ["@forgeflow/core", coreTarballPath, coreManifestPath],
-  ["@forgeflow/cli", cliTarballPath, cliManifestPath],
+  ["@praxisbound/core", coreTarballPath, coreManifestPath],
+  ["@praxisbound/cli", cliTarballPath, cliManifestPath],
 ]) {
   const tarball = readFileSync(tarballPath);
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
@@ -60,10 +60,10 @@ const server = createServer((request, response) => {
       const tarballUrl = `http://127.0.0.1:${server.address().port}${tarballPathname}`;
       let integrity = `sha512-${digest("sha512", fixture.tarball, "base64")}`;
       let shasum = digest("sha1", fixture.tarball, "hex");
-      if (name === "@forgeflow/cli" && failureMode === "bad-integrity") {
+      if (name === "@praxisbound/cli" && failureMode === "bad-integrity") {
         integrity = `sha512-${Buffer.alloc(64).toString("base64")}`;
       }
-      if (name === "@forgeflow/cli" && failureMode === "bad-shasum") {
+      if (name === "@praxisbound/cli" && failureMode === "bad-shasum") {
         integrity = undefined;
         shasum = "0".repeat(40);
       }
@@ -82,7 +82,7 @@ const server = createServer((request, response) => {
     }
     if (path === tarballPathname) {
       const body =
-        name === "@forgeflow/cli" && failureMode === "corrupt-tarball"
+        name === "@praxisbound/cli" && failureMode === "corrupt-tarball"
           ? Buffer.concat([fixture.tarball, Buffer.from("corrupt")])
           : fixture.tarball;
       response.writeHead(200, {

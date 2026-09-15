@@ -16,7 +16,7 @@ import { join, relative } from "node:path";
 import { fileURLToPath, URL } from "node:url";
 import test from "node:test";
 
-import { validateResultEnvelope } from "@forgeflow/core";
+import { validateResultEnvelope } from "@praxisbound/core";
 
 const bin = fileURLToPath(new URL("../dist/bin.js", import.meta.url));
 const bootstrap = fileURLToPath(
@@ -73,7 +73,7 @@ test("TST012-AC-001/006: fresh packed CLI preview is deterministic and writes no
     assert.equal(result.outcome, "INIT_PREVIEW");
     assert.equal(
       result.data.provenance,
-      "@forgeflow/cli bundled Protocol snapshot",
+      "@praxisbound/cli bundled Protocol snapshot",
     );
     const plannedPaths = [
       "AGENTS.md",
@@ -84,7 +84,7 @@ test("TST012-AC-001/006: fresh packed CLI preview is deterministic and writes no
       "guidance/PRINCIPLES.md",
       "guidance/DECISIONS.md",
       "guidance/PRACTICES.md",
-      "specs/.forgeflow-adoption",
+      "specs/.praxisbound-adoption",
     ];
     assert.deepEqual(
       result.data.changes.map((change) => change.path),
@@ -131,7 +131,7 @@ test("TST012-AC-002/003/005/007: force and markerless upgrade preserve exact own
         "specs/stories/_template/story.md",
         "specs/stories/_template/acceptance.md",
         "specs/stories/_template/task.md",
-        "specs/.forgeflow-adoption",
+        "specs/.praxisbound-adoption",
       ],
     );
     assert.equal(

@@ -2,7 +2,7 @@ import { execFile as execFileCallback } from "node:child_process";
 import { stat, realpath } from "node:fs/promises";
 import { promisify } from "node:util";
 
-import type { ReleaseReadinessState, ReleaseTagState } from "@forgeflow/core";
+import type { ReleaseReadinessState, ReleaseTagState } from "@praxisbound/core";
 
 import type {
   ReleaseInspection,

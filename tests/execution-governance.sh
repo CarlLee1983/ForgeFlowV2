@@ -50,8 +50,8 @@ run_story_check_with_decisions_root() {
   forgeflow_command_output="$forgeflow_test_dir/$forgeflow_case_id.output"
 
   if (
-    FORGEFLOW_DECISIONS_ROOT=$forgeflow_configured_decisions_root
-    export FORGEFLOW_DECISIONS_ROOT
+    PRAXISBOUND_DECISIONS_ROOT=$forgeflow_configured_decisions_root
+    export PRAXISBOUND_DECISIONS_ROOT
     "$forgeflow_story_check" "$@"
   ) >"$forgeflow_command_output" 2>&1; then
     forgeflow_command_status=0
@@ -804,7 +804,7 @@ architecture_extension_point() {
     'layer boundaries' \
     'public interface drift' \
     'architecture drift' \
-    'ForgeFlow does not implement them, and it does not intend to' \
+    'PraxisBound does not implement them, and it does not intend to' \
     'This is a scope' \
     'ADR-003'
   do

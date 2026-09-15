@@ -549,7 +549,7 @@ operational_failures_exit_two() {
 
   run_story_check --help
   assert_status 0
-  assert_output_contains 'ForgeFlow Story Contract Check'
+  assert_output_contains 'PraxisBound Story Contract Check'
 }
 
 root_verify_runs_story_contract_check() {
@@ -1508,7 +1508,7 @@ the_two_checkers_agree_on_the_shared_corpus() {
   # Model that: perturb handoff-check's middle-segment rule in a temporary copy
   # so it accepts the ID FF-1-2, and confirm the same loop reports the drift.
   forgeflow_drifted_check="$forgeflow_test_dir/$forgeflow_case_id-drifted-handoff-check"
-  sed 's/^      \*\["\$forgeflow_upper"\]\*) ;;$/      *) ;;/' \
+  sed 's/^      \*\["\$praxisbound_upper"\]\*) ;;$/      *) ;;/' \
     "$forgeflow_handoff_check" >"$forgeflow_drifted_check"
   chmod +x "$forgeflow_drifted_check"
   if cmp -s "$forgeflow_handoff_check" "$forgeflow_drifted_check"; then

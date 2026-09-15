@@ -1,6 +1,6 @@
 # Code Quality
 
-Code quality is a repository-owned concern. ForgeFlow can enforce code style,
+Code quality is a repository-owned concern. PraxisBound can enforce code style,
 but it does not prescribe one cross-language style, toolchain, framework, or
 set of universal thresholds. Each repository selects rules that fit its risks
 and technology and records them in its existing tooling and guidance.
@@ -31,7 +31,7 @@ rule change to Human Review as an explicit repository-policy decision.
 | --- | --- |
 | Formatting | A formatter can completely constrain mechanically representable style. |
 | Static quality | Linters, type checkers, unused-code checks, and repository-chosen complexity rules. |
-| Architecture | ForgeFlow supplies none of these; the repository does: dependency direction validation, forbidden imports, layer boundaries, public interface drift, and architecture drift. See [Architecture](../protocol/architecture.md). |
+| Architecture | PraxisBound supplies none of these; the repository does: dependency direction validation, forbidden imports, layer boundaries, public interface drift, and architecture drift. See [Architecture](../protocol/architecture.md). |
 | Design judgment | Human Review of naming quality, reasonable abstractions, single responsibility, and other context-dependent trade-offs. |
 
 An LLM code review may advise Human Review, but it is not a deterministic

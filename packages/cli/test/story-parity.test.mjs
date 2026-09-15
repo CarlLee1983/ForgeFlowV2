@@ -19,7 +19,7 @@ const storyCheck = fileURLToPath(
 const caseStory = "specs/stories/TST-901-case";
 const resultBase = Object.freeze({
   schemaVersion: "1.0.0",
-  protocolVersion: "0.9.0",
+  protocolVersion: "0.10.0",
   subject: "story",
 });
 const plainAcceptance =
@@ -414,7 +414,7 @@ function normalizeLegacyDiagnostic(diagnostic) {
 function diagnosticLines(output) {
   const ignored = [
     /^$/,
-    /^ForgeFlow Story Contract Check$/,
+    /^PraxisBound Story Contract Check$/,
     /^INFO {2}.+: Story ID .+$/,
     /^PASS {2}.+: classification security=(yes|no) baseline=(yes|no)$/,
     /^Stories checked: \d+$/,

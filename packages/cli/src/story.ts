@@ -11,7 +11,7 @@ import {
   type ResultIssue,
   type StoryDecisionRecord,
   type StoryFacts,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 import { nodeFileAccess, readSafeSource, type FileAccess } from "./source.js";
 
@@ -91,13 +91,13 @@ export const DEFAULT_STORY_ROOT = "specs/stories";
 const TEMPLATE_DIRECTORY = "_template";
 const REQUIRED_STORY_FILES = ["story.md", "acceptance.md"] as const;
 const DEFAULT_DECISIONS_ROOT = "decisions";
-const BANNER = "ForgeFlow Story Contract Check\n";
+const BANNER = "PraxisBound Story Contract Check\n";
 
-export const storyHelp = `ForgeFlow Story Contract Check
+export const storyHelp = `PraxisBound Story Contract Check
 
 Usage:
-  forgeflow story check [--ready] [--json] [story-directory ...]
-  forgeflow story check --help
+  praxisbound story check [--ready] [--json] [story-directory ...]
+  praxisbound story check --help
 
 Without a story directory, every directory under specs/stories/ except
 _template/ is checked relative to the current directory.
@@ -159,7 +159,14 @@ export function createNodeStoryReader(
     ): Promise<StoryDecisionRecord> {
       // The retained checker resolves decisions next to the Story collection
       // unless the environment names another root.
-      const configured = environment["FORGEFLOW_DECISIONS_ROOT"];
+      const legacy = environment["FORGEFLOW_DECISIONS_ROOT"];
+      if (legacy !== undefined && legacy !== "")
+        return {
+          kind: "retired",
+          message:
+            "FORGEFLOW_DECISIONS_ROOT is retired; use PRAXISBOUND_DECISIONS_ROOT.",
+        };
+      const configured = environment["PRAXISBOUND_DECISIONS_ROOT"];
       const decisionsRoot =
         configured !== undefined && configured !== ""
           ? configured
@@ -320,7 +327,7 @@ async function checkStory(
   };
 }
 
-/** Runs `forgeflow story check` over explicit subjects or discovery. */
+/** Runs `praxisbound story check` over explicit subjects or discovery. */
 export async function runStoryCheck(
   args: readonly string[],
   reader: StoryReader = createNodeStoryReader(),
@@ -456,8 +463,8 @@ export function renderStoryHuman(
       stdout: "\nResult: ERROR\nStories checked: 0\n",
       stderr:
         "ERROR Invalid arguments\n" +
-        "Usage: forgeflow story check [--ready] [--json] [story-directory ...]\n" +
-        "       forgeflow story check --help\n",
+        "Usage: praxisbound story check [--ready] [--json] [story-directory ...]\n" +
+        "       praxisbound story check --help\n",
     });
 
   const stdout: string[] = [BANNER, "\n"];

@@ -18,7 +18,7 @@ usage_error() {
 }
 
 help() {
-  printf 'ForgeFlow Repository Doctor\n\n'
+  printf 'PraxisBound Repository Doctor\n\n'
   printf 'Usage: %s [repository-directory]\n' "$0"
   printf '       %s --run-verify [repository-directory]\n' "$0"
   printf '       %s --help\n\n' "$0"
@@ -30,26 +30,26 @@ help() {
 }
 
 file_has_non_whitespace() {
-  forgeflow_content_file=$1
+  praxisbound_content_file=$1
 
-  while IFS= read -r forgeflow_content_line ||
-    [ -n "$forgeflow_content_line" ]; do
-    case "$forgeflow_content_line" in
+  while IFS= read -r praxisbound_content_line ||
+    [ -n "$praxisbound_content_line" ]; do
+    case "$praxisbound_content_line" in
       *[![:space:]]*) return 0 ;;
     esac
-  done <"$forgeflow_content_file"
+  done <"$praxisbound_content_file"
 
   return 1
 }
 
 strip_make_blanks() {
-  forgeflow_stripped_make_text=$1
+  praxisbound_stripped_make_text=$1
 
   while :; do
-    case "$forgeflow_stripped_make_text" in
-      ' '*) forgeflow_stripped_make_text=${forgeflow_stripped_make_text# } ;;
-      "$forgeflow_tab"*)
-        forgeflow_stripped_make_text=${forgeflow_stripped_make_text#"$forgeflow_tab"}
+    case "$praxisbound_stripped_make_text" in
+      ' '*) praxisbound_stripped_make_text=${praxisbound_stripped_make_text# } ;;
+      "$praxisbound_tab"*)
+        praxisbound_stripped_make_text=${praxisbound_stripped_make_text#"$praxisbound_tab"}
         ;;
       *) break ;;
     esac
@@ -57,31 +57,31 @@ strip_make_blanks() {
 }
 
 is_make_define_directive() {
-  forgeflow_define_candidate=$1
-  forgeflow_seen_override=0
-  forgeflow_seen_export=0
+  praxisbound_define_candidate=$1
+  praxisbound_seen_override=0
+  praxisbound_seen_export=0
 
   while :; do
-    case "$forgeflow_define_candidate" in
+    case "$praxisbound_define_candidate" in
       override[[:blank:]]*)
-        [ "$forgeflow_seen_override" -eq 0 ] || return 1
-        forgeflow_seen_override=1
-        forgeflow_define_candidate=${forgeflow_define_candidate#override}
-        strip_make_blanks "$forgeflow_define_candidate"
-        forgeflow_define_candidate=$forgeflow_stripped_make_text
+        [ "$praxisbound_seen_override" -eq 0 ] || return 1
+        praxisbound_seen_override=1
+        praxisbound_define_candidate=${praxisbound_define_candidate#override}
+        strip_make_blanks "$praxisbound_define_candidate"
+        praxisbound_define_candidate=$praxisbound_stripped_make_text
         ;;
       export[[:blank:]]*)
-        [ "$forgeflow_seen_export" -eq 0 ] || return 1
-        forgeflow_seen_export=1
-        forgeflow_define_candidate=${forgeflow_define_candidate#export}
-        strip_make_blanks "$forgeflow_define_candidate"
-        forgeflow_define_candidate=$forgeflow_stripped_make_text
+        [ "$praxisbound_seen_export" -eq 0 ] || return 1
+        praxisbound_seen_export=1
+        praxisbound_define_candidate=${praxisbound_define_candidate#export}
+        strip_make_blanks "$praxisbound_define_candidate"
+        praxisbound_define_candidate=$praxisbound_stripped_make_text
         ;;
       *) break ;;
     esac
   done
 
-  case "$forgeflow_define_candidate" in
+  case "$praxisbound_define_candidate" in
     define|define[[:blank:]]*) return 0 ;;
   esac
 
@@ -89,104 +89,104 @@ is_make_define_directive() {
 }
 
 scan_makefile() {
-  forgeflow_scan_file=$1
-  forgeflow_literal_verify_rule=0
-  forgeflow_complex_makefile=0
-  forgeflow_continuation=0
-  forgeflow_define_depth=0
-  forgeflow_tab=$(printf '\t')
+  praxisbound_scan_file=$1
+  praxisbound_literal_verify_rule=0
+  praxisbound_complex_makefile=0
+  praxisbound_continuation=0
+  praxisbound_define_depth=0
+  praxisbound_tab=$(printf '\t')
 
-  while IFS= read -r forgeflow_scan_line ||
-    [ -n "$forgeflow_scan_line" ]; do
-    if [ "$forgeflow_define_depth" -gt 0 ]; then
-      while [ "${forgeflow_scan_line# }" != "$forgeflow_scan_line" ]; do
-        forgeflow_scan_line=${forgeflow_scan_line# }
+  while IFS= read -r praxisbound_scan_line ||
+    [ -n "$praxisbound_scan_line" ]; do
+    if [ "$praxisbound_define_depth" -gt 0 ]; then
+      while [ "${praxisbound_scan_line# }" != "$praxisbound_scan_line" ]; do
+        praxisbound_scan_line=${praxisbound_scan_line# }
       done
 
-      if is_make_define_directive "$forgeflow_scan_line"; then
-        forgeflow_define_depth=$((forgeflow_define_depth + 1))
+      if is_make_define_directive "$praxisbound_scan_line"; then
+        praxisbound_define_depth=$((praxisbound_define_depth + 1))
       else
-        case "$forgeflow_scan_line" in
+        case "$praxisbound_scan_line" in
           endef|endef[[:blank:]]*)
-            forgeflow_define_depth=$((forgeflow_define_depth - 1))
+            praxisbound_define_depth=$((praxisbound_define_depth - 1))
             ;;
         esac
       fi
 
-      forgeflow_complex_makefile=1
+      praxisbound_complex_makefile=1
       continue
     fi
 
-    forgeflow_next_continuation=0
-    case "$forgeflow_scan_line" in
+    praxisbound_next_continuation=0
+    case "$praxisbound_scan_line" in
       *\\)
-        forgeflow_next_continuation=1
-        forgeflow_complex_makefile=1
+        praxisbound_next_continuation=1
+        praxisbound_complex_makefile=1
         ;;
     esac
 
-    if [ "$forgeflow_continuation" -eq 1 ]; then
-      forgeflow_continuation=$forgeflow_next_continuation
+    if [ "$praxisbound_continuation" -eq 1 ]; then
+      praxisbound_continuation=$praxisbound_next_continuation
       continue
     fi
-    forgeflow_continuation=$forgeflow_next_continuation
+    praxisbound_continuation=$praxisbound_next_continuation
 
-    case "$forgeflow_scan_line" in
-      "$forgeflow_tab"*) continue ;;
+    case "$praxisbound_scan_line" in
+      "$praxisbound_tab"*) continue ;;
     esac
 
-    while [ "${forgeflow_scan_line# }" != "$forgeflow_scan_line" ]; do
-      forgeflow_scan_line=${forgeflow_scan_line# }
+    while [ "${praxisbound_scan_line# }" != "$praxisbound_scan_line" ]; do
+      praxisbound_scan_line=${praxisbound_scan_line# }
     done
 
-    case "$forgeflow_scan_line" in
+    case "$praxisbound_scan_line" in
       ''|'#'*) continue ;;
       include|-include|sinclude|include\ *|-include\ *|sinclude\ *)
-        forgeflow_complex_makefile=1
+        praxisbound_complex_makefile=1
         ;;
     esac
 
-    if is_make_define_directive "$forgeflow_scan_line"; then
-      forgeflow_define_depth=1
-      forgeflow_complex_makefile=1
+    if is_make_define_directive "$praxisbound_scan_line"; then
+      praxisbound_define_depth=1
+      praxisbound_complex_makefile=1
       continue
     fi
 
     # The quoted dollar signs are literal Make syntax, not shell expansion.
     # shellcheck disable=SC2016
-    case "$forgeflow_scan_line" in
-      *'$('*|*'${'*) forgeflow_complex_makefile=1 ;;
+    case "$praxisbound_scan_line" in
+      *'$('*|*'${'*) praxisbound_complex_makefile=1 ;;
     esac
 
-    case "$forgeflow_scan_line" in
+    case "$praxisbound_scan_line" in
       verify*)
-        forgeflow_verify_suffix=${forgeflow_scan_line#verify}
+        praxisbound_verify_suffix=${praxisbound_scan_line#verify}
 
-        while [ "${forgeflow_verify_suffix# }" != \
-          "$forgeflow_verify_suffix" ]; do
-          forgeflow_verify_suffix=${forgeflow_verify_suffix# }
+        while [ "${praxisbound_verify_suffix# }" != \
+          "$praxisbound_verify_suffix" ]; do
+          praxisbound_verify_suffix=${praxisbound_verify_suffix# }
         done
 
-        case "$forgeflow_verify_suffix" in
+        case "$praxisbound_verify_suffix" in
           :*)
-            forgeflow_verify_suffix=${forgeflow_verify_suffix#:}
-            while [ "${forgeflow_verify_suffix#:}" != \
-              "$forgeflow_verify_suffix" ]; do
-              forgeflow_verify_suffix=${forgeflow_verify_suffix#:}
+            praxisbound_verify_suffix=${praxisbound_verify_suffix#:}
+            while [ "${praxisbound_verify_suffix#:}" != \
+              "$praxisbound_verify_suffix" ]; do
+              praxisbound_verify_suffix=${praxisbound_verify_suffix#:}
             done
-            case "$forgeflow_verify_suffix" in
+            case "$praxisbound_verify_suffix" in
               =*) ;;
-              *) forgeflow_literal_verify_rule=1 ;;
+              *) praxisbound_literal_verify_rule=1 ;;
             esac
             ;;
         esac
         ;;
     esac
-  done <"$forgeflow_scan_file"
+  done <"$praxisbound_scan_file"
 }
 
-forgeflow_run_verify=0
-forgeflow_target=.
+praxisbound_run_verify=0
+praxisbound_target=.
 
 case "$#" in
   0) ;;
@@ -196,12 +196,12 @@ case "$#" in
         help
         exit 0
         ;;
-      --run-verify) forgeflow_run_verify=1 ;;
+      --run-verify) praxisbound_run_verify=1 ;;
       -*)
         usage_error
         exit 2
         ;;
-      *) forgeflow_target=$1 ;;
+      *) praxisbound_target=$1 ;;
     esac
     ;;
   2)
@@ -216,8 +216,8 @@ case "$#" in
         exit 2
         ;;
       *)
-        forgeflow_run_verify=1
-        forgeflow_target=$2
+        praxisbound_run_verify=1
+        praxisbound_target=$2
         ;;
     esac
     ;;
@@ -227,9 +227,9 @@ case "$#" in
     ;;
 esac
 
-if [ ! -d "$forgeflow_target" ]; then
-  printf 'ForgeFlow Doctor\n\n'
-  printf 'ERROR Repository is not a directory: %s\n\n' "$forgeflow_target"
+if [ ! -d "$praxisbound_target" ]; then
+  printf 'PraxisBound Doctor\n\n'
+  printf 'ERROR Repository is not a directory: %s\n\n' "$praxisbound_target"
   printf 'Result: ERROR\n'
   printf 'Verification: NOT_RUN\n'
   printf 'CI: NOT_CHECKED\n'
@@ -237,15 +237,15 @@ if [ ! -d "$forgeflow_target" ]; then
   exit 2
 fi
 
-if forgeflow_physical_target=$(
-  CDPATH='' cd -P "$forgeflow_target" >/dev/null 2>&1 || exit 1
+if praxisbound_physical_target=$(
+  CDPATH='' cd -P "$praxisbound_target" >/dev/null 2>&1 || exit 1
   pwd
 ); then
-  forgeflow_target=$forgeflow_physical_target
+  praxisbound_target=$praxisbound_physical_target
 else
-  printf 'ForgeFlow Doctor\n\n'
+  printf 'PraxisBound Doctor\n\n'
   printf 'ERROR Repository directory cannot be resolved: %s\n\n' \
-    "$forgeflow_target"
+    "$praxisbound_target"
   printf 'Result: ERROR\n'
   printf 'Verification: NOT_RUN\n'
   printf 'CI: NOT_CHECKED\n'
@@ -256,31 +256,32 @@ fi
 # Resolved with shell builtins only: Doctor must behave identically when the
 # caller's PATH holds no external utilities.
 case "$0" in
-  */*) forgeflow_script_dir=${0%/*} ;;
-  *) forgeflow_script_dir=. ;;
+  */*) praxisbound_script_dir=${0%/*} ;;
+  *) praxisbound_script_dir=. ;;
 esac
 
-forgeflow_script_dir=$(
-  CDPATH='' cd -P "$forgeflow_script_dir" >/dev/null 2>&1 || exit 1
+praxisbound_script_dir=$(
+  CDPATH='' cd -P "$praxisbound_script_dir" >/dev/null 2>&1 || exit 1
   pwd
 )
-forgeflow_root=${forgeflow_script_dir%/*}
+praxisbound_root=${praxisbound_script_dir%/*}
 
-if [ -z "$forgeflow_root" ]; then
-  forgeflow_root='/'
+if [ -z "$praxisbound_root" ]; then
+  praxisbound_root='/'
 fi
-forgeflow_marker_relative='specs/.forgeflow-adoption'
-forgeflow_cr=$(printf '\r')
-forgeflow_tab=$(printf '\t')
+praxisbound_marker_relative='specs/.praxisbound-adoption'
+praxisbound_legacy_marker_relative='specs/.forgeflow-adoption'
+praxisbound_cr=$(printf '\r')
+praxisbound_tab=$(printf '\t')
 
 trim_trailing_blanks() {
-  forgeflow_trimmed=$1
+  praxisbound_trimmed=$1
 
   while :; do
-    case "$forgeflow_trimmed" in
-      *"$forgeflow_cr") forgeflow_trimmed=${forgeflow_trimmed%"$forgeflow_cr"} ;;
-      *"$forgeflow_tab") forgeflow_trimmed=${forgeflow_trimmed%"$forgeflow_tab"} ;;
-      *' ') forgeflow_trimmed=${forgeflow_trimmed% } ;;
+    case "$praxisbound_trimmed" in
+      *"$praxisbound_cr") praxisbound_trimmed=${praxisbound_trimmed%"$praxisbound_cr"} ;;
+      *"$praxisbound_tab") praxisbound_trimmed=${praxisbound_trimmed%"$praxisbound_tab"} ;;
+      *' ') praxisbound_trimmed=${praxisbound_trimmed% } ;;
       *) break ;;
     esac
   done
@@ -289,28 +290,28 @@ trim_trailing_blanks() {
 # Read with shell builtins only: static mode must behave identically when the
 # caller's PATH holds no external utilities.
 read_first_line() {
-  forgeflow_first_line=''
+  praxisbound_first_line=''
 
   {
-    IFS= read -r forgeflow_first_line || [ -n "$forgeflow_first_line" ]
+    IFS= read -r praxisbound_first_line || [ -n "$praxisbound_first_line" ]
   } <"$1" || return 1
 
-  trim_trailing_blanks "$forgeflow_first_line"
-  forgeflow_first_line=$forgeflow_trimmed
+  trim_trailing_blanks "$praxisbound_first_line"
+  praxisbound_first_line=$praxisbound_trimmed
 }
 
 read_marker_version() {
-  forgeflow_marker_version=''
+  praxisbound_marker_version=''
 
-  while IFS= read -r forgeflow_marker_line ||
-    [ -n "$forgeflow_marker_line" ]
+  while IFS= read -r praxisbound_marker_line ||
+    [ -n "$praxisbound_marker_line" ]
   do
-    case "$forgeflow_marker_line" in
+    case "$praxisbound_marker_line" in
       version=*)
-        forgeflow_marker_version=${forgeflow_marker_line#version=}
-        trim_trailing_blanks "$forgeflow_marker_version"
-        forgeflow_marker_version=$forgeflow_trimmed
-        [ -n "$forgeflow_marker_version" ] || return 1
+        praxisbound_marker_version=${praxisbound_marker_line#version=}
+        trim_trailing_blanks "$praxisbound_marker_version"
+        praxisbound_marker_version=$praxisbound_trimmed
+        [ -n "$praxisbound_marker_version" ] || return 1
         return 0
         ;;
     esac
@@ -318,331 +319,362 @@ read_marker_version() {
 
   return 1
 }
-forgeflow_adopted_version='UNKNOWN'
-forgeflow_story_contract='NOT_CHECKED'
-forgeflow_handoff_contract='NOT_CHECKED'
-forgeflow_guidance='NOT_CHECKED'
-forgeflow_skills='NOT_CHECKED'
-forgeflow_ci='NOT_CHECKED'
-forgeflow_contract_drift=0
-forgeflow_contract_error=0
-forgeflow_static_result='STRUCTURE_OK'
+praxisbound_adopted_version='UNKNOWN'
+praxisbound_story_contract='NOT_CHECKED'
+praxisbound_handoff_contract='NOT_CHECKED'
+praxisbound_guidance='NOT_CHECKED'
+praxisbound_skills='NOT_CHECKED'
+praxisbound_ci='NOT_CHECKED'
+praxisbound_contract_drift=0
+praxisbound_contract_error=0
+praxisbound_static_result='STRUCTURE_OK'
 
 # The composed checkers are read-only and are given paths rather than being run
 # from inside the target, so static mode never executes repository-owned code.
 read_adoption_marker() {
-  forgeflow_marker_path="$forgeflow_target/$forgeflow_marker_relative"
+  praxisbound_marker_path="$praxisbound_target/$praxisbound_marker_relative"
 
-  if [ -L "$forgeflow_marker_path" ]; then
+  if [ -L "$praxisbound_marker_path" ]; then
     printf 'ERROR Adoption marker is a symlink and cannot be safely read: %s\n' \
-      "$forgeflow_marker_relative"
-    forgeflow_contract_error=1
+      "$praxisbound_marker_relative"
+    praxisbound_contract_error=1
     return 0
   fi
 
-  if [ ! -e "$forgeflow_marker_path" ]; then
+  if [ ! -e "$praxisbound_marker_path" ]; then
     printf 'INFO  No adoption marker; the adopted protocol version is unknown\n'
     return 0
   fi
 
-  if [ ! -f "$forgeflow_marker_path" ] || [ ! -r "$forgeflow_marker_path" ]; then
+  if [ ! -f "$praxisbound_marker_path" ] || [ ! -r "$praxisbound_marker_path" ]; then
     printf 'ERROR Adoption marker cannot be read: %s\n' \
-      "$forgeflow_marker_relative"
-    forgeflow_contract_error=1
+      "$praxisbound_marker_relative"
+    praxisbound_contract_error=1
     return 0
   fi
 
-  if ! read_marker_version "$forgeflow_marker_path"; then
+  if ! read_marker_version "$praxisbound_marker_path"; then
     printf 'ERROR Adoption marker records no version: %s\n' \
-      "$forgeflow_marker_relative"
-    forgeflow_contract_error=1
+      "$praxisbound_marker_relative"
+    praxisbound_contract_error=1
     return 0
   fi
 
-  forgeflow_adopted_version=$forgeflow_marker_version
+  praxisbound_adopted_version=$praxisbound_marker_version
 
-  if [ "$forgeflow_adopted_version" != "$forgeflow_version" ]; then
+  if [ "$praxisbound_adopted_version" != "$praxisbound_version" ]; then
     printf 'WARN  Adopted version %s differs from this checkout %s\n' \
-      "$forgeflow_adopted_version" "$forgeflow_version"
-    forgeflow_contract_drift=1
+      "$praxisbound_adopted_version" "$praxisbound_version"
+    praxisbound_contract_drift=1
   fi
+
+  if [ -e "$praxisbound_target/$praxisbound_legacy_marker_relative" ] ||
+    [ -L "$praxisbound_target/$praxisbound_legacy_marker_relative" ]; then
+    printf 'ERROR Current and legacy adoption markers are both present.\n'
+    praxisbound_contract_error=1
+  fi
+}
+
+read_legacy_adoption_marker() {
+  praxisbound_marker_path="$praxisbound_target/$praxisbound_legacy_marker_relative"
+  [ -e "$praxisbound_marker_path" ] || [ -L "$praxisbound_marker_path" ] || return 0
+  if [ -e "$praxisbound_target/$praxisbound_marker_relative" ] ||
+    [ -L "$praxisbound_target/$praxisbound_marker_relative" ]; then
+    printf 'ERROR Current and legacy adoption markers are both present.\n'
+    praxisbound_contract_error=1
+    return 0
+  fi
+  if [ -L "$praxisbound_marker_path" ] || [ ! -f "$praxisbound_marker_path" ] ||
+    [ ! -r "$praxisbound_marker_path" ]; then
+    printf 'ERROR Legacy adoption marker cannot be safely read: %s\n' "$praxisbound_legacy_marker_relative"
+    praxisbound_contract_error=1
+    return 0
+  fi
+  if ! read_marker_version "$praxisbound_marker_path" ||
+    [ "$praxisbound_marker_version" != '0.9.0' ]; then
+    printf 'ERROR Legacy adoption marker is malformed or unsupported: %s\n' "$praxisbound_legacy_marker_relative"
+    praxisbound_contract_error=1
+    return 0
+  fi
+  printf 'WARN  Legacy ForgeFlow adoption requires migration: %s\n' "$praxisbound_legacy_marker_relative"
+  praxisbound_contract_drift=1
 }
 
 check_story_contract() {
   set --
 
-  for forgeflow_story_entry in "$forgeflow_target"/specs/stories/*
+  for praxisbound_story_entry in "$praxisbound_target"/specs/stories/*
   do
-    case "${forgeflow_story_entry##*/}" in
+    case "${praxisbound_story_entry##*/}" in
       _template) continue ;;
     esac
 
     # A dangling symlink fails -e, so the link test comes first.
-    if [ -L "$forgeflow_story_entry" ]; then
+    if [ -L "$praxisbound_story_entry" ]; then
       printf 'ERROR Story path is a symlink and cannot be safely read: %s\n' \
-        "${forgeflow_story_entry##*/}"
-      forgeflow_story_contract='ERROR'
-      forgeflow_contract_error=1
+        "${praxisbound_story_entry##*/}"
+      praxisbound_story_contract='ERROR'
+      praxisbound_contract_error=1
       return 0
     fi
 
-    [ -e "$forgeflow_story_entry" ] || continue
-    [ -d "$forgeflow_story_entry" ] || continue
+    [ -e "$praxisbound_story_entry" ] || continue
+    [ -d "$praxisbound_story_entry" ] || continue
 
-    set -- "$@" "$forgeflow_story_entry"
+    set -- "$@" "$praxisbound_story_entry"
   done
 
   if [ "$#" -eq 0 ]; then
-    forgeflow_story_contract='NO_STORIES'
+    praxisbound_story_contract='NO_STORIES'
     return 0
   fi
 
-  if "$forgeflow_script_dir/story-check" "$@" >/dev/null 2>&1; then
-    forgeflow_story_status=0
+  if "$praxisbound_script_dir/story-check" "$@" >/dev/null 2>&1; then
+    praxisbound_story_status=0
   else
-    forgeflow_story_status=$?
+    praxisbound_story_status=$?
   fi
 
-  case "$forgeflow_story_status" in
-    0) forgeflow_story_contract='STORY_CONTRACT_OK' ;;
+  case "$praxisbound_story_status" in
+    0) praxisbound_story_contract='STORY_CONTRACT_OK' ;;
     1)
-      forgeflow_story_contract='STORY_CONTRACT_INCOMPLETE'
+      praxisbound_story_contract='STORY_CONTRACT_INCOMPLETE'
       printf 'WARN  Stories do not satisfy the Story Contract of this checkout\n'
-      forgeflow_contract_drift=1
+      praxisbound_contract_drift=1
       ;;
     *)
-      forgeflow_story_contract='ERROR'
+      praxisbound_story_contract='ERROR'
       printf 'ERROR Story contract check could not read the Stories it was given\n'
-      forgeflow_contract_error=1
+      praxisbound_contract_error=1
       ;;
   esac
 }
 
 check_handoff_contract() {
-  forgeflow_handoff_path="$forgeflow_target/specs/handoff.md"
+  praxisbound_handoff_path="$praxisbound_target/specs/handoff.md"
 
-  if [ -L "$forgeflow_handoff_path" ]; then
+  if [ -L "$praxisbound_handoff_path" ]; then
     printf 'ERROR Handoff is a symlink and cannot be safely read: specs/handoff.md\n'
-    forgeflow_contract_error=1
-    forgeflow_handoff_contract='ERROR'
+    praxisbound_contract_error=1
+    praxisbound_handoff_contract='ERROR'
     return 0
   fi
 
-  if [ ! -e "$forgeflow_handoff_path" ]; then
-    forgeflow_handoff_contract='NOT_PRESENT'
+  if [ ! -e "$praxisbound_handoff_path" ]; then
+    praxisbound_handoff_contract='NOT_PRESENT'
     return 0
   fi
 
-  if "$forgeflow_script_dir/handoff-check" "$forgeflow_handoff_path" \
+  if "$praxisbound_script_dir/handoff-check" "$praxisbound_handoff_path" \
     >/dev/null 2>&1; then
-    forgeflow_handoff_status=0
+    praxisbound_handoff_status=0
   else
-    forgeflow_handoff_status=$?
+    praxisbound_handoff_status=$?
   fi
 
-  case "$forgeflow_handoff_status" in
-    0) forgeflow_handoff_contract='HANDOFF_CONTRACT_OK' ;;
+  case "$praxisbound_handoff_status" in
+    0) praxisbound_handoff_contract='HANDOFF_CONTRACT_OK' ;;
     1)
-      forgeflow_handoff_contract='HANDOFF_CONTRACT_INCOMPLETE'
+      praxisbound_handoff_contract='HANDOFF_CONTRACT_INCOMPLETE'
       printf 'WARN  The handoff does not satisfy the Handoff Contract of this checkout\n'
-      forgeflow_contract_drift=1
+      praxisbound_contract_drift=1
       ;;
     *)
-      forgeflow_handoff_contract='ERROR'
+      praxisbound_handoff_contract='ERROR'
       printf 'ERROR Handoff contract check could not read specs/handoff.md\n'
-      forgeflow_contract_error=1
+      praxisbound_contract_error=1
       ;;
   esac
 }
 
 check_guidance() {
-  forgeflow_guidance_path="$forgeflow_target/guidance"
-  forgeflow_guidance='NOT_PRESENT'
+  praxisbound_guidance_path="$praxisbound_target/guidance"
+  praxisbound_guidance='NOT_PRESENT'
 
-  if [ -L "$forgeflow_guidance_path" ]; then
+  if [ -L "$praxisbound_guidance_path" ]; then
     printf 'ERROR Guidance path is a symlink and cannot be safely read: guidance/\n'
-    forgeflow_guidance='ERROR'
-    forgeflow_contract_error=1
+    praxisbound_guidance='ERROR'
+    praxisbound_contract_error=1
     return 0
   fi
-  if [ ! -e "$forgeflow_guidance_path" ]; then
+  if [ ! -e "$praxisbound_guidance_path" ]; then
     printf 'INFO  Guidance capability is not present\n'
     return 0
   fi
-  if [ ! -d "$forgeflow_guidance_path" ]; then
+  if [ ! -d "$praxisbound_guidance_path" ]; then
     printf 'ERROR Guidance path is not a directory: guidance/\n'
-    forgeflow_guidance='ERROR'
-    forgeflow_contract_error=1
+    praxisbound_guidance='ERROR'
+    praxisbound_contract_error=1
     return 0
   fi
-  if [ ! -r "$forgeflow_guidance_path" ] || [ ! -x "$forgeflow_guidance_path" ]; then
+  if [ ! -r "$praxisbound_guidance_path" ] || [ ! -x "$praxisbound_guidance_path" ]; then
     printf 'ERROR Guidance path cannot be safely read: guidance/\n'
-    forgeflow_guidance='ERROR'
-    forgeflow_contract_error=1
+    praxisbound_guidance='ERROR'
+    praxisbound_contract_error=1
     return 0
   fi
 
-  forgeflow_guidance_file_path="$forgeflow_guidance_path/ENTRY.md"
-  if [ -L "$forgeflow_guidance_file_path" ]; then
+  praxisbound_guidance_file_path="$praxisbound_guidance_path/ENTRY.md"
+  if [ -L "$praxisbound_guidance_file_path" ]; then
     printf 'ERROR Guidance entrypoint is a symlink and cannot be safely read: guidance/ENTRY.md\n'
-    forgeflow_guidance='ERROR'
-    forgeflow_contract_error=1
-  elif [ ! -e "$forgeflow_guidance_file_path" ]; then
+    praxisbound_guidance='ERROR'
+    praxisbound_contract_error=1
+  elif [ ! -e "$praxisbound_guidance_file_path" ]; then
     printf 'WARN  Guidance capability is incomplete: guidance/ENTRY.md\n'
-    forgeflow_guidance='GUIDANCE_CONTRACT_INCOMPLETE'
-    forgeflow_contract_drift=1
-  elif [ ! -f "$forgeflow_guidance_file_path" ]; then
+    praxisbound_guidance='GUIDANCE_CONTRACT_INCOMPLETE'
+    praxisbound_contract_drift=1
+  elif [ ! -f "$praxisbound_guidance_file_path" ]; then
     printf 'ERROR Guidance entrypoint is not a regular file: guidance/ENTRY.md\n'
-    forgeflow_guidance='ERROR'
-    forgeflow_contract_error=1
-  elif [ ! -r "$forgeflow_guidance_file_path" ]; then
+    praxisbound_guidance='ERROR'
+    praxisbound_contract_error=1
+  elif [ ! -r "$praxisbound_guidance_file_path" ]; then
     printf 'ERROR Guidance entrypoint cannot be safely read: guidance/ENTRY.md\n'
-    forgeflow_guidance='ERROR'
-    forgeflow_contract_error=1
-  elif ! file_has_non_whitespace "$forgeflow_guidance_file_path"; then
+    praxisbound_guidance='ERROR'
+    praxisbound_contract_error=1
+  elif ! file_has_non_whitespace "$praxisbound_guidance_file_path"; then
     printf 'WARN  Guidance capability is incomplete: guidance/ENTRY.md\n'
-    forgeflow_guidance='GUIDANCE_CONTRACT_INCOMPLETE'
-    forgeflow_contract_drift=1
+    praxisbound_guidance='GUIDANCE_CONTRACT_INCOMPLETE'
+    praxisbound_contract_drift=1
   else
-    forgeflow_guidance='GUIDANCE_CONTRACT_OK'
+    praxisbound_guidance='GUIDANCE_CONTRACT_OK'
     printf 'PASS  Guidance entrypoint: guidance/ENTRY.md\n'
   fi
 }
 
 detect_optional_capabilities() {
-  if [ -e "$forgeflow_target/skills" ] || [ -L "$forgeflow_target/skills" ] ||
-    [ -e "$forgeflow_target/.agents/skills" ] ||
-    [ -L "$forgeflow_target/.agents/skills" ]; then
-    forgeflow_skills='DETECTED'
+  if [ -e "$praxisbound_target/skills" ] || [ -L "$praxisbound_target/skills" ] ||
+    [ -e "$praxisbound_target/.agents/skills" ] ||
+    [ -L "$praxisbound_target/.agents/skills" ]; then
+    praxisbound_skills='DETECTED'
   else
-    forgeflow_skills='NOT_PRESENT'
+    praxisbound_skills='NOT_PRESENT'
   fi
 
-  if [ -e "$forgeflow_target/.github" ] || [ -L "$forgeflow_target/.github" ]; then
-    forgeflow_ci='DETECTED'
+  if [ -e "$praxisbound_target/.github" ] || [ -L "$praxisbound_target/.github" ]; then
+    praxisbound_ci='DETECTED'
   else
-    forgeflow_ci='NOT_PRESENT'
+    praxisbound_ci='NOT_PRESENT'
   fi
 }
 
-forgeflow_structure_incomplete=0
-forgeflow_structure_error=0
-forgeflow_makefile_readable=0
-forgeflow_agent_incomplete=0
-forgeflow_stories_incomplete=0
-forgeflow_makefile_incomplete=0
+praxisbound_structure_incomplete=0
+praxisbound_structure_error=0
+praxisbound_makefile_readable=0
+praxisbound_agent_incomplete=0
+praxisbound_stories_incomplete=0
+praxisbound_makefile_incomplete=0
 
-printf 'ForgeFlow Doctor\n\n'
+printf 'PraxisBound Doctor\n\n'
 
-forgeflow_agent_path="$forgeflow_target/AGENTS.md"
+praxisbound_agent_path="$praxisbound_target/AGENTS.md"
 
-if [ -L "$forgeflow_agent_path" ]; then
+if [ -L "$praxisbound_agent_path" ]; then
   printf 'ERROR Required path is a symlink and cannot be safely confirmed: AGENTS.md\n'
-  forgeflow_structure_error=1
-elif [ ! -e "$forgeflow_agent_path" ]; then
+  praxisbound_structure_error=1
+elif [ ! -e "$praxisbound_agent_path" ]; then
   printf 'FAIL  Agent guide is missing: AGENTS.md\n'
-  forgeflow_structure_incomplete=1
-  forgeflow_agent_incomplete=1
-elif [ ! -f "$forgeflow_agent_path" ]; then
+  praxisbound_structure_incomplete=1
+  praxisbound_agent_incomplete=1
+elif [ ! -f "$praxisbound_agent_path" ]; then
   printf 'FAIL  Agent guide is not a regular file: AGENTS.md\n'
-  forgeflow_structure_incomplete=1
-  forgeflow_agent_incomplete=1
-elif [ ! -r "$forgeflow_agent_path" ]; then
+  praxisbound_structure_incomplete=1
+  praxisbound_agent_incomplete=1
+elif [ ! -r "$praxisbound_agent_path" ]; then
   printf 'ERROR Required path is not readable: AGENTS.md\n'
-  forgeflow_structure_error=1
-elif ! file_has_non_whitespace "$forgeflow_agent_path"; then
+  praxisbound_structure_error=1
+elif ! file_has_non_whitespace "$praxisbound_agent_path"; then
   printf 'FAIL  Agent guide is blank: AGENTS.md\n'
-  forgeflow_structure_incomplete=1
-  forgeflow_agent_incomplete=1
+  praxisbound_structure_incomplete=1
+  praxisbound_agent_incomplete=1
 else
   printf 'PASS  Agent guide: AGENTS.md\n'
 fi
 
-forgeflow_specs_path="$forgeflow_target/specs"
-forgeflow_stories_path="$forgeflow_specs_path/stories"
+praxisbound_specs_path="$praxisbound_target/specs"
+praxisbound_stories_path="$praxisbound_specs_path/stories"
 
-if [ -L "$forgeflow_specs_path" ]; then
+if [ -L "$praxisbound_specs_path" ]; then
   printf 'ERROR Required path is a symlink and cannot be safely confirmed: specs/\n'
-  forgeflow_structure_error=1
-elif [ ! -e "$forgeflow_specs_path" ]; then
+  praxisbound_structure_error=1
+elif [ ! -e "$praxisbound_specs_path" ]; then
   printf 'FAIL  Story directory is missing: specs/stories/\n'
-  forgeflow_structure_incomplete=1
-  forgeflow_stories_incomplete=1
-elif [ ! -d "$forgeflow_specs_path" ]; then
+  praxisbound_structure_incomplete=1
+  praxisbound_stories_incomplete=1
+elif [ ! -d "$praxisbound_specs_path" ]; then
   printf 'FAIL  Story directory parent is not a directory: specs/\n'
-  forgeflow_structure_incomplete=1
-  forgeflow_stories_incomplete=1
-elif [ ! -x "$forgeflow_specs_path" ]; then
+  praxisbound_structure_incomplete=1
+  praxisbound_stories_incomplete=1
+elif [ ! -x "$praxisbound_specs_path" ]; then
   printf 'ERROR Required path is not searchable: specs/\n'
-  forgeflow_structure_error=1
-elif [ -L "$forgeflow_stories_path" ]; then
+  praxisbound_structure_error=1
+elif [ -L "$praxisbound_stories_path" ]; then
   printf 'ERROR Required path is a symlink and cannot be safely confirmed: specs/stories/\n'
-  forgeflow_structure_error=1
-elif [ ! -e "$forgeflow_stories_path" ]; then
+  praxisbound_structure_error=1
+elif [ ! -e "$praxisbound_stories_path" ]; then
   printf 'FAIL  Story directory is missing: specs/stories/\n'
-  forgeflow_structure_incomplete=1
-  forgeflow_stories_incomplete=1
-elif [ ! -d "$forgeflow_stories_path" ]; then
+  praxisbound_structure_incomplete=1
+  praxisbound_stories_incomplete=1
+elif [ ! -d "$praxisbound_stories_path" ]; then
   printf 'FAIL  Story path is not a directory: specs/stories/\n'
-  forgeflow_structure_incomplete=1
-  forgeflow_stories_incomplete=1
-elif [ ! -r "$forgeflow_stories_path" ] ||
-  [ ! -x "$forgeflow_stories_path" ]; then
+  praxisbound_structure_incomplete=1
+  praxisbound_stories_incomplete=1
+elif [ ! -r "$praxisbound_stories_path" ] ||
+  [ ! -x "$praxisbound_stories_path" ]; then
   printf 'ERROR Required path is not readable: specs/stories/\n'
-  forgeflow_structure_error=1
+  praxisbound_structure_error=1
 else
   printf 'PASS  Story directory: specs/stories/\n'
 fi
 
-forgeflow_makefile_path="$forgeflow_target/Makefile"
+praxisbound_makefile_path="$praxisbound_target/Makefile"
 
-if [ -L "$forgeflow_makefile_path" ]; then
+if [ -L "$praxisbound_makefile_path" ]; then
   printf 'ERROR Required path is a symlink and cannot be safely confirmed: Makefile\n'
-  forgeflow_structure_error=1
-elif [ ! -e "$forgeflow_makefile_path" ]; then
+  praxisbound_structure_error=1
+elif [ ! -e "$praxisbound_makefile_path" ]; then
   printf 'FAIL  Makefile is missing\n'
-  forgeflow_structure_incomplete=1
-  forgeflow_makefile_incomplete=1
-elif [ ! -f "$forgeflow_makefile_path" ]; then
+  praxisbound_structure_incomplete=1
+  praxisbound_makefile_incomplete=1
+elif [ ! -f "$praxisbound_makefile_path" ]; then
   printf 'FAIL  Makefile is not a regular file\n'
-  forgeflow_structure_incomplete=1
-  forgeflow_makefile_incomplete=1
-elif [ ! -r "$forgeflow_makefile_path" ]; then
+  praxisbound_structure_incomplete=1
+  praxisbound_makefile_incomplete=1
+elif [ ! -r "$praxisbound_makefile_path" ]; then
   printf 'ERROR Required path is not readable: Makefile\n'
-  forgeflow_structure_error=1
-elif ! file_has_non_whitespace "$forgeflow_makefile_path"; then
+  praxisbound_structure_error=1
+elif ! file_has_non_whitespace "$praxisbound_makefile_path"; then
   printf 'FAIL  Makefile is blank\n'
-  forgeflow_structure_incomplete=1
-  forgeflow_makefile_incomplete=1
+  praxisbound_structure_incomplete=1
+  praxisbound_makefile_incomplete=1
 else
   printf 'PASS  Makefile: readable\n'
-  forgeflow_makefile_readable=1
+  praxisbound_makefile_readable=1
 fi
 
-if [ "$forgeflow_makefile_readable" -eq 1 ]; then
-  scan_makefile "$forgeflow_target/Makefile"
+if [ "$praxisbound_makefile_readable" -eq 1 ]; then
+  scan_makefile "$praxisbound_target/Makefile"
 
-  if [ "$forgeflow_literal_verify_rule" -eq 1 ]; then
+  if [ "$praxisbound_literal_verify_rule" -eq 1 ]; then
     printf 'INFO  Found a literal verify rule; not executed\n'
   else
     printf 'WARN  Verification entrypoint: UNCONFIRMED\n'
     printf 'INFO  Static inspection cannot prove that make verify is absent\n'
   fi
 
-  if [ "$forgeflow_complex_makefile" -eq 1 ]; then
+  if [ "$praxisbound_complex_makefile" -eq 1 ]; then
     printf 'WARN  Makefile uses include, continuation, definition, or dynamic syntax; static inspection is limited\n'
   fi
 fi
 
 printf '\n'
 
-if [ "$forgeflow_structure_error" -eq 1 ]; then
-  printf 'Adopted version: %s\n' "$forgeflow_adopted_version"
-  printf 'Story contract: %s\n' "$forgeflow_story_contract"
-  printf 'Handoff: %s\n' "$forgeflow_handoff_contract"
-  printf 'Guidance: %s\n\n' "$forgeflow_guidance"
-  printf 'Skills: %s\n' "$forgeflow_skills"
-  printf 'CI capability: %s\n\n' "$forgeflow_ci"
+if [ "$praxisbound_structure_error" -eq 1 ]; then
+  printf 'Adopted version: %s\n' "$praxisbound_adopted_version"
+  printf 'Story contract: %s\n' "$praxisbound_story_contract"
+  printf 'Handoff: %s\n' "$praxisbound_handoff_contract"
+  printf 'Guidance: %s\n\n' "$praxisbound_guidance"
+  printf 'Skills: %s\n' "$praxisbound_skills"
+  printf 'CI capability: %s\n\n' "$praxisbound_ci"
   printf 'Result: ERROR\n'
   printf 'Verification: NOT_RUN\n'
   printf 'CI: NOT_CHECKED\n'
@@ -650,68 +682,68 @@ if [ "$forgeflow_structure_error" -eq 1 ]; then
   printf 'Next:\n'
   printf 'Review required-path permissions and symlinks, then run Doctor again.\n'
 
-  if [ "$forgeflow_agent_incomplete" -eq 1 ]; then
+  if [ "$praxisbound_agent_incomplete" -eq 1 ]; then
     printf 'Add a readable, non-blank repository-owned AGENTS.md.\n'
   fi
 
-  if [ "$forgeflow_stories_incomplete" -eq 1 ]; then
+  if [ "$praxisbound_stories_incomplete" -eq 1 ]; then
     printf 'Create a readable repository-owned specs/stories/ directory.\n'
   fi
 
-  if [ "$forgeflow_makefile_incomplete" -eq 1 ]; then
+  if [ "$praxisbound_makefile_incomplete" -eq 1 ]; then
     printf 'Define a repository-owned Makefile exposing make verify.\n'
   fi
 
   exit 2
 fi
 
-if [ "$forgeflow_structure_incomplete" -eq 1 ]; then
-  printf 'Adopted version: %s\n' "$forgeflow_adopted_version"
-  printf 'Story contract: %s\n' "$forgeflow_story_contract"
-  printf 'Handoff: %s\n' "$forgeflow_handoff_contract"
-  printf 'Guidance: %s\n\n' "$forgeflow_guidance"
-  printf 'Skills: %s\n' "$forgeflow_skills"
-  printf 'CI capability: %s\n\n' "$forgeflow_ci"
+if [ "$praxisbound_structure_incomplete" -eq 1 ]; then
+  printf 'Adopted version: %s\n' "$praxisbound_adopted_version"
+  printf 'Story contract: %s\n' "$praxisbound_story_contract"
+  printf 'Handoff: %s\n' "$praxisbound_handoff_contract"
+  printf 'Guidance: %s\n\n' "$praxisbound_guidance"
+  printf 'Skills: %s\n' "$praxisbound_skills"
+  printf 'CI capability: %s\n\n' "$praxisbound_ci"
   printf 'Result: STRUCTURE_INCOMPLETE\n'
   printf 'Verification: NOT_RUN\n'
   printf 'CI: NOT_CHECKED\n'
   printf 'Merge policy: NOT_CHECKED\n\n'
   printf 'Next:\n'
 
-  if [ "$forgeflow_agent_incomplete" -eq 1 ]; then
+  if [ "$praxisbound_agent_incomplete" -eq 1 ]; then
     printf 'Add a readable, non-blank repository-owned AGENTS.md.\n'
   fi
 
-  if [ "$forgeflow_stories_incomplete" -eq 1 ]; then
+  if [ "$praxisbound_stories_incomplete" -eq 1 ]; then
     printf 'Create a readable repository-owned specs/stories/ directory.\n'
   fi
 
-  if [ "$forgeflow_makefile_incomplete" -eq 1 ]; then
+  if [ "$praxisbound_makefile_incomplete" -eq 1 ]; then
     printf 'Define a repository-owned Makefile exposing make verify.\n'
   fi
 
   exit 1
 fi
 
-if [ "$forgeflow_run_verify" -eq 0 ]; then
-  forgeflow_installation_incomplete=
+if [ "$praxisbound_run_verify" -eq 0 ]; then
+  praxisbound_installation_incomplete=
 
-  for forgeflow_required_component in \
-    "$forgeflow_root/VERSION" \
-    "$forgeflow_script_dir/story-check" \
-    "$forgeflow_script_dir/handoff-check"
+  for praxisbound_required_component in \
+    "$praxisbound_root/VERSION" \
+    "$praxisbound_script_dir/story-check" \
+    "$praxisbound_script_dir/handoff-check"
   do
-    if [ ! -f "$forgeflow_required_component" ] ||
-      [ ! -r "$forgeflow_required_component" ]; then
-      forgeflow_installation_incomplete=$forgeflow_required_component
+    if [ ! -f "$praxisbound_required_component" ] ||
+      [ ! -r "$praxisbound_required_component" ]; then
+      praxisbound_installation_incomplete=$praxisbound_required_component
       break
     fi
   done
 
-  if [ -n "$forgeflow_installation_incomplete" ] ||
-    ! read_first_line "$forgeflow_root/VERSION"; then
-    printf 'ERROR This ForgeFlow installation is incomplete: %s\n\n' \
-      "${forgeflow_installation_incomplete:-$forgeflow_root/VERSION}"
+  if [ -n "$praxisbound_installation_incomplete" ] ||
+    ! read_first_line "$praxisbound_root/VERSION"; then
+    printf 'ERROR This PraxisBound installation is incomplete: %s\n\n' \
+      "${praxisbound_installation_incomplete:-$praxisbound_root/VERSION}"
     printf 'Adopted version: NOT_CHECKED\n'
     printf 'Story contract: NOT_CHECKED\n'
     printf 'Handoff: NOT_CHECKED\n'
@@ -723,26 +755,27 @@ if [ "$forgeflow_run_verify" -eq 0 ]; then
     printf 'CI: NOT_CHECKED\n'
     printf 'Merge policy: NOT_CHECKED\n\n'
     printf 'Next:\n'
-    printf 'Run Doctor from a complete ForgeFlow checkout.\n'
+    printf 'Run Doctor from a complete PraxisBound checkout.\n'
     exit 2
   fi
 
-  forgeflow_version=$forgeflow_first_line
+  praxisbound_version=$praxisbound_first_line
 
   read_adoption_marker
+  read_legacy_adoption_marker
   check_story_contract
   check_handoff_contract
   check_guidance
   detect_optional_capabilities
 
-  printf 'Adopted version: %s\n' "$forgeflow_adopted_version"
-  printf 'Story contract: %s\n' "$forgeflow_story_contract"
-  printf 'Handoff: %s\n' "$forgeflow_handoff_contract"
-  printf 'Guidance: %s\n' "$forgeflow_guidance"
-  printf 'Skills: %s\n' "$forgeflow_skills"
-  printf 'CI capability: %s\n\n' "$forgeflow_ci"
+  printf 'Adopted version: %s\n' "$praxisbound_adopted_version"
+  printf 'Story contract: %s\n' "$praxisbound_story_contract"
+  printf 'Handoff: %s\n' "$praxisbound_handoff_contract"
+  printf 'Guidance: %s\n' "$praxisbound_guidance"
+  printf 'Skills: %s\n' "$praxisbound_skills"
+  printf 'CI capability: %s\n\n' "$praxisbound_ci"
 
-  if [ "$forgeflow_contract_error" -eq 1 ]; then
+  if [ "$praxisbound_contract_error" -eq 1 ]; then
     printf 'Result: ERROR\n'
     printf 'Verification: NOT_RUN\n'
     printf 'CI: NOT_CHECKED\n'
@@ -752,17 +785,17 @@ if [ "$forgeflow_run_verify" -eq 0 ]; then
     exit 2
   fi
 
-  if [ "$forgeflow_contract_drift" -eq 1 ]; then
-    forgeflow_static_result='CONTRACT_DRIFT'
+  if [ "$praxisbound_contract_drift" -eq 1 ]; then
+    praxisbound_static_result='CONTRACT_DRIFT'
   else
-    forgeflow_static_result='STRUCTURE_OK'
+    praxisbound_static_result='STRUCTURE_OK'
   fi
 fi
 
-if [ "$forgeflow_run_verify" -eq 1 ]; then
-  if ! CDPATH='' cd "$forgeflow_target"; then
+if [ "$praxisbound_run_verify" -eq 1 ]; then
+  if ! CDPATH='' cd "$praxisbound_target"; then
     printf '\nERROR Could not enter repository root: %s\n\n' \
-      "$forgeflow_target" >&2
+      "$praxisbound_target" >&2
     printf 'Result: ERROR\n'
     printf 'Verification: NOT_RUN\n'
     printf 'CI: NOT_CHECKED\n'
@@ -784,14 +817,14 @@ if [ "$forgeflow_run_verify" -eq 1 ]; then
   printf 'Running: make verify\n\n'
 
   if make verify; then
-    forgeflow_verify_status=0
+    praxisbound_verify_status=0
   else
-    forgeflow_verify_status=$?
+    praxisbound_verify_status=$?
   fi
 
   printf '\n'
 
-  if [ "$forgeflow_verify_status" -eq 0 ]; then
+  if [ "$praxisbound_verify_status" -eq 0 ]; then
     printf 'Result: VERIFIED_LOCAL\n'
     printf 'Verification: PASS\n'
     printf 'Verification exit: 0\n'
@@ -803,20 +836,20 @@ if [ "$forgeflow_run_verify" -eq 1 ]; then
 
   printf 'Result: VERIFICATION_FAILED\n'
   printf 'Verification: FAIL\n'
-  printf 'Verification exit: %s\n' "$forgeflow_verify_status"
+  printf 'Verification exit: %s\n' "$praxisbound_verify_status"
   printf 'CI: NOT_CHECKED\n'
   printf 'Merge policy: NOT_CHECKED\n'
   printf 'Human review is still required.\n'
   exit 1
 fi
 
-printf 'Result: %s\n' "$forgeflow_static_result"
+printf 'Result: %s\n' "$praxisbound_static_result"
 printf 'Verification: NOT_RUN\n'
 printf 'CI: NOT_CHECKED\n'
 printf 'Merge policy: NOT_CHECKED\n\n'
 printf 'Next:\n'
 
-if [ "$forgeflow_static_result" = 'CONTRACT_DRIFT' ]; then
+if [ "$praxisbound_static_result" = 'CONTRACT_DRIFT' ]; then
   printf 'Run scripts/story-check and scripts/handoff-check against the\n'
   printf 'repository for the drift detail, then review the repository gate and run:\n'
 else
