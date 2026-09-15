@@ -4,8 +4,17 @@
   "description": "ForgeFlow result and Protocol-selection contracts",
   "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CarlLee1983/ForgeFlowV2.git",
+    "directory": "packages/core"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "engines": {
-    "node": "^20.19.0 || ^22.13.0 || >=24"
+    "node": "^22.13.0 || ^24.0.0 || ^26.0.0"
   },
   "exports": {
     ".": {

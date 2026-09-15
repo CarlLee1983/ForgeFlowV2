@@ -1,4 +1,5 @@
 import {
+  chmodSync,
   cpSync,
   mkdirSync,
   readFileSync,
@@ -12,6 +13,7 @@ import { fileURLToPath, URL } from "node:url";
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const snapshotRoot = join(packageRoot, "dist", "snapshot");
+chmodSync(join(packageRoot, "dist", "bin.js"), 0o755);
 const version = readFileSync(join(repositoryRoot, "VERSION"), "utf8").trim();
 const payloads = [
   ["templates/AGENTS.md", "AGENTS.md"],

@@ -30,7 +30,7 @@ importers:
   packages/cli:
     dependencies:
       '@forgeflow/core':
-        specifier: workspace:0.1.0
+        specifier: 0.1.0
         version: link:../core
 
   packages/core: {}
