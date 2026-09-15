@@ -1,6 +1,6 @@
 # Story Contract
 
-A ForgeFlow Story is the approved intent boundary for one independently
+A PraxisBound Story is the approved intent boundary for one independently
 verifiable change. It describes the outcome and constraints without prescribing
 an implementation unless the implementation itself is a required constraint.
 
@@ -39,7 +39,7 @@ records it, and it reports the ID it read for every Story it checks.
 `story.md` and `acceptance.md` define approved intent and its observable
 contract. `task.md` is optional human context and never overrides product
 requirements. A mutable status, current step, blocker, or done marker in an
-optional note is not authoritative lifecycle state, and ForgeFlow tooling must
+optional note is not authoritative lifecycle state, and PraxisBound tooling must
 not use it to select work or infer a transition.
 
 ## Story fields

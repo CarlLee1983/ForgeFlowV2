@@ -3,7 +3,7 @@ import {
   RESULT_SCHEMA_VERSION,
   type ResultEnvelope,
   type ResultIssue,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 import {
   executeCanonicalVerification,
@@ -44,11 +44,11 @@ export interface VerifyRenderedOutput {
   readonly stderr: string;
 }
 
-export const verifyHelp = `ForgeFlow Canonical Verification
+export const verifyHelp = `PraxisBound Canonical Verification
 
 Usage:
-  forgeflow verify [--json] [repository-directory]
-  forgeflow verify --help
+  praxisbound verify [--json] [repository-directory]
+  praxisbound verify --help
 
 Verification executes the trusted repository's make verify target once from
 its resolved physical root. It is not read-only or sandboxed and may run
@@ -160,8 +160,8 @@ export async function runVerify(
 
 export function renderVerifyStart(): string {
   return (
-    "ForgeFlow Canonical Verification\n\n" +
-    "WARNING: forgeflow verify executes repository-owned code; this is not read-only or sandboxed.\n" +
+    "PraxisBound Canonical Verification\n\n" +
+    "WARNING: praxisbound verify executes repository-owned code; this is not read-only or sandboxed.\n" +
     "Use this mode only with a repository you trust.\n" +
     "Running: make verify\n\n"
   );
@@ -182,8 +182,8 @@ export function renderVerifyHuman(
         "\nResult: ERROR\nVerification: NOT_RUN\nCI: NOT_CHECKED\nMerge policy: NOT_CHECKED\n",
       stderr:
         "ERROR Invalid arguments\n" +
-        "Usage: forgeflow verify [--json] [repository-directory]\n" +
-        "       forgeflow verify --help\n",
+        "Usage: praxisbound verify [--json] [repository-directory]\n" +
+        "       praxisbound verify --help\n",
     });
 
   const rendered = renderDoctorHuman(

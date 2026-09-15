@@ -6,18 +6,18 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { validateResultEnvelope } from "@forgeflow/core";
+import { validateResultEnvelope } from "@praxisbound/core";
 
 const bin = fileURLToPath(
   new globalThis.URL("../dist/bin.js", import.meta.url),
 );
-const help = `ForgeFlow CLI v0.1.0
+const help = `PraxisBound CLI v0.1.0
 
 Usage:
-  forgeflow [command]
+  praxisbound [command]
 
 Commands:
-  init               Plan or apply ForgeFlow initialization
+  init               Plan or apply PraxisBound initialization
   codex activate     Preview or apply project-local Codex activation
   doctor             Inspect the static Repository Contract
   verify             Run the canonical repository verification target
@@ -31,7 +31,7 @@ Commands:
 Other migration commands are unavailable.
 `;
 const unavailable =
-  "forgeflow: command unavailable; this command is not available. Run forgeflow --help.\n";
+  "praxisbound: command unavailable; this command is not available. Run praxisbound --help.\n";
 
 function runCli(args, cwd) {
   return spawnSync(globalThis.process.execPath, [bin, ...args], {
@@ -41,7 +41,7 @@ function runCli(args, cwd) {
 }
 
 test("AC-005: the CLI package root exposes only machine serialization", async () => {
-  const cli = await import("@forgeflow/cli");
+  const cli = await import("@praxisbound/cli");
 
   assert.deepEqual(Object.keys(cli), ["serializeResultEnvelope"]);
 });

@@ -1,5 +1,5 @@
 /**
- * The shared Markdown declaration subset every ForgeFlow contract reader uses.
+ * The shared Markdown declaration subset every PraxisBound contract reader uses.
  *
  * This module is internal to Core. It owns fences and heading scope; callers
  * own meaning, so one parsing subset serves every declaration section.

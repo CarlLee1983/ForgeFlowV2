@@ -1,25 +1,25 @@
-# ForgeFlow Context
+# PraxisBound Context
 
-ForgeFlow defines a repository-governance protocol and optional tooling that
+PraxisBound defines a repository-governance protocol and optional tooling that
 observes or applies that protocol. This glossary keeps the contract, evidence,
 and tooling terms distinct.
 
 ## Language
 
-**ForgeFlow Protocol**:
+**PraxisBound Protocol**:
 The language-independent, versioned contract that defines adoption, Stories,
 verification, evidence, lifecycle meaning, and compatibility.
 _Avoid_: TypeScript protocol, CLI protocol
 
 **Adoption**:
-A repository that exposes the ForgeFlow-required entrypoints and owns its local
+A repository that exposes the PraxisBound-required entrypoints and owns its local
 verification gate.
 _Avoid_: installation, CLI installation
 
 **Reference Tooling**:
-An official implementation that evaluates or applies ForgeFlow contracts
+An official implementation that evaluates or applies PraxisBound contracts
 without becoming a prerequisite for adopting the Protocol.
-_Avoid_: protocol runtime, ForgeFlow runtime
+_Avoid_: protocol runtime, PraxisBound runtime
 
 **Semantic Result**:
 A deterministic, machine-readable statement of an evaluation outcome,

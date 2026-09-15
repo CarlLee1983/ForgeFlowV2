@@ -20,7 +20,7 @@ import { TextEncoder } from "node:util";
 import { fileURLToPath, pathToFileURL, URL } from "node:url";
 import test from "node:test";
 
-import { evaluateInitMutation, planMutation } from "@forgeflow/core";
+import { evaluateInitMutation, planMutation } from "@praxisbound/core";
 
 import { nodeInitFilesystemAdapter, renderInitHuman } from "../dist/init.js";
 import {
@@ -149,7 +149,12 @@ test("TST014-AC-008: activation-only package changes do not perturb Init plan id
       );
       await cp(join(dist, "snapshot"), snapshotRoot, { recursive: true });
       if (mutateActivation) {
-        const assetPath = join(snapshotRoot, "skills", "forgeflow", "SKILL.md");
+        const assetPath = join(
+          snapshotRoot,
+          "skills",
+          "praxisbound",
+          "SKILL.md",
+        );
         const bytes = Buffer.concat([
           await readFile(assetPath),
           Buffer.from("\nactivation-only change\n"),
@@ -158,7 +163,7 @@ test("TST014-AC-008: activation-only package changes do not perturb Init plan id
         const provenancePath = join(snapshotRoot, "provenance.json");
         const provenance = JSON.parse(await readFile(provenancePath, "utf8"));
         const entry = provenance.payloads.find(
-          ({ destination }) => destination === "skills/forgeflow/SKILL.md",
+          ({ destination }) => destination === "skills/praxisbound/SKILL.md",
         );
         assert.ok(entry);
         entry.sha256 = createHash("sha256").update(bytes).digest("hex");
@@ -208,7 +213,7 @@ test("TST014-AC-008: activation-only package changes do not perturb Init plan id
       "specs/stories/_template",
       "guidance",
       ...baseline.snapshot.payloads.map(({ path }) => path),
-      "specs/.forgeflow-adoption",
+      "specs/.praxisbound-adoption",
     ].map((path) => ({ path, kind: "missing" }));
     const first = planMutation({
       mode: "safe",
@@ -401,7 +406,7 @@ test("TST013-AC-001: every payload is staged before the first marker-last rename
     assert.equal(events.slice(0, firstRename).length, plan.effects.length);
     assert.equal(
       events.at(-1),
-      `rename:${join(root, "specs/.forgeflow-adoption")}`,
+      `rename:${join(root, "specs/.praxisbound-adoption")}`,
     );
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -535,7 +540,7 @@ test("TST013-AC-004: every preparation boundary restores the exact prior manifes
         name: "sibling-stage",
         mode: "safe",
         operation: "makeDirectory",
-        matches: (path) => path.includes(".forgeflow-install."),
+        matches: (path) => path.includes(".praxisbound-install."),
       },
       {
         name: "original-backup",
@@ -554,7 +559,7 @@ test("TST013-AC-004: every preparation boundary restores the exact prior manifes
         mode: "safe",
         operation: "writeFileExclusive",
         matches: (path) =>
-          path.includes(".forgeflow-adoption") && path.endsWith("/new"),
+          path.includes(".praxisbound-adoption") && path.endsWith("/new"),
       },
     ];
 
@@ -643,7 +648,7 @@ test("TST013-AC-004/006: cleanup refuses a substituted stage symlink", async () 
         if (
           !triggered &&
           operation === "makeDirectory" &&
-          path.includes(".forgeflow-install.")
+          path.includes(".praxisbound-install.")
         ) {
           triggered = true;
           await rm(path, { recursive: true });
@@ -860,7 +865,7 @@ test("TST013-AC-005/006: restore failure continues siblings and retains every pr
       if (
         !applyTriggered &&
         source.endsWith("/new") &&
-        destination.endsWith("specs/.forgeflow-adoption")
+        destination.endsWith("specs/.praxisbound-adoption")
       ) {
         applyTriggered = true;
         await nodeInitMutationOperations.rename(source, destination);
@@ -888,8 +893,8 @@ test("TST013-AC-005/006: restore failure continues siblings and retains every pr
       "specs/stories/_template/story.md",
     ]);
     assert.equal(execution.restored.includes("AGENTS.md"), true);
-    assert.deepEqual(execution.invalidated, ["specs/.forgeflow-adoption"]);
-    await assert.rejects(lstat(join(root, "specs/.forgeflow-adoption")), {
+    assert.deepEqual(execution.invalidated, ["specs/.praxisbound-adoption"]);
+    await assert.rejects(lstat(join(root, "specs/.praxisbound-adoption")), {
       code: "ENOENT",
     });
     assert.deepEqual(
@@ -925,7 +930,7 @@ test("TST013-AC-005: a failed marker restore records successful marker invalidat
       if (
         !applyTriggered &&
         source.endsWith("/new") &&
-        destination.endsWith("specs/.forgeflow-adoption")
+        destination.endsWith("specs/.praxisbound-adoption")
       ) {
         applyTriggered = true;
         await nodeInitMutationOperations.rename(source, destination);
@@ -933,7 +938,7 @@ test("TST013-AC-005: a failed marker restore records successful marker invalidat
       }
       if (
         source.endsWith("/restore") &&
-        destination.endsWith("specs/.forgeflow-adoption")
+        destination.endsWith("specs/.praxisbound-adoption")
       )
         throw new Error("injected marker restore failure");
       await nodeInitMutationOperations.rename(source, destination);
@@ -949,8 +954,8 @@ test("TST013-AC-005: a failed marker restore records successful marker invalidat
     const result = evaluateInitMutation(plan, execution).result;
 
     assert.equal(result.outcome, "INIT_RECOVERY_INCOMPLETE");
-    assert.deepEqual(execution.invalidated, ["specs/.forgeflow-adoption"]);
-    await assert.rejects(lstat(join(root, "specs/.forgeflow-adoption")), {
+    assert.deepEqual(execution.invalidated, ["specs/.praxisbound-adoption"]);
+    await assert.rejects(lstat(join(root, "specs/.praxisbound-adoption")), {
       code: "ENOENT",
     });
   } finally {
@@ -970,7 +975,7 @@ test("TST013-AC-005/006: marker invalidation failure is reported with exact reta
         if (
           !applyTriggered &&
           source.endsWith("/new") &&
-          destination.endsWith("specs/.forgeflow-adoption")
+          destination.endsWith("specs/.praxisbound-adoption")
         ) {
           applyTriggered = true;
           await nodeInitMutationOperations.rename(source, destination);
@@ -984,7 +989,7 @@ test("TST013-AC-005/006: marker invalidation failure is reported with exact reta
         await nodeInitMutationOperations.rename(source, destination);
       },
       removeFile: async (path) => {
-        if (path.endsWith("specs/.forgeflow-adoption"))
+        if (path.endsWith("specs/.praxisbound-adoption"))
           throw new Error("injected marker invalidation failure");
         await nodeInitMutationOperations.removeFile(path);
       },
@@ -1002,11 +1007,11 @@ test("TST013-AC-005/006: marker invalidation failure is reported with exact reta
 
     assert.equal(result.outcome, "INIT_RECOVERY_INCOMPLETE");
     assert.deepEqual(execution.invalidationFailed, [
-      "specs/.forgeflow-adoption",
+      "specs/.praxisbound-adoption",
     ]);
     assert.match(
       human.stderr,
-      /Marker invalidation failed: specs\/.forgeflow-adoption/,
+      /Marker invalidation failed: specs\/.praxisbound-adoption/,
     );
     assert.deepEqual(
       execution.retained,
@@ -1031,7 +1036,7 @@ test("TST013-AC-005/006: failed marker restore and invalidation produce one vali
         if (
           !applyTriggered &&
           source.endsWith("/new") &&
-          destination.endsWith("specs/.forgeflow-adoption")
+          destination.endsWith("specs/.praxisbound-adoption")
         ) {
           applyTriggered = true;
           await nodeInitMutationOperations.rename(source, destination);
@@ -1039,13 +1044,13 @@ test("TST013-AC-005/006: failed marker restore and invalidation produce one vali
         }
         if (
           source.endsWith("/restore") &&
-          destination.endsWith("specs/.forgeflow-adoption")
+          destination.endsWith("specs/.praxisbound-adoption")
         )
           throw new Error("injected marker restore failure");
         await nodeInitMutationOperations.rename(source, destination);
       },
       removeFile: async (path) => {
-        if (path.endsWith("specs/.forgeflow-adoption"))
+        if (path.endsWith("specs/.praxisbound-adoption"))
           throw new Error("injected marker invalidation failure");
         await nodeInitMutationOperations.removeFile(path);
       },
@@ -1061,9 +1066,9 @@ test("TST013-AC-005/006: failed marker restore and invalidation produce one vali
     const result = evaluateInitMutation(plan, execution).result;
 
     assert.equal(result.outcome, "INIT_RECOVERY_INCOMPLETE");
-    assert.deepEqual(execution.unrecovered, ["specs/.forgeflow-adoption"]);
+    assert.deepEqual(execution.unrecovered, ["specs/.praxisbound-adoption"]);
     assert.deepEqual(execution.invalidationFailed, [
-      "specs/.forgeflow-adoption",
+      "specs/.praxisbound-adoption",
     ]);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -1108,8 +1113,8 @@ test("TST013-AC-005: an absent fresh marker is confirmed invalid after incomplet
 
     assert.equal(result.outcome, "INIT_RECOVERY_INCOMPLETE");
     assert.deepEqual(execution.unrecovered, ["AGENTS.md"]);
-    assert.deepEqual(execution.invalidated, ["specs/.forgeflow-adoption"]);
-    await assert.rejects(lstat(join(root, "specs/.forgeflow-adoption")), {
+    assert.deepEqual(execution.invalidated, ["specs/.praxisbound-adoption"]);
+    await assert.rejects(lstat(join(root, "specs/.praxisbound-adoption")), {
       code: "ENOENT",
     });
   } finally {
@@ -1141,8 +1146,8 @@ test("TST013-AC-006: a committed apply with exact stage residue is cleanup-incom
     assert.deepEqual(execution.cleanupResidue, [retainedStage]);
     assert.equal((await lstat(join(root, retainedStage))).isDirectory(), true);
     assert.equal(
-      await readFile(join(root, "specs/.forgeflow-adoption"), "utf8"),
-      "version=0.9.0\nrevision=unknown\n",
+      await readFile(join(root, "specs/.praxisbound-adoption"), "utf8"),
+      "version=0.10.0\nrevision=unknown\n",
     );
   } finally {
     await rm(root, { recursive: true, force: true });

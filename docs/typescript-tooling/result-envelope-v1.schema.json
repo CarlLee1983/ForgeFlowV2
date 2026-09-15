@@ -1,159 +1,125 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:forgeflow:cli-result:1",
-  "title": "ForgeFlow CLI Result Envelope v1",
+  "$id": "urn:praxisbound:cli-result:1",
+  "title": "PraxisBound CLI Result Envelope v1",
+  "description": "The canonical JSON envelope emitted by PraxisBound CLI 0.1.x commands.",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schemaVersion",
-    "command",
+    "protocolVersion",
     "status",
     "outcome",
-    "exitCode",
-    "issues",
-    "evidence",
-    "error",
-    "data",
-    "metadata"
+    "exit",
+    "subject",
+    "issues"
   ],
   "properties": {
-    "schemaVersion": {
-      "const": "1"
-    },
-    "command": {
-      "type": "string",
-      "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)*$"
-    },
-    "status": {
-      "enum": ["pass", "fail", "error"]
-    },
+    "schemaVersion": { "const": "1.0.0" },
+    "protocolVersion": { "const": "0.10.0" },
+    "status": { "enum": ["pass", "fail", "warning", "error"] },
     "outcome": {
-      "type": "string",
-      "pattern": "^[A-Z][A-Z0-9_]*$"
-    },
-    "exitCode": {
-      "enum": [0, 1, 2, 3]
-    },
-    "issues": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/issue"
-      }
-    },
-    "evidence": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/evidence"
-      }
-    },
-    "error": {
-      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/toolError" }]
-    },
-    "data": {
-      "oneOf": [
-        { "type": "null" },
-        {
-          "type": "object",
-          "additionalProperties": true
-        }
+      "enum": [
+        "success",
+        "failure",
+        "warning",
+        "usage-error",
+        "configuration-error",
+        "internal-error",
+        "RELEASE_READY",
+        "RELEASE_INCOMPLETE",
+        "INIT_APPLIED",
+        "INIT_PREVIEW",
+        "INIT_CONFLICT",
+        "INIT_OPERATION_REFUSED",
+        "INIT_APPLY_FAILED_RECOVERED",
+        "INIT_RECOVERY_INCOMPLETE",
+        "INIT_CLEANUP_INCOMPLETE",
+        "ACTIVATION_PREVIEW",
+        "ACTIVATION_APPLIED",
+        "ACTIVATION_UNCHANGED",
+        "ACTIVATION_CONFLICT",
+        "ACTIVATION_OPERATION_REFUSED",
+        "ACTIVATION_APPLY_FAILED_RECOVERED",
+        "ACTIVATION_RECOVERY_INCOMPLETE",
+        "ACTIVATION_CLEANUP_INCOMPLETE",
+        "ERROR"
       ]
     },
-    "metadata": {
-      "$ref": "#/$defs/metadata"
+    "exit": { "enum": [0, 1, 2, 3] },
+    "subject": { "$ref": "#/$defs/subject" },
+    "path": { "$ref": "#/$defs/repositoryPath" },
+    "data": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/jsonValue" }
+    },
+    "error": { "$ref": "#/$defs/error" },
+    "issues": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/issue" }
     }
   },
-  "allOf": [
+  "oneOf": [
     {
-      "if": {
-        "properties": { "status": { "const": "pass" } },
-        "required": ["status"]
-      },
-      "then": {
-        "properties": {
-          "exitCode": { "const": 0 },
-          "error": { "type": "null" },
-          "issues": {
-            "type": "array",
-            "items": {
-              "allOf": [
-                { "$ref": "#/$defs/issue" },
-                {
-                  "properties": { "severity": { "const": "warning" } }
-                }
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": { "status": { "const": "fail" } },
-        "required": ["status"]
-      },
-      "then": {
-        "properties": {
-          "exitCode": { "const": 1 },
-          "error": { "type": "null" },
-          "issues": {
-            "type": "array",
-            "minItems": 1,
-            "contains": {
-              "allOf": [
-                { "$ref": "#/$defs/issue" },
-                {
-                  "properties": { "severity": { "const": "error" } }
-                }
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": { "status": { "const": "error" } },
-        "required": ["status"]
-      },
-      "then": {
-        "properties": {
-          "outcome": { "const": "ERROR" },
-          "exitCode": { "enum": [2, 3] },
-          "error": { "$ref": "#/$defs/toolError" }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": { "exitCode": { "const": 3 } },
-        "required": ["exitCode"]
-      },
-      "then": {
-        "properties": {
-          "error": {
-            "allOf": [
-              { "$ref": "#/$defs/toolError" },
-              {
-                "properties": { "category": { "const": "internal" } }
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "error": {
-            "type": "object",
-            "properties": { "category": { "const": "internal" } },
-            "required": ["category"]
-          }
+      "properties": {
+        "status": { "const": "pass" },
+        "outcome": {
+          "enum": [
+            "success",
+            "RELEASE_READY",
+            "INIT_APPLIED",
+            "INIT_PREVIEW",
+            "ACTIVATION_PREVIEW",
+            "ACTIVATION_APPLIED",
+            "ACTIVATION_UNCHANGED"
+          ]
         },
-        "required": ["error"]
-      },
-      "then": {
-        "properties": { "exitCode": { "const": 3 } }
+        "exit": { "const": 0 }
+      }
+    },
+    {
+      "properties": {
+        "status": { "const": "fail" },
+        "outcome": {
+          "enum": [
+            "failure",
+            "RELEASE_INCOMPLETE",
+            "INIT_CONFLICT",
+            "INIT_OPERATION_REFUSED",
+            "INIT_APPLY_FAILED_RECOVERED",
+            "INIT_RECOVERY_INCOMPLETE",
+            "INIT_CLEANUP_INCOMPLETE",
+            "ACTIVATION_CONFLICT",
+            "ACTIVATION_OPERATION_REFUSED",
+            "ACTIVATION_APPLY_FAILED_RECOVERED",
+            "ACTIVATION_RECOVERY_INCOMPLETE",
+            "ACTIVATION_CLEANUP_INCOMPLETE"
+          ]
+        },
+        "exit": { "const": 1 }
+      }
+    },
+    {
+      "properties": {
+        "status": { "const": "warning" },
+        "outcome": { "const": "warning" },
+        "exit": { "const": 0 }
+      }
+    },
+    {
+      "properties": {
+        "status": { "const": "error" },
+        "outcome": {
+          "enum": ["usage-error", "configuration-error", "internal-error"]
+        },
+        "exit": { "const": 2 }
+      }
+    },
+    {
+      "properties": {
+        "status": { "const": "error" },
+        "outcome": { "const": "ERROR" },
+        "exit": { "enum": [2, 3] }
       }
     }
   ],
@@ -177,166 +143,44 @@
     "repositoryPath": {
       "type": "string",
       "minLength": 1,
-      "pattern": "^(?!/)(?![A-Za-z]:)(?!\\.\\.?($|/))(?!.*\\/\\.\\.?($|/))(?!.*//)(?!.*\\/$)(?!.*\\\\)[^\\u0000-\\u001F\\u007F]+$"
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*(?:^|/)\\.(?:/|$))(?!.*//)(?!.*\\\\)[^\\u0000-\\u001F\\u007F-\\u009F]+$"
     },
-    "stableSubject": {
+    "subject": {
       "type": "string",
-      "minLength": 1,
-      "maxLength": 512,
-      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)[^\\u0000-\\u001F\\u007F]+$"
+      "pattern": "^[a-z][a-z0-9-]*(?::[A-Za-z0-9][A-Za-z0-9._-]*)?$"
     },
-    "semver": {
-      "type": "string",
-      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?$"
-    },
-    "location": {
+    "error": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path"],
+      "required": ["code", "message"],
       "properties": {
-        "path": {
-          "$ref": "#/$defs/repositoryPath"
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$"
         },
-        "line": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "column": {
-          "type": "integer",
-          "minimum": 1
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\r\\n\\u0085\\u2028\\u2029]+$"
         }
       }
     },
     "issue": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["code", "severity", "category", "message", "data"],
+      "required": ["code", "message"],
       "properties": {
         "code": {
           "type": "string",
-          "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$"
-        },
-        "severity": {
-          "enum": ["warning", "error"]
-        },
-        "category": {
-          "enum": [
-            "protocol",
-            "validation",
-            "evidence",
-            "compatibility",
-            "safety",
-            "configuration",
-            "environment",
-            "internal"
-          ]
+          "pattern": "^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$"
         },
         "message": {
-          "type": "string",
-          "minLength": 1
-        },
-        "rule": {
-          "type": "string",
-          "minLength": 1
-        },
-        "location": {
-          "$ref": "#/$defs/location"
-        },
-        "data": {
-          "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/jsonValue" }
-        }
-      }
-    },
-    "evidence": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["code", "kind", "subject", "status", "observation"],
-      "properties": {
-        "code": {
-          "type": "string",
-          "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$"
-        },
-        "kind": {
-          "enum": [
-            "file",
-            "declaration",
-            "command",
-            "git",
-            "mutation",
-            "version"
-          ]
-        },
-        "subject": {
-          "$ref": "#/$defs/stableSubject"
-        },
-        "location": {
-          "$ref": "#/$defs/location"
-        },
-        "status": {
-          "enum": [
-            "pass",
-            "fail",
-            "partial",
-            "not_run",
-            "not_checked",
-            "unsupported",
-            "unknown"
-          ]
-        },
-        "observation": {
-          "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/jsonValue" }
-        }
-      }
-    },
-    "toolError": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["code", "category", "message", "retryable", "data"],
-      "properties": {
-        "code": {
-          "type": "string",
-          "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$"
-        },
-        "category": {
-          "enum": ["usage", "configuration", "environment", "internal"]
-        },
-        "message": {
-          "type": "string",
-          "minLength": 1
-        },
-        "retryable": {
-          "type": "boolean"
-        },
-        "data": {
-          "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/jsonValue" }
-        }
-      }
-    },
-    "metadata": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "toolingVersion",
-        "protocolVersion",
-        "supportedProtocolRange"
-      ],
-      "properties": {
-        "toolingVersion": {
-          "$ref": "#/$defs/semver"
-        },
-        "protocolVersion": {
-          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/semver" }]
-        },
-        "supportedProtocolRange": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 128,
-          "pattern": "^(?=.*(?:[0-9*Xx]))[0-9A-Za-z.*+<>=~^| -]+$",
-          "format": "forgeflow-npm-semver-range"
-        }
+          "pattern": "^[^\\r\\n\\u0085\\u2028\\u2029]+$"
+        },
+        "path": { "$ref": "#/$defs/repositoryPath" },
+        "subject": { "$ref": "#/$defs/subject" }
       }
     }
   }

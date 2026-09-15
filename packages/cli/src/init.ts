@@ -10,7 +10,7 @@ import {
   type InitSnapshot,
   type ResultEnvelope,
   type ResultIssue,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 import {
   captureInitObservations,
@@ -53,13 +53,13 @@ export interface InitFilesystemAdapter {
   ): Promise<InitInspection>;
 }
 
-export const initHelp = `ForgeFlow Init
+export const initHelp = `PraxisBound Init
 
 Usage:
-  forgeflow init [--force | --upgrade] [--dry-run] [--json] [repository-directory]
-  forgeflow init --help
+  praxisbound init [--force | --upgrade] [--dry-run] [--json] [repository-directory]
+  praxisbound init --help
 
-Plans or applies an offline ForgeFlow initialization from the Protocol snapshot
+Plans or applies an offline PraxisBound initialization from the Protocol snapshot
 bundled in this CLI package. --dry-run performs no target writes, staging, or
 recovery. --force and --upgrade are mutually exclusive.
 `;
@@ -187,10 +187,24 @@ export const nodeInitFilesystemAdapter: InitFilesystemAdapter = Object.freeze({
       throw new InitSnapshotUnavailableError(error);
     }
     const paths = await captureInitObservations(root, mode);
+    const legacy = paths.find(
+      (entry) => entry.path === "specs/.forgeflow-adoption",
+    );
+    const revision =
+      mode === "upgrade" &&
+      legacy?.kind === "file" &&
+      typeof legacy.text === "string"
+        ? legacy.text.match(
+            /^version=0\.9\.0\r?\nrevision=(unknown|[a-f0-9]{40}(?:-dirty)?|[a-f0-9]{64}(?:-dirty)?)\r?\n?$/,
+          )?.[1]
+        : undefined;
     return Object.freeze({
       root,
       rootIdentity: initFilesystemIdentity(rootStats),
-      snapshot: bundle.snapshot,
+      snapshot:
+        revision === undefined
+          ? bundle.snapshot
+          : Object.freeze({ ...bundle.snapshot, revision }),
       paths,
       payloads: bundle.payloads,
     });
@@ -295,7 +309,7 @@ export function renderInitHuman(
   const changes = Array.isArray(data?.changes) ? data.changes : [];
   const preview = execution.result.outcome === "INIT_PREVIEW";
   const lines = [
-    preview ? "ForgeFlow init dry run" : "ForgeFlow init",
+    preview ? "PraxisBound init dry run" : "PraxisBound init",
     `Protocol snapshot: ${String(data?.protocolVersion)}`,
     `Provenance: ${String(data?.provenance)}`,
     "",
@@ -307,7 +321,9 @@ export function renderInitHuman(
         : `${verb === "replace" ? "Replaced" : "Installed"} ${String(entry.path)}`;
     }),
     "",
-    preview ? "ForgeFlow init dry run completed" : "ForgeFlow init completed",
+    preview
+      ? "PraxisBound init dry run completed"
+      : "PraxisBound init completed",
   ];
   return Object.freeze({ stdout: `${lines.join("\n")}\n`, stderr: "" });
 }

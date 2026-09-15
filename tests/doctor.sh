@@ -156,7 +156,7 @@ snapshot_tree_without_atime() {
   ) >"$forgeflow_snapshot_output"
 }
 
-forgeflow_marker_relative='specs/.forgeflow-adoption'
+forgeflow_marker_relative='specs/.praxisbound-adoption'
 
 add_valid_story() {
   cp -R "$forgeflow_repo/specs/stories/FF-210-adoption-snapshot-and-template-upgrade" \
@@ -561,7 +561,7 @@ cli_contract_and_repository_paths_are_unambiguous() {
 
   run_doctor --help
   assert_status 0
-  assert_output_contains 'ForgeFlow Repository Doctor'
+  assert_output_contains 'PraxisBound Repository Doctor'
   assert_output_contains 'Usage:'
   assert_output_contains '--run-verify executes repository-owned code'
   assert_output_contains 'Use it only with repositories you trust.'

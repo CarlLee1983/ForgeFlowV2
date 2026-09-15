@@ -19,7 +19,7 @@ import type {
 
 export type InitMode = "safe" | "force" | "upgrade";
 export type InitPathKind = MutationPathKind;
-export type InitChangeKind = "install" | "replace";
+export type InitChangeKind = "install" | "replace" | "remove";
 
 export type InitPathObservation = MutationPathObservation;
 
@@ -104,7 +104,8 @@ const upgradePayloadPaths = [
   "specs/stories/_template/acceptance.md",
   "specs/stories/_template/task.md",
 ] as const;
-export const adoptionMarkerPath = "specs/.forgeflow-adoption";
+export const adoptionMarkerPath = "specs/.praxisbound-adoption";
+export const legacyAdoptionMarkerPath = "specs/.forgeflow-adoption";
 const sha256 = /^[a-f0-9]{64}$/;
 
 function issue(code: string, message: string, path?: string): ResultIssue {
@@ -163,7 +164,11 @@ function validSnapshot(snapshot: InitSnapshot): string | undefined {
     return "The bundled Protocol snapshot version is unsupported.";
   if (snapshot.provenance.length === 0)
     return "The bundled Protocol snapshot has no provenance.";
-  if (!/^(?:unknown|[a-f0-9]{40}|[a-f0-9]{64})$/.test(snapshot.revision))
+  if (
+    !/^(?:unknown|[a-f0-9]{40}(?:-dirty)?|[a-f0-9]{64}(?:-dirty)?)$/.test(
+      snapshot.revision,
+    )
+  )
     return "The bundled Protocol snapshot has an invalid revision.";
   if (!sha256.test(snapshot.snapshotDigest))
     return "The bundled Protocol snapshot has an invalid snapshot digest.";
@@ -199,6 +204,7 @@ function immutableObservation(
     ...(observation.identity === undefined
       ? {}
       : { identity: observation.identity }),
+    ...(observation.text === undefined ? {} : { text: observation.text }),
   });
 }
 
@@ -213,7 +219,8 @@ function sameObservation(
     expected.readable === actual.readable &&
     expected.searchable === actual.searchable &&
     expected.digest === actual.digest &&
-    expected.identity === actual.identity
+    expected.identity === actual.identity &&
+    expected.text === actual.text
   );
 }
 
@@ -329,7 +336,7 @@ function stagePath(path: string, seed: string): string {
   const separator = path.lastIndexOf("/");
   const parent = separator === -1 ? "" : `${path.slice(0, separator + 1)}`;
   const name = path.slice(separator + 1);
-  return `${parent}.forgeflow-install.${seed.slice(0, 16)}-${name}`;
+  return `${parent}.praxisbound-install.${seed.slice(0, 16)}-${name}`;
 }
 
 function planBody(plan: Omit<InitMutationPlan, "planId">): object {
@@ -685,7 +692,10 @@ function activePaths(mode: InitMode): {
   return Object.freeze({
     directories: mode === "upgrade" ? upgradeDirectories : freshDirectories,
     payloads,
-    destinations: [...payloads, adoptionMarkerPath],
+    destinations:
+      mode === "upgrade"
+        ? [...payloads, legacyAdoptionMarkerPath, adoptionMarkerPath]
+        : [...payloads, adoptionMarkerPath],
   });
 }
 
@@ -743,12 +753,48 @@ export function planMutation(request: InitPlanRequest): InitPlanEvaluation {
       const problems = Object.freeze([
         issue(
           "INIT_UPGRADE_UNAVAILABLE",
-          "No ForgeFlow adoption is available to upgrade.",
+          "No PraxisBound adoption is available to upgrade.",
           "specs/stories",
         ),
       ]);
       return Object.freeze({
         result: result("fail", "INIT_CONFLICT", 1, problems),
+        changes: Object.freeze([]),
+      });
+    }
+    const current = observed.get(adoptionMarkerPath);
+    const legacy = observed.get(legacyAdoptionMarkerPath);
+    if (current?.kind !== "missing" && legacy?.kind !== "missing") {
+      const problems = Object.freeze([
+        issue(
+          "INIT_MARKER_AMBIGUOUS",
+          "Current and legacy adoption markers are both present.",
+        ),
+      ]);
+      return Object.freeze({
+        result: result("fail", "INIT_CONFLICT", 1, problems),
+        changes: Object.freeze([]),
+      });
+    }
+    if (
+      legacy?.kind !== "missing" &&
+      !(
+        legacy?.kind === "file" &&
+        typeof legacy.text === "string" &&
+        /^version=0\.9\.0\r?\nrevision=(?:unknown|[a-f0-9]{40}(?:-dirty)?|[a-f0-9]{64}(?:-dirty)?)\r?\n?$/.test(
+          legacy.text,
+        )
+      )
+    ) {
+      const problems = Object.freeze([
+        issue(
+          "INIT_LEGACY_MARKER_INVALID",
+          "The legacy adoption marker is malformed or unsupported.",
+          legacyAdoptionMarkerPath,
+        ),
+      ]);
+      return Object.freeze({
+        result: result("fail", "INIT_OPERATION_REFUSED", 1, problems),
         changes: Object.freeze([]),
       });
     }
@@ -775,17 +821,30 @@ export function planMutation(request: InitPlanRequest): InitPlanEvaluation {
     request.snapshot.payloads.map((payload) => [payload.path, payload.digest]),
   );
   const changes = Object.freeze(
-    active.destinations.map((path) => {
-      const present = observed.get(path)?.kind === "file";
-      return Object.freeze({
-        kind: present ? "replace" : "install",
-        path,
-        digest:
-          path === adoptionMarkerPath
-            ? hash(createAdoptionMarker(request.snapshot))
-            : (digests.get(path) as string),
-      });
-    }),
+    active.destinations
+      .filter(
+        (path) =>
+          path !== legacyAdoptionMarkerPath ||
+          observed.get(path)?.kind === "file",
+      )
+      .map((path) => {
+        const present = observed.get(path)?.kind === "file";
+        return Object.freeze({
+          kind:
+            path === legacyAdoptionMarkerPath
+              ? "remove"
+              : present
+                ? "replace"
+                : "install",
+          path,
+          digest:
+            path === legacyAdoptionMarkerPath
+              ? hash("")
+              : path === adoptionMarkerPath
+                ? hash(createAdoptionMarker(request.snapshot))
+                : (digests.get(path) as string),
+        });
+      }),
   );
   const provenance = request.snapshot.provenance;
   const preconditions = Object.freeze(

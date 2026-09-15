@@ -1,20 +1,36 @@
 # Upgrading an Adopting Repository
 
+## PraxisBound Protocol 0.10.0 identity migration
+
+`0.10.0` is a Breaking rename from ForgeFlow to PraxisBound. Before upgrading,
+retain a recovery point for the adopter. Run the new Bootstrap with `--upgrade`;
+it accepts only a regular, readable legacy `specs/.forgeflow-adoption` with the
+supported `version=0.9.0` identity and a revision of `unknown` or a lowercase
+40/64-character Git SHA (optionally suffixed `-dirty`). It writes
+`specs/.praxisbound-adoption`, preserves that revision, and removes the old
+marker. Do not create the new marker by hand: both markers are ambiguous and
+Bootstrap refuses them.
+
+Replace `FORGEFLOW_DECISIONS_ROOT` with `PRAXISBOUND_DECISIONS_ROOT`. The old
+non-empty variable is rejected rather than aliased. To roll back before
+publication, restore the complete pre-upgrade checkout, including the legacy
+marker and old environment variable, from the recovery point.
+
 Bootstrap installs a copy-time snapshot. This page covers moving an existing
 adoption to a newer snapshot without losing what the repository owns.
 
 ## The adoption marker
 
-A fresh bootstrap writes `specs/.forgeflow-adoption`, a machine-readable record
+A fresh bootstrap writes `specs/.praxisbound-adoption`, a machine-readable record
 of the snapshot it installed:
 
 ```text
-version=0.3.0
+version=0.10.0
 revision=f14da0095cf04d42df3d7a82822e072639beba9e
 ```
 
-`version` is the ForgeFlow `VERSION` value the snapshot came from. `revision`
-is the full commit SHA of the ForgeFlow checkout that copied it, with a `-dirty`
+`version` is the PraxisBound `VERSION` value the snapshot came from. `revision`
+is the full commit SHA of the PraxisBound checkout that copied it, with a `-dirty`
 suffix when that checkout had uncommitted changes. It is the literal `unknown`
 whenever the checkout cannot prove otherwise: Git is unavailable, the checkout
 is not itself the root of a Git work tree (a copy vendored inside another
@@ -26,11 +42,11 @@ The marker is a managed file, classified in
 [Protocol Versioning](../protocol/versioning.md).
 
 `specs/stories/README.md` is **not** managed. A repository may keep whatever
-prose it likes there; ForgeFlow neither reads nor writes it.
+prose it likes there; PraxisBound neither reads nor writes it.
 
 ## Upgrading the templates
 
-From a newer ForgeFlow checkout:
+From a newer PraxisBound checkout:
 
 ```sh
 ./scripts/bootstrap --upgrade /path/to/repository
@@ -53,7 +69,7 @@ mutually exclusive: `--force` is a fresh installation that replaces every
 managed file, `--upgrade` deliberately replaces fewer.
 
 `--upgrade` requires an existing `specs/stories/` directory. A repository that
-never adopted ForgeFlow exits `1` and is told to run a fresh bootstrap instead.
+never adopted PraxisBound exits `1` and is told to run a fresh bootstrap instead.
 The static safety rules are the same as a fresh install: managed directory and
 file symlinks are refused, a managed path of the wrong file type is refused, and
 each replacement uses a single-file atomic rename.
@@ -62,7 +78,7 @@ each replacement uses a single-file atomic rename.
 
 Fresh bootstrap, `--force`, and `--upgrade` prepare every replacement and back up
 every existing managed file before replacing any of them. Private
-`.forgeflow-install.<pid>-<filename>` directories beside the destinations keep
+`.praxisbound-install.<digest>-<filename>` directories beside the destinations keep
 each rename on the same filesystem. Originals must be readable and enough disk
 space must be available for staging and recovery copies; preparation failure
 leaves managed files unchanged. The adoption marker is replaced last.
@@ -113,7 +129,7 @@ also warns, naming both versions and pointing here. The marker records the last
 bootstrap or upgrade, not the provenance of `AGENTS.md`, so the warning says
 only that the guide may predate either version — it cannot say when the guide
 was written. Deciding what to carry across from the new `templates/AGENTS.md` is
-the adopter's call; ForgeFlow does not diff, merge, or keep historical copies of
+the adopter's call; PraxisBound does not diff, merge, or keep historical copies of
 it.
 
 `--upgrade` also does not rewrite existing Stories. A newer Story Contract can
@@ -127,6 +143,10 @@ repository-owned `AGENTS.md` is current. Bootstrap never merges or overwrites
 `AGENTS.md` or `guidance/` in upgrade mode, so adopters manually compare the
 current `templates/AGENTS.md` and opt in to baseline Guidance that fits their
 repository:
+
+The 0.7.0 and 0.8.0 steps below describe their original ForgeFlow-era commands;
+when running them against PraxisBound 0.10.0, replace the old decision-root
+variable with `PRAXISBOUND_DECISIONS_ROOT` and use current skill names.
 
 * when upgrading to 0.3.3 or later, compare the Code Quality guidance;
 * when upgrading to 0.3.4 or later, compare Review Preparation and human-only

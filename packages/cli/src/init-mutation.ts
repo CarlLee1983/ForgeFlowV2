@@ -13,7 +13,7 @@ import {
   type InitMutationPlan,
   type InitPathObservation,
   type InitSnapshot,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 import {
   captureInitObservations,
@@ -34,7 +34,11 @@ interface OwnedDirectory {
 }
 
 export type InitMutationOperation =
-  "makeDirectory" | "writeFileExclusive" | "rename";
+  | "makeDirectory"
+  | "writeFileExclusive"
+  | "rename"
+  | "removeFile"
+  | "removeDirectory";
 
 export interface InitMutationOperations {
   readonly makeDirectory: (path: string, mode: number) => Promise<string>;
@@ -327,11 +331,16 @@ export async function executeInitMutation(
   for (const effect of plan.effects) {
     const payload = payloadByPath.get(effect.path);
     const bytes =
-      effect.path === adoptionMarkerPath ? markerBytes : payload?.bytes;
+      effect.kind === "remove"
+        ? new Uint8Array()
+        : effect.path === adoptionMarkerPath
+          ? markerBytes
+          : payload?.bytes;
     if (
       bytes === undefined ||
       digest(bytes) !== effect.digest ||
-      (effect.path !== adoptionMarkerPath &&
+      (effect.kind !== "remove" &&
+        effect.path !== adoptionMarkerPath &&
         (payload === undefined ||
           !Number.isInteger(payload.mode) ||
           payload.mode < 0 ||
@@ -405,17 +414,19 @@ export async function executeInitMutation(
         );
         originals.add(effect.path);
       }
-      await operations.writeFileExclusive(
-        resolve(stage, "new"),
-        effectBytes.get(effect.path) as Uint8Array,
-        effect.path === adoptionMarkerPath
-          ? 0o666
-          : (payloadByPath.get(effect.path)?.mode as number),
-      );
-      await operations.afterOperation?.(
-        "writeFileExclusive",
-        resolve(stage, "new"),
-      );
+      if (effect.kind !== "remove") {
+        await operations.writeFileExclusive(
+          resolve(stage, "new"),
+          effectBytes.get(effect.path) as Uint8Array,
+          effect.path === adoptionMarkerPath
+            ? 0o666
+            : (payloadByPath.get(effect.path)?.mode as number),
+        );
+        await operations.afterOperation?.(
+          "writeFileExclusive",
+          resolve(stage, "new"),
+        );
+      }
       prepared.push(effect.path);
     }
   } catch {
@@ -503,11 +514,19 @@ export async function executeInitMutation(
     const stagePath = stages.get(effect.path) as string;
     attempted.push(effect.path);
     try {
-      await operations.rename(
-        resolve(root, stagePath, "new"),
-        resolve(root, effect.path),
-      );
-      await operations.afterOperation?.("rename", resolve(root, effect.path));
+      if (effect.kind === "remove") {
+        await operations.removeFile(resolve(root, effect.path));
+        await operations.afterOperation?.(
+          "removeFile",
+          resolve(root, effect.path),
+        );
+      } else {
+        await operations.rename(
+          resolve(root, stagePath, "new"),
+          resolve(root, effect.path),
+        );
+        await operations.afterOperation?.("rename", resolve(root, effect.path));
+      }
       applied.push(effect.path);
       if (operations.shouldAbort?.() === true) {
         applyFailure = failure("apply", "INIT_INTERRUPTED", effect.path);

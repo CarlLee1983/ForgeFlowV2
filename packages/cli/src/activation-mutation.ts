@@ -6,13 +6,14 @@ import {
   activationDirectories,
   activationSkillDirectory,
   activationSnapshotPath,
+  legacyActivationSkillDirectory,
   findActivationPreconditionMismatches,
   type ActivationMutationPlan,
   type ActivationPathObservation,
   type ActivationPlannedPayload,
   type MutationExecutionObservation,
   type MutationFailure,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 import {
   captureActivationObservations,
@@ -230,6 +231,7 @@ export async function executeActivationMutation(
     payloads.map((payload) => [payload.path, payload]),
   );
   for (const effect of plan.effects) {
+    if (effect.kind === "remove") continue;
     const payload = payloadByPath.get(effect.path);
     if (
       payload === undefined ||
@@ -275,6 +277,9 @@ export async function executeActivationMutation(
 
   try {
     for (const directory of activationDirectories.slice(2)) {
+      // The legacy directory is observed only as migration input. Creating it
+      // would manufacture a mixed identity on fresh PraxisBound installs.
+      if (directory === legacyActivationSkillDirectory) continue;
       const expected = plan.preconditions.find(
         ({ path }) => path === directory,
       );
@@ -335,19 +340,21 @@ export async function executeActivationMutation(
         );
         originals.add(effect.path);
       }
-      const payload = payloadByPath.get(
-        effect.path,
-      ) as ActivationPlannedPayload;
-      await operations.writeFileExclusive(
-        resolve(stage, "new"),
-        payload.bytes,
-        payload.mode,
-        true,
-      );
-      await operations.afterOperation?.(
-        "writeFileExclusive",
-        resolve(stage, "new"),
-      );
+      if (effect.kind !== "remove") {
+        const payload = payloadByPath.get(
+          effect.path,
+        ) as ActivationPlannedPayload;
+        await operations.writeFileExclusive(
+          resolve(stage, "new"),
+          payload.bytes,
+          payload.mode,
+          true,
+        );
+        await operations.afterOperation?.(
+          "writeFileExclusive",
+          resolve(stage, "new"),
+        );
+      }
       prepared.push(effect.path);
     }
   } catch {
@@ -439,11 +446,19 @@ export async function executeActivationMutation(
     const stagePath = stages.get(effect.path) as string;
     attempted.push(effect.path);
     try {
-      await operations.rename(
-        resolve(root, stagePath, "new"),
-        resolve(root, effect.path),
-      );
-      await operations.afterOperation?.("rename", resolve(root, effect.path));
+      if (effect.kind === "remove") {
+        await operations.removeFile(resolve(root, effect.path));
+        await operations.afterOperation?.(
+          "removeFile",
+          resolve(root, effect.path),
+        );
+      } else {
+        await operations.rename(
+          resolve(root, stagePath, "new"),
+          resolve(root, effect.path),
+        );
+        await operations.afterOperation?.("rename", resolve(root, effect.path));
+      }
       applied.push(effect.path);
       if (operations.shouldAbort?.() === true) {
         applyFailure = failure("apply", "ACTIVATION_INTERRUPTED", effect.path);
@@ -456,6 +471,40 @@ export async function executeActivationMutation(
         effect.path,
       );
       break;
+    }
+  }
+
+  if (
+    applyFailure === undefined &&
+    plan.effects.some(({ kind }) => kind === "remove")
+  ) {
+    const legacyDirectory = resolve(root, legacyActivationSkillDirectory);
+    let legacyMode = 0o777;
+    try {
+      const original = await lstat(legacyDirectory);
+      if (!original.isDirectory()) throw new Error("Legacy path changed");
+      legacyMode = original.mode & 0o777;
+      await operations.removeDirectory(legacyDirectory);
+      await operations.afterOperation?.("removeDirectory", legacyDirectory);
+      // The old directory belongs to the same migration transaction. Do not
+      // report the new tuple as committed until its last owned path is gone.
+    } catch {
+      try {
+        await lstat(legacyDirectory);
+      } catch (inspectionError: unknown) {
+        if ((inspectionError as { code?: string }).code === "ENOENT") {
+          try {
+            await operations.makeDirectory(legacyDirectory, legacyMode);
+          } catch {
+            // File restoration below retains recovery evidence if this fails.
+          }
+        }
+      }
+      applyFailure = failure(
+        "apply",
+        "ACTIVATION_REPLACEMENT_FAILED",
+        legacyActivationSkillDirectory,
+      );
     }
   }
 
@@ -544,7 +593,9 @@ export async function executeActivationMutation(
     });
   }
 
-  const cleanupResidue = await cleanupStages(root, createdStages, operations);
+  const cleanupResidue = [
+    ...(await cleanupStages(root, createdStages, operations)),
+  ];
   return observation(plan, {
     committed: true,
     prepared,

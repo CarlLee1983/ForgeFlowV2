@@ -1,4 +1,4 @@
-name: ForgeFlow verification
+name: PraxisBound verification
 
 on:
   pull_request:

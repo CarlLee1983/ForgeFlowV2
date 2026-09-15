@@ -1,7 +1,7 @@
 import type {
   ActivationSourceAsset,
   ActivationSourceSnapshot,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 import {
   loadPackagedSnapshotProvenance,
@@ -14,9 +14,9 @@ export async function loadPackagedActivationSource(): Promise<ActivationSourceSn
   const parsed = await loadPackagedSnapshotProvenance(root);
 
   const specifications = [
-    ["skills/forgeflow/SKILL.md", "skill"],
+    ["skills/praxisbound/SKILL.md", "skill"],
     ["skills/story-development/SKILL.md", "workflow"],
-    ["skills/forgeflow/agents-block.md", "agentBlock"],
+    ["skills/praxisbound/agents-block.md", "agentBlock"],
   ] as const;
   const assets = await Promise.all(
     specifications.map(async ([path, name]) => {

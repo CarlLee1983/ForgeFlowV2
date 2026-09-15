@@ -16,7 +16,7 @@ import { promisify } from "node:util";
 import {
   IMPLEMENTED_PROTOCOL_VERSION,
   RESULT_SCHEMA_VERSION,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 import { runReleaseCheck } from "../dist/release.js";
 import { runDifferentialParity } from "./support/differential-parity-harness.mjs";

@@ -8,6 +8,8 @@ export interface MutationPathObservation {
   readonly searchable?: boolean;
   readonly digest?: string;
   readonly identity?: string;
+  /** Optional UTF-8 contents for policy parsers that must validate bytes. */
+  readonly text?: string;
 }
 
 export interface MutationStagePrecondition {

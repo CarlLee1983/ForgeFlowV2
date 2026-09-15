@@ -1,19 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveProtocolSelector } from "@forgeflow/core";
+import { resolveProtocolSelector } from "@praxisbound/core";
 
 const supportedSelectors = [
   [{ kind: "current" }, "current"],
-  [{ kind: "adopted", version: "0.9.0" }, "adopted"],
-  [{ kind: "explicit", version: "0.9.0" }, "explicit"],
+  [{ kind: "adopted", version: "0.10.0" }, "adopted"],
+  [{ kind: "explicit", version: "0.10.0" }, "explicit"],
 ];
 
 test("AC-003: supported selectors resolve the exact implemented Protocol", () => {
   for (const [selector, source] of supportedSelectors) {
     assert.deepEqual(resolveProtocolSelector(selector), {
       ok: true,
-      value: { source, version: "0.9.0" },
+      value: { source, version: "0.10.0" },
     });
   }
 });
@@ -24,7 +24,7 @@ const selectorErrors = [
   ["unknown selector", { kind: "nearest" }, "INVALID_SELECTOR"],
   [
     "extra selector field",
-    { kind: "current", version: "0.9.0" },
+    { kind: "current", version: "0.10.0" },
     "INVALID_SELECTOR",
   ],
   ["missing adopted version", { kind: "adopted" }, "MISSING_PROTOCOL_VERSION"],

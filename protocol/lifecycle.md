@@ -1,7 +1,7 @@
 # Story Lifecycle
 
-ForgeFlow uses lifecycle states and transitions as shared protocol vocabulary.
-They define what state names mean, but they are not persisted ForgeFlow repository state.
+PraxisBound uses lifecycle states and transitions as shared protocol vocabulary.
+They define what state names mean, but they are not persisted PraxisBound repository state.
 A repository does not synchronize a current status in a
 Story, acceptance file, task note, or handoff, and it does not need a workflow
 engine, state database, or agent orchestrator. The current protocol version is
@@ -10,7 +10,7 @@ recorded in [`VERSION`](../VERSION).
 When an external control plane is present, it is authoritative for current
 work, lifecycle state, blockers or Gates, next action, review state,
 verification-current state, and completion state. ForgePilot is one example;
-ForgeFlow neither depends on nor detects a control plane.
+PraxisBound neither depends on nor detects a control plane.
 
 ```text
 DRAFT → READY → IMPLEMENTING → VERIFYING → REVIEW → DONE

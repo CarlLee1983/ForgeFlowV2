@@ -7,7 +7,7 @@ import {
   evaluateInitMutation,
   planMutation,
   validateResultEnvelope,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 const directories = [
   "specs",
@@ -25,11 +25,11 @@ const payloadPaths = [
   "guidance/DECISIONS.md",
   "guidance/PRACTICES.md",
 ];
-const marker = "specs/.forgeflow-adoption";
+const marker = "specs/.praxisbound-adoption";
 
 function snapshot() {
   return {
-    protocolVersion: "0.9.0",
+    protocolVersion: "0.10.0",
     provenance: "fixture bundle",
     revision: "unknown",
     snapshotDigest: "b".repeat(64),

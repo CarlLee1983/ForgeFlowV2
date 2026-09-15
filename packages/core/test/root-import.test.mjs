@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 test("AC-005/TST012-AC-004/TST014-AC-003: the Core package root exposes only the public contract", async () => {
-  const core = await import("@forgeflow/core");
+  const core = await import("@praxisbound/core");
 
   assert.deepEqual(Object.keys(core).sort(), [
     "IMPLEMENTED_PROTOCOL_VERSION",
@@ -32,6 +32,9 @@ test("AC-005/TST012-AC-004/TST014-AC-003: the Core package root exposes only the
     "getActivationObservationScope",
     "getInitObservationScope",
     "getToolingCapabilities",
+    "legacyActivationDestinations",
+    "legacyActivationSkillDirectory",
+    "legacyActivationSnapshotPath",
     "planActivation",
     "planMutation",
     "posixCksum",

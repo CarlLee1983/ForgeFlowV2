@@ -15,7 +15,7 @@ import {
   type RepositoryPathObservation,
   type ResultIssue,
   type StoryDecisionRecord,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 import { createNodeStoryReader } from "./story.js";
 
@@ -38,12 +38,12 @@ export interface DoctorRenderedOutput {
   readonly stderr: string;
 }
 
-export const doctorHelp = `ForgeFlow Repository Doctor
+export const doctorHelp = `PraxisBound Repository Doctor
 
 Usage:
-  forgeflow doctor [--json] [repository-directory]
-  forgeflow doctor --run-verify [--json] [repository-directory]
-  forgeflow doctor --help
+  praxisbound doctor [--json] [repository-directory]
+  praxisbound doctor --run-verify [--json] [repository-directory]
+  praxisbound doctor --help
 
 Doctor performs static, read-only Repository Contract inspection. It never
 executes repository-owned code, runs verification, or repairs a repository
@@ -374,12 +374,13 @@ async function inspectNodeRepository(
   const stableSpecs = specsSafe
     ? await stableDirectory(resolve(root, "specs"))
     : null;
-  const [stories, adoptionMarker] = specsSafe
+  const [stories, adoptionMarker, legacyAdoptionMarker] = specsSafe
     ? await Promise.all([
         observe(resolve(root, "specs/stories")),
+        observe(resolve(root, "specs/.praxisbound-adoption"), true),
         observe(resolve(root, "specs/.forgeflow-adoption"), true),
       ])
-    : [missing, missing];
+    : [missing, missing, missing];
   const guidanceEntry =
     guidance.kind === "directory" && guidance.searchable === true
       ? await observe(resolve(root, "guidance/ENTRY.md"), true)
@@ -394,6 +395,7 @@ async function inspectNodeRepository(
     stories,
     makefile,
     adoptionMarker,
+    legacyAdoptionMarker,
     guidance,
     guidanceEntry,
     skills,
@@ -479,7 +481,7 @@ export function renderDoctorHuman(
     return {
       stdout: "\nResult: ERROR\n",
       stderr:
-        "ERROR Invalid arguments\nUsage: forgeflow doctor [--json] [repository-directory]\n       forgeflow doctor --help\n",
+        "ERROR Invalid arguments\nUsage: praxisbound doctor [--json] [repository-directory]\n       praxisbound doctor --help\n",
     };
 
   const diagnostics = evaluation.result.issues
@@ -512,7 +514,7 @@ export function renderDoctorHuman(
   // only an unsafe or incomplete required structure suppresses these clues.
   const makefileReadable = fact(evaluation, "makefile", "INCOMPLETE") === "OK";
   const stdout =
-    "ForgeFlow Doctor\n\n" +
+    "PraxisBound Doctor\n\n" +
     diagnostics +
     requiredFacts +
     (makefileReadable ? clue + limited : "") +

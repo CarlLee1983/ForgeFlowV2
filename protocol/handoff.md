@@ -5,9 +5,9 @@ can understand the execution context later. It is optional historical evidence,
 not an authoritative source for current work, lifecycle state, blockers, next
 actions, review state, or completion state.
 
-ForgeFlow owns this evidence interface. When an external control plane is
+PraxisBound owns this evidence interface. When an external control plane is
 present, that system is authoritative for mutable lifecycle state. ForgePilot is
-one example; ForgeFlow does not require, detect, or call it.
+one example; PraxisBound does not require, detect, or call it.
 
 ## Location and immutability
 
@@ -78,7 +78,7 @@ same grammar.
 - An uncommitted worktree cannot be represented by a commit SHA. Do not attach
   its verification result to the unchanged HEAD revision; keep current
   verification in the control plane or wait for an exact immutable revision.
-- ForgeFlow tooling never infers current work or a lifecycle transition from a
+- PraxisBound tooling never infers current work or a lifecycle transition from a
   handoff record or its prose.
 
 ## Checking the contract

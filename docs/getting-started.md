@@ -1,11 +1,11 @@
 # Getting Started
 
-ForgeFlow can be added to an existing repository without installing an agent
+PraxisBound can be added to an existing repository without installing an agent
 runtime or changing its programming language.
 
 ## 1. Bootstrap the repository
 
-From a ForgeFlow checkout, run:
+From a PraxisBound checkout, run:
 
 ```sh
 ./scripts/bootstrap /path/to/repository
@@ -21,7 +21,7 @@ guidance/
 ├── DECISIONS.md
 └── PRACTICES.md
 specs/
-├── .forgeflow-adoption
+├── .praxisbound-adoption
 └── stories/
     └── _template/
         ├── story.md
@@ -29,7 +29,7 @@ specs/
         └── task.md
 ```
 
-`specs/.forgeflow-adoption` records the protocol version and ForgeFlow revision
+`specs/.praxisbound-adoption` records the protocol version and PraxisBound revision
 this snapshot came from. It is what a later `--upgrade` reads; see
 [Upgrading an adopting repository](upgrading.md).
 
@@ -70,7 +70,7 @@ review the result, or authorize a merge.
 
 ## 2. Inspect the adopted structure (optional)
 
-From a ForgeFlow checkout, Doctor can confirm the static required structure
+From a PraxisBound checkout, Doctor can confirm the static required structure
 without changing the target:
 
 ```sh
@@ -180,7 +180,7 @@ observation:
 
 ```sh
 mkdir -p specs/handoffs
-cp /path/to/forgeflow/templates/handoff.md \
+cp /path/to/praxisbound/templates/handoff.md \
   specs/handoffs/2026-09-12T023000Z-ABC-005.md
 ./scripts/handoff-check specs/handoffs/2026-09-12T023000Z-ABC-005.md
 ```
@@ -232,5 +232,5 @@ go -C examples/go mod download
 make -C examples/go verify
 ```
 
-To validate the ForgeFlow repository itself after dependencies are installed,
+To validate the PraxisBound repository itself after dependencies are installed,
 run `make verify` from its root.

@@ -1,13 +1,13 @@
 # Codex project activation
 
 Opt in once to make the current project discoverable to Codex without repeating
-the ForgeFlow source path in each development prompt. This optional integration
+the PraxisBound source path in each development prompt. This optional integration
 adds a local skill and a small AGENTS.md section. Existing bootstrap commands,
 including `--upgrade`, retain their behavior and never manage this integration.
 
 ## Install and update
 
-From a trusted ForgeFlow checkout, preview the exact paths and AGENTS.md diff:
+From a trusted PraxisBound checkout, preview the exact paths and AGENTS.md diff:
 
 ```sh
 ./scripts/codex-activate /path/to/adopted-repository
@@ -27,11 +27,11 @@ It never executes the target Makefile, tests, hooks, or other repository code.
 The owned surface is:
 
 ```text
-AGENTS.md                         # only the ForgeFlow Codex managed section
-.agents/skills/forgeflow/
+AGENTS.md                         # only the PraxisBound Codex managed section
+.agents/skills/praxisbound/
   SKILL.md
   story-development.md             # copy of the canonical Story-development skill
-  .forgeflow-snapshot
+  .praxisbound-snapshot
 ```
 
 Commit these files through the adopter's normal workflow so teammates get the
@@ -40,7 +40,7 @@ source checkout can be removed after installation. No global skill, plugin,
 background process, or extra runtime service is needed.
 
 Preview and `--apply` have the same validation. Reapplying an identical snapshot
-is a no-op. To update, deliberately choose a newer ForgeFlow checkout, preview,
+is a no-op. To update, deliberately choose a newer PraxisBound checkout, preview,
 then apply. There is no network fetch or automatic upgrade. Local edits to any
 owned file or the managed section, unexpected files, and incomplete snapshots
 are refused before target writes. Save intended edits and explicitly reconcile
@@ -51,7 +51,7 @@ template adoption version at installation, and POSIX cksum/byte counts for the
 two skill files and the exact managed section. It is accidental-drift detection,
 not a cryptographic signature or protection against someone forging metadata.
 Revision is the source HEAD, HEAD-dirty, or unknown when Git cannot establish it.
-Integration updates do not alter specs/.forgeflow-adoption or Story templates;
+Integration updates do not alter specs/.praxisbound-adoption or Story templates;
 the two version values can legitimately differ. A change from the recorded
 `adoption=` value means the marker differs from the recorded baseline; it does
 not by itself prove a template change or partial upgrade. Confirm the template
@@ -65,7 +65,7 @@ or an external control plane. `繼續開發` resumes only when that authoritativ
 context is already available in the session; Codex never selects work from a
 handoff, task note, or directory order. For a new independent requirement it
 prepares a draft for human approval. Questions and design discussion do not
-start the Story workflow. `$forgeflow` is the explicit fallback.
+start the Story workflow. `$praxisbound` is the explicit fallback.
 
 Missing integration files, conflicting project instructions, or absent current
 selection call for a specific diagnosis or one narrow question. Historical
@@ -82,7 +82,14 @@ and [skill discovery documentation](https://learn.chatgpt.com/docs/build-skills)
 The integration supplies guidance, not tool interception or a mechanical gate.
 `make verify`, CI policy, and Human Review remain the enforcement boundaries.
 
-## Safety and recovery
+## Legacy migration, safety, and recovery
+
+ForgeFlow artifacts are migration inputs only. Before previewing or applying a
+migration, activation validates the legacy directory's exact membership,
+snapshot checksums and identity, and one unambiguous legacy managed block.
+Edited, unsafe, incomplete, or dual-identity targets are refused without a
+target write. Apply replaces only the proven block, commits the new snapshot
+last, and removes the validated legacy artifacts.
 
 The installer rejects symlinked managed parents/leaves, wrong file types,
 ambiguous delimiters, and unowned integration contents. It prepends the first
@@ -112,8 +119,8 @@ exit 2 is invalid invocation.
 For a supported older activation snapshot, run its installer in preview mode
 and explicitly apply it. Restoring an old template snapshot alone does not
 restore the integration. For full opt-out, review and remove the exact section
-between `<!-- ForgeFlow Codex: begin -->` and `<!-- ForgeFlow Codex: end -->`,
-and the three owned files above; remove the forgeflow directory only if empty.
+between `<!-- PraxisBound Codex: begin -->` and `<!-- PraxisBound Codex: end -->`,
+and the three owned files above; remove the praxisbound directory only if empty.
 Preserve all other AGENTS.md bytes and any unrelated skills. Prefer the adopter's
 version control to recover the exact previously reviewed snapshot. Restart the
 Codex session after rollback or opt-out.

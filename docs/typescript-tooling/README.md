@@ -1,10 +1,10 @@
-# ForgeFlow TypeScript Tooling Migration Plan
+# PraxisBound TypeScript Tooling Migration Plan
 
 Status: planning baseline captured before implementation. Implementation
 progress is recorded in the `TST-*` Stories under `specs/stories/`.
 
 Scope: executable tooling modernization inside the existing
-`CarlLee1983/ForgeFlowV2` repository. This plan creates no repository, package
+`CarlLee1983/PraxisBound` repository. This plan creates no repository, package
 publication, protocol-semantic change, or legacy removal.
 
 Detailed artifacts:
@@ -72,10 +72,10 @@ Adopt a two-package pnpm workspace in this repository:
 language-independent protocol artifacts
                   |
                   v
-@forgeflow/core: evaluate | planMutation | capabilities
+@praxisbound/core: evaluate | planMutation | capabilities
                   |
                   v
-@forgeflow/cli: argv/filesystem/process/mutation/render/npm adapters
+@praxisbound/cli: argv/filesystem/process/mutation/render/npm adapters
 ```
 
 Core receives immutable normalized inputs and returns Semantic Results or
@@ -128,14 +128,14 @@ docs, namespace provenance, and a separate approved removal ticket.
 Recommended hierarchy:
 
 ```sh
-forgeflow init
-forgeflow doctor
-forgeflow verify
-forgeflow story check
-forgeflow verification check
-forgeflow handoff check
-forgeflow release check [repository]
-forgeflow codex activate
+praxisbound init
+praxisbound doctor
+praxisbound verify
+praxisbound story check
+praxisbound verification check
+praxisbound handoff check
+praxisbound release check [repository]
+praxisbound codex activate
 ```
 
 `verify` executes `make verify`; `verification check` statically evaluates a
@@ -182,14 +182,14 @@ offline and non-interactive.
 Publish logical packages in lockstep initially:
 
 ```text
-@forgeflow/core
-@forgeflow/cli  -> bin `forgeflow`
+@praxisbound/core
+@praxisbound/cli  -> bin `praxisbound`
 ```
 
 Supported zero-install form:
 
 ```sh
-npx @forgeflow/cli init
+npx @praxisbound/cli init
 ```
 
 That unpinned spelling is a human convenience and may resolve the latest
@@ -197,17 +197,18 @@ dist-tag or prompt during network acquisition. Automation pins the exact
 tooling version:
 
 ```sh
-npx --yes @forgeflow/cli@<tooling-version> init
+npx --yes @praxisbound/cli@<tooling-version> init
 ```
 
 Offline guarantees begin after acquisition: clean fixtures install the tarball,
-disable network, and invoke `./node_modules/.bin/forgeflow` directly.
+disable network, and invoke `./node_modules/.bin/praxisbound` directly.
 
 Registry check on 2026-09-12 found unrelated `forgeflow@0.6.0`; public
-`@forgeflow/core` and `@forgeflow/cli` lookups returned `E404`, which does not
-prove control of the `@forgeflow` scope. Namespace ownership is therefore a
+`@praxisbound/core` and `@praxisbound/cli` lookups returned `E404`, which does not
+prove control of the `@praxisbound` scope. Namespace ownership is therefore a
 release prerequisite, not an architecture blocker. Do not document
-`npx forgeflow` until the name is legitimately controlled.
+an unscoped `npx praxisbound` acquisition path until the name is legitimately
+controlled.
 
 Consumer Node engines are `^22.13.0 || ^24.0.0 || ^26.0.0`; Node 20 is EOL.
 Development uses an exact pnpm pin and root lockfile, but consumers require only
@@ -223,12 +224,12 @@ combinations, not because they equal root Protocol `VERSION`.
 ForgePilot should first use the Process Boundary:
 
 ```text
-ForgePilot -> forgeflow --json
+ForgePilot -> praxisbound --json
 ```
 
-It may later use public `@forgeflow/core` root exports for in-process evaluation,
+It may later use public `@praxisbound/core` root exports for in-process evaluation,
 accepting Core SemVer as an additional dependency. Neither mode may parse human
-output, import internal modules, or give ForgeFlow lifecycle authority.
+output, import internal modules, or give PraxisBound lifecycle authority.
 
 ## G. Migration Waves
 
@@ -365,7 +366,7 @@ cleanup, and removal never share a migration ticket.
 | What is the CLI hierarchy?      | `init`, `doctor`, `verify`, plus `story/verification/handoff/release check` and late `codex activate`.                                                    |
 | What is the machine contract?   | Versioned v1 envelope/schema with typed issues, evidence, error, data, and version metadata; one JSON object on stdout.                                   |
 | What is the exit contract?      | `0` positive/advisory, `1` negative result, `2` cannot evaluate safely, `3` internal failure.                                                             |
-| How are npm packages composed?  | Scoped Core + CLI, CLI exposes `forgeflow`; npm/npx consumers, pnpm workspace development.                                                                |
+| How are npm packages composed?  | Scoped Core + CLI, CLI exposes `praxisbound`; npm/npx consumers, pnpm workspace development.                                                                |
 | What does init do?              | Offline detection/preflight, deterministic plan, safe apply; dry-run no-write; force exact managed set; upgrade templates/marker only; recovery evidence. |
 | What is migration order?        | Handoff -> verification -> Story -> Doctor/verify -> release -> init -> activation -> rollout/removal.                                                    |
 | When can shell be removed?      | Only after parity plus package/npx/CI/adoption/ForgePilot/docs/version/runtime/removal gates, in its own ticket.                                          |

@@ -1,0 +1,55 @@
+# Path pattern | reason
+docs/codex-activation.md|one-way activation migration documentation
+docs/releases/*|immutable published release evidence
+docs/typescript-tooling/README.md|unrelated historical npm package warning
+docs/typescript-tooling/architecture.md|unrelated historical npm package warning
+docs/typescript-tooling/archive/*|superseded design evidence
+docs/typescript-tooling/implementation-tickets.md|unrelated historical npm package warning
+docs/typescript-tooling/parity-and-migration.md|named legacy migration fixture
+docs/upgrading.md|one-way adoption migration and historical version guidance
+packages/cli/src/doctor.ts|legacy marker observation adapter
+packages/cli/src/init.ts|legacy marker migration adapter
+packages/cli/src/story.ts|retired environment-variable diagnostic
+packages/cli/test/activation-mutation-adapter.test.mjs|legacy activation migration fixture
+packages/cli/test/differential-parity-harness.test.mjs|retained parity fixture
+packages/cli/test/doctor-command.test.mjs|legacy marker diagnosis fixture
+packages/cli/test/doctor-parity.test.mjs|retained legacy parity fixture
+packages/cli/test/handoff-command.test.mjs|retained historical handoff fixture
+packages/cli/test/init-apply.test.mjs|legacy adoption migration fixture
+packages/cli/test/init-command.test.mjs|legacy adoption migration fixture
+packages/cli/test/init-mutation-adapter.test.mjs|legacy adoption recovery fixture
+packages/cli/test/release-command.test.mjs|retained historical release fixture
+packages/cli/test/release-parity.test.mjs|retained historical release parity fixture
+packages/cli/test/story-command.test.mjs|retired environment-variable fixture
+packages/cli/test/support/differential-parity-harness.mjs|retained parity adapter
+packages/cli/test/verification-command.test.mjs|retained historical verification fixture
+packages/cli/test/verification-plan-parity.test.mjs|retained historical verification parity fixture
+packages/cli/test/verify-command.test.mjs|retained historical verification fixture
+packages/core/src/activation.ts|legacy activation migration adapter
+packages/core/src/init.ts|legacy adoption migration adapter
+packages/core/src/repository.ts|legacy marker diagnosis
+packages/core/test/activation.test.mjs|legacy activation migration fixture
+packages/core/test/init-planning.test.mjs|legacy adoption migration fixture
+protocol/architecture.md|immutable ADR filename link
+protocol/versioning.md|migration contract and historical version record
+scripts/bootstrap|legacy adoption migration adapter
+scripts/codex-activate|legacy activation migration adapter
+scripts/doctor|legacy marker diagnosis
+scripts/story-check|retired environment-variable diagnostic
+specs/decisions/*|immutable older decisions and current migration decision
+specs/handoff.md|immutable historical handoff evidence
+specs/stories/*|immutable completed Stories and current migration specifications
+tests/bootstrap.sh|legacy adoption migration fixture
+tests/code-quality.sh|retained historical identity fixture
+tests/doctor.sh|legacy marker diagnosis fixture
+tests/execution-governance.sh|retired environment-variable fixture
+tests/handoff-check.sh|retained historical handoff fixture
+tests/human-review.sh|retained historical identity fixture
+tests/portability.sh|retained legacy portability fixture
+tests/praxisbound-activation.sh|explicit activation migration and security test
+tests/praxisbound-identity.sh|explicit identity migration and allowlist test
+tests/protocol.sh|retained historical protocol fixture
+tests/release-check.sh|retained historical release fixture
+tests/review-integrity.sh|retained historical review fixture
+tests/story-check.sh|retired environment-variable fixture
+tests/typescript-tooling.sh|legacy-coordinate rejection fixture

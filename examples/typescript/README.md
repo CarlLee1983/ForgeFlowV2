@@ -1,6 +1,6 @@
 # TypeScript verification example
 
-This small project demonstrates the ForgeFlow repository contract. Use pnpm 12
+This small project demonstrates the PraxisBound repository contract. Use pnpm 12
 with Node.js 20.19+, 22.13+, or 24+, install its development dependencies once,
 then run the canonical command:
 
@@ -13,7 +13,7 @@ make verify
 traceability, and behavioral tests. The example domain is intentionally small;
 the verification interface is the part intended for reuse.
 
-TypeScript is an illustrative adapter: ForgeFlow does not require this
+TypeScript is an illustrative adapter: PraxisBound does not require this
 language, `node:test`, this directory layout, or this script implementation. The
 portable pattern is to give each automated acceptance criterion a stable
 identifier and put that identifier in its executable test.

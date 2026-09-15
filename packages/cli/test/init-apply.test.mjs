@@ -16,7 +16,7 @@ import { dirname, join, relative } from "node:path";
 import { fileURLToPath, URL } from "node:url";
 import test from "node:test";
 
-import { validateResultEnvelope } from "@forgeflow/core";
+import { validateResultEnvelope } from "@praxisbound/core";
 
 import {
   nodeInitFilesystemAdapter,
@@ -35,8 +35,9 @@ const managedFiles = [
   "guidance/PRINCIPLES.md",
   "guidance/DECISIONS.md",
   "guidance/PRACTICES.md",
-  "specs/.forgeflow-adoption",
+  "specs/.praxisbound-adoption",
 ];
+const legacyRevision = "0123456789abcdef0123456789abcdef01234567-dirty";
 
 function runCli(args, cwd) {
   return spawnSync(globalThis.process.execPath, [bin, "init", ...args], {
@@ -82,7 +83,7 @@ async function seed(target, mode) {
   await mkdir(join(target, "guidance"), { recursive: true });
   await writeFile(join(target, "guidance/ENTRY.md"), "repository guidance\n");
   await writeFile(
-    join(target, "specs/.forgeflow-adoption"),
+    join(target, "specs/.praxisbound-adoption"),
     "version=0.8.0\nrevision=unknown\n",
   );
   if (mode === "force") {
@@ -152,15 +153,15 @@ test("TST013-AC-001/006/007: packed fresh, force, and upgrade apply have complet
         result.data.prepared,
         result.data.changes.map(({ path }) => path),
       );
-      assert.equal(result.data.attempted.at(-1), "specs/.forgeflow-adoption");
+      assert.equal(result.data.attempted.at(-1), "specs/.praxisbound-adoption");
       assert.deepEqual(result.data.cleanupResidue, []);
       assert.equal(
-        await readFile(join(cliTarget, "specs/.forgeflow-adoption"), "utf8"),
-        "version=0.9.0\nrevision=unknown\n",
+        await readFile(join(cliTarget, "specs/.praxisbound-adoption"), "utf8"),
+        "version=0.10.0\nrevision=unknown\n",
       );
       assert.equal(
         (await manifest(cliTarget)).some(([path]) =>
-          path.includes(".forgeflow-install."),
+          path.includes(".praxisbound-install."),
         ),
         false,
       );
@@ -178,6 +179,58 @@ test("TST013-AC-001/006/007: packed fresh, force, and upgrade apply have complet
       for (const path of result.data.changes.map(({ path }) => path))
         assert.ok(managedFiles.includes(path));
     }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("PB001-AC-002/006: shell and CLI migrate a ForgeFlow 0.9.0 marker to identical current bytes", async () => {
+  const root = await mkdtemp(join(tmpdir(), "praxisbound-legacy-init-parity-"));
+  try {
+    const source = await makeLegacySource(root);
+    const cliTarget = join(root, "cli");
+    const shellTarget = join(root, "shell");
+    for (const target of [cliTarget, shellTarget]) {
+      await mkdir(target);
+      await seed(target, "upgrade");
+      await rm(join(target, "specs/.praxisbound-adoption"));
+      await writeFile(
+        join(target, "specs/.forgeflow-adoption"),
+        `version=0.9.0\nrevision=${legacyRevision}\n`,
+      );
+    }
+
+    const cli = runCli(["--upgrade", "--json", cliTarget], root);
+    const shell = spawnSync(
+      join(source, "scripts/bootstrap"),
+      ["--upgrade", shellTarget],
+      { cwd: root, encoding: "utf8" },
+    );
+    assert.equal(cli.status, 0, `${cli.stderr}\n${cli.stdout}`);
+    assert.equal(shell.status, 0, shell.stderr);
+    assert.equal(JSON.parse(cli.stdout).outcome, "INIT_APPLIED");
+    assert.deepEqual(await manifest(cliTarget), await manifest(shellTarget));
+    assert.equal(
+      await readFile(join(cliTarget, "specs/.praxisbound-adoption"), "utf8"),
+      `version=0.10.0\nrevision=${legacyRevision}\n`,
+    );
+    await assert.rejects(lstat(join(cliTarget, "specs/.forgeflow-adoption")), {
+      code: "ENOENT",
+    });
+
+    const invalidTarget = join(root, "invalid-legacy");
+    await mkdir(invalidTarget);
+    await seed(invalidTarget, "upgrade");
+    await rm(join(invalidTarget, "specs/.praxisbound-adoption"));
+    await writeFile(
+      join(invalidTarget, "specs/.forgeflow-adoption"),
+      "version=0.9.0\nrevision=unsafe/value\n",
+    );
+    const before = await manifest(invalidTarget);
+    const refusal = runCli(["--upgrade", "--json", invalidTarget], root);
+    assert.equal(refusal.status, 1);
+    assert.equal(JSON.parse(refusal.stdout).outcome, "INIT_OPERATION_REFUSED");
+    assert.deepEqual(await manifest(invalidTarget), before);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -234,7 +287,7 @@ test("TST013-AC-006: human and JSON modes preserve each distinct exit-1 Core mut
           attempted: [paths[0]],
           recoveryAttempted: [paths[0]],
           unrecovered: [paths[0]],
-          invalidated: ["specs/.forgeflow-adoption"],
+          invalidated: ["specs/.praxisbound-adoption"],
           retained: plan.stagePreconditions.map(({ path }) => path),
           failure: {
             stage: "recovery",
@@ -302,8 +355,8 @@ test("TST013-AC-006: human and JSON apply render the same successful Core outcom
 
     assert.equal(JSON.parse(json.stdout).outcome, "INIT_APPLIED");
     assert.equal(human.status, 0, human.stderr);
-    assert.match(human.stdout, /^ForgeFlow init\n/);
-    assert.match(human.stdout, /ForgeFlow init completed\n$/);
+    assert.match(human.stdout, /^PraxisBound init\n/);
+    assert.match(human.stdout, /PraxisBound init completed\n$/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -16,7 +16,7 @@ Command:
 `scripts/bootstrap [--force | --upgrade] [--dry-run] [repository-directory]`
 
 Purpose:
-Install a fresh ForgeFlow snapshot, explicitly replace the fresh-install managed
+Install a fresh PraxisBound snapshot, explicitly replace the fresh-install managed
 set, upgrade only the template/marker set, or preview one of those operations.
 
 Inputs:
@@ -26,7 +26,7 @@ guidance, and Git state.
 
 Outputs:
 Human preview, warning, recovery, or success text. A successful non-preview run
-produces managed repository files and `specs/.forgeflow-adoption` containing
+produces managed repository files and `specs/.praxisbound-adoption` containing
 `version` and source `revision`.
 
 Files read:
@@ -101,12 +101,12 @@ apply success.
 
 Files read:
 Target `AGENTS.md`, adoption marker, installed skill files/snapshot; source
-`skills/forgeflow/agents-block.md`, `skills/forgeflow/SKILL.md`,
+`skills/praxisbound/agents-block.md`, `skills/praxisbound/SKILL.md`,
 `skills/story-development/SKILL.md`, `VERSION`, and optional source Git state.
 
 Files written:
 On `--apply`, the bounded `AGENTS.md` section plus
-`.agents/skills/forgeflow/{SKILL.md,story-development.md,.forgeflow-snapshot}`;
+`.agents/skills/praxisbound/{SKILL.md,story-development.md,.praxisbound-snapshot}`;
 sibling stages and a temporary scratch tree are created and cleaned.
 
 Environment dependencies:
@@ -153,7 +153,7 @@ Command:
 `scripts/doctor --run-verify [repository-directory]`
 
 Purpose:
-Statically inspect a ForgeFlow adoption and optional capabilities, or explicitly
+Statically inspect a PraxisBound adoption and optional capabilities, or explicitly
 run the repository-owned canonical verification gate once.
 
 Inputs:
@@ -193,7 +193,7 @@ execute verification safely.
 
 Failure modes:
 Missing/blank core entrypoint, unsafe type/link/permission, unresolved root,
-incomplete ForgeFlow installation, composed-checker operational error, missing
+incomplete PraxisBound installation, composed-checker operational error, missing
 `make`, or nonzero `make verify`.
 
 Side effects:
@@ -228,7 +228,7 @@ acceptance-evidence, and risk-contract readiness checks.
 Inputs:
 Zero or more Story directories; no argument discovers non-`_template`
 directories under `specs/stories/`; optional `--ready` first; optional non-empty
-`FORGEFLOW_DECISIONS_ROOT`.
+`PRAXISBOUND_DECISIONS_ROOT`.
 
 Outputs:
 Per-Story findings and IDs plus aggregate
@@ -244,7 +244,7 @@ None.
 
 Environment dependencies:
 POSIX shell builtins and filesystem readability. Only
-`FORGEFLOW_DECISIONS_ROOT` changes resolution; external `PATH` must not change a
+`PRAXISBOUND_DECISIONS_ROOT` changes resolution; external `PATH` must not change a
 verdict.
 
 External process dependencies:
@@ -346,7 +346,7 @@ Command:
 `scripts/handoff-check [handoff-file]` (default `specs/handoff.md`)
 
 Purpose:
-Validate one immutable, point-in-time Handoff evidence block using ForgeFlow's
+Validate one immutable, point-in-time Handoff evidence block using PraxisBound's
 restricted line-oriented YAML subset.
 
 Inputs:
@@ -401,7 +401,7 @@ Command:
 `scripts/release-check` (no arguments)
 
 Purpose:
-Inspect whether this ForgeFlow checkout is a locally coherent release candidate.
+Inspect whether this PraxisBound checkout is a locally coherent release candidate.
 Root `make release-check` first runs the full canonical gate and then this
 script; direct invocation performs only the local release inspection.
 
@@ -462,8 +462,8 @@ TOCTOU cases.
 
 | Behavior                                                                                         | Owning destination                     | Reason                                                                      |
 | ------------------------------------------------------------------------------------------------ | -------------------------------------- | --------------------------------------------------------------------------- |
-| Story/Handoff IDs, restricted Markdown/YAML, declarations, defaults, profiles, result precedence | `@forgeflow/core`                      | Deterministic Protocol Semantics reused by CLI, tests, and library callers. |
-| Repository observations represented as normalized values                                         | `@forgeflow/core` types and evaluators | Core evaluates facts without owning operating-system effects.               |
+| Story/Handoff IDs, restricted Markdown/YAML, declarations, defaults, profiles, result precedence | `@praxisbound/core`                      | Deterministic Protocol Semantics reused by CLI, tests, and library callers. |
+| Repository observations represented as normalized values                                         | `@praxisbound/core` types and evaluators | Core evaluates facts without owning operating-system effects.               |
 | Discovery, physical-root resolution, `lstat`, permission checks, file reads                      | CLI filesystem Adapter                 | Local I/O is not Protocol Semantics.                                        |
 | Git and Make invocation plus environment sanitization                                            | CLI process Adapter                    | External state is observed at an effect seam and then evaluated by Core.    |
 | Init/activation desired file set and conflict decisions                                          | Core mutation planner                  | The same input snapshot must produce the same proposed effects.             |

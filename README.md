@@ -1,8 +1,8 @@
-# ForgeFlow
+# PraxisBound
 
-![ForgeFlow turns human intent into verified engineering work](docs/assets/forgeflow-hero.png)
+![PraxisBound turns human intent into verified engineering work](docs/assets/praxisbound-hero.png)
 
-ForgeFlow is an agent-agnostic development protocol for AI-assisted engineering.
+PraxisBound is an agent-agnostic development protocol for AI-assisted engineering.
 It turns approved human intent into a bounded Story, makes repository tooling the
 source of deterministic verification evidence, and sends verified work to human
 review.
@@ -11,7 +11,7 @@ review.
 Human → Story → Agent implementation → Verify → Repair → PASS → Human review → Merge
 ```
 
-ForgeFlow does not teach an agent how to code and does not require a particular
+PraxisBound does not teach an agent how to code and does not require a particular
 AI vendor. It defines the repository-level contract that Codex, Claude Code,
 Cursor, OpenCode, Gemini CLI, and future coding agents can follow.
 
@@ -51,7 +51,7 @@ The protocol contracts include:
 - [Repository adoption](protocol/repository-contract.md)
 - [Versioning and compatibility](protocol/versioning.md)
 
-ForgeFlow defines what the work means and what proves it; it does not store what state the work is currently in.
+PraxisBound defines what the work means and what proves it; it does not store what state the work is currently in.
 Lifecycle names remain shared vocabulary. When
 an external control plane is present, it owns current work, lifecycle and Gate
 state, next action, review state, verification-current state, and completion
@@ -60,7 +60,7 @@ bootstrap, and `make verify` work without it.
 
 ## Optional engineering guidance
 
-ForgeFlow may provide lightweight repository-readable engineering guidance that
+PraxisBound may provide lightweight repository-readable engineering guidance that
 helps agents reuse durable repository or team decisions. Guidance remains
 advisory unless the adopting repository deliberately converts it into an
 executable rule behind `make verify`; it never replaces the Story, verification,
@@ -77,7 +77,7 @@ traces every acceptance criterion to the observation that proves it, so a
 verified Story carries evidence rather than a claim.
 
 When a Story explicitly declares `error-projection`, `concurrency`,
-`bounded-capacity`, or `retention-overflow`, ForgeFlow requires only that
+`bounded-capacity`, or `retention-overflow`, PraxisBound requires only that
 risk's contract and links it to an existing Acceptance Criterion and Acceptance
 Evidence row before readiness passes. Stories without a Signal gain no fields,
 and the checker never infers risk from prose.
@@ -92,7 +92,7 @@ and a worked example.
 
 ## Code quality
 
-ForgeFlow can enforce Code Style without defining a cross-language style. The
+PraxisBound can enforce Code Style without defining a cross-language style. The
 adopting repository owns its formatter, lint, type, static-analysis, and
 architecture rules and places the automated checks it requires behind
 `make verify`. The resulting enforcement comes from that canonical command,
@@ -106,7 +106,7 @@ A CI workflow alone does not prevent a GitHub merge from bypassing failed
 checks. A repository administrator must configure the corresponding required
 status check or ruleset separately.
 
-## Adopt ForgeFlow in a repository
+## Adopt PraxisBound in a repository
 
 Run the bootstrap script with the repository directory:
 
@@ -124,7 +124,7 @@ guidance/
 ├── DECISIONS.md
 └── PRACTICES.md
 specs/
-├── .forgeflow-adoption
+├── .praxisbound-adoption
 └── stories/
     └── _template/
         ├── story.md
@@ -150,7 +150,7 @@ Preview the same static preflight without writing to the target:
 ```
 
 A successful bootstrap means only that these installer-managed files were
-installed. They are not ForgeFlow's repository conformance inventory: the
+installed. They are not PraxisBound's repository conformance inventory: the
 required entrypoints are `AGENTS.md`, `Makefile` exposing `make verify`, and
 `specs/stories/`. Guidance, templates, handoff evidence, Skills, CI, and
 repository-specific extensions are optional capabilities. It does not create
@@ -162,7 +162,7 @@ in the requirements, and ask an agent to implement that Story ID.
 
 The full manual flow is documented in
 [Getting Started](docs/getting-started.md), with rationale in
-[ForgeFlow Concepts](docs/concepts.md). Moving an existing adoption to newer
+[PraxisBound Concepts](docs/concepts.md). Moving an existing adoption to newer
 Story templates is covered in
 [Upgrading an adopting repository](docs/upgrading.md).
 
@@ -219,8 +219,8 @@ result semantics.
 
 ## TypeScript tooling workspace
 
-The root pnpm 12 workspace builds the public `@forgeflow/core` and
-`@forgeflow/cli` package shells without replacing any portable shell command:
+The root pnpm 12 workspace builds the public `@praxisbound/core` and
+`@praxisbound/cli` package shells without replacing any portable shell command:
 
 ```sh
 pnpm install --frozen-lockfile
@@ -230,7 +230,7 @@ node packages/cli/dist/bin.js --version
 ```
 
 The package version is the TypeScript tooling version, independent of the
-ForgeFlow Protocol version in `VERSION`. The CLI supports help, version, and the
+PraxisBound Protocol version in `VERSION`. The CLI supports help, version, and the
 migrated domain commands:
 
 ```sh
@@ -259,7 +259,7 @@ target once from its physical root; it is not read-only or sandboxed.
 `release check` performs guarded local Git observation only; it never performs
 remote checks or changes the selected worktree.
 Other migration commands remain unavailable, write a usage
-diagnostic to standard error, and exit `2`; run `forgeflow --help` for the
+diagnostic to standard error, and exit `2`; run `praxisbound --help` for the
 available forms. Neither package exposes implementation subpaths. Core has no
 runtime dependency, and CLI's only runtime dependency is Core.
 
@@ -296,7 +296,7 @@ Its gate checks formatting, `go vet`, Staticcheck, Story traceability, and tests
 ## Verify this repository
 
 Install the tooling workspace and example's locked development dependencies,
-then run ForgeFlow's own canonical verification command from the repository
+then run PraxisBound's own canonical verification command from the repository
 root:
 
 ```sh
@@ -325,7 +325,7 @@ CI configures this check on macOS with `/bin/sh` and Ubuntu with `/bin/dash`.
 Remote CI results remain unverified until those jobs execute; this does not
 claim coverage for other shells or platforms.
 
-## Prepare a ForgeFlow release
+## Prepare a PraxisBound release
 
 From a clean committed release candidate, run the local-only readiness gate:
 
@@ -345,7 +345,7 @@ The current protocol version is recorded in the root [`VERSION`](VERSION) file.
 Its compatibility guarantees and versioned surface are defined by the
 [Protocol Versioning policy](protocol/versioning.md).
 
-ForgeFlow is a declarative, manual protocol: Story and acceptance formats,
+PraxisBound is a declarative, manual protocol: Story and acceptance formats,
 repository guidance, verification, lifecycle, and versioning contracts, a
 reusable Story-development skill, executable TypeScript and Go examples, CI
 support, a non-destructive bootstrap script, and a local release-readiness
@@ -359,4 +359,4 @@ outside the current protocol scope.
 
 ## License
 
-ForgeFlow is available under the [MIT License](LICENSE).
+PraxisBound is available under the [MIT License](LICENSE).

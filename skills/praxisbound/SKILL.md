@@ -1,11 +1,11 @@
 ---
-name: forgeflow
-description: Start or continue implementation in a ForgeFlow-adopted project using explicit human or control-plane selection and local Story contracts. Draft missing Stories for approval, resume approved work, and diagnose activation issues. General explanation and discussion do not start a Story workflow.
+name: praxisbound
+description: Start or continue implementation in a PraxisBound-adopted project using explicit human or control-plane selection and local Story contracts. Draft missing Stories for approval, resume approved work, and diagnose activation issues. General explanation and discussion do not start a Story workflow.
 ---
 
-# ForgeFlow project entry
+# PraxisBound project entry
 
-Use the current project's installed snapshot. A ForgeFlow source-checkout path
+Use the current project's installed snapshot. A PraxisBound source-checkout path
 or a global installation is unnecessary.
 
 ## Locate and reconcile
@@ -19,12 +19,12 @@ approval, or supplies current lifecycle state. Inspect the working tree and
 verification evidence before choosing the next action. Nested directories use
 the same repository root, subject to their additional local instructions.
 
-ForgePilot is one possible control plane. ForgeFlow does not require, detect,
+ForgePilot is one possible control plane. PraxisBound does not require, detect,
 install, or call it; direct human direction is sufficient when no control plane
 is present.
 
-The installed `.forgeflow-snapshot` beside this file identifies this integration.
-Its version may differ from the template version in `specs/.forgeflow-adoption`:
+The installed `.praxisbound-snapshot` beside this file identifies this integration.
+Its version may differ from the template version in `specs/.praxisbound-adoption`:
 the installer does not upgrade templates. Its `adoption=` field records the
 template version at installation. A later mismatch, missing local reference,
 or conflicting instruction calls for a specific diagnosis and repair proposal,

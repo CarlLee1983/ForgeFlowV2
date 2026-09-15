@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   resolveVerificationPlan,
   validateResultEnvelope,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 const bare = [
   "# Story: TST-005 Fixture",
@@ -50,7 +50,7 @@ test("TST005-AC-001: an undeclared Story keeps the documented defaults", () => {
 
   assert.deepEqual(evaluation.result, {
     schemaVersion: "1.0.0",
-    protocolVersion: "0.9.0",
+    protocolVersion: "0.10.0",
     status: "pass",
     outcome: "success",
     exit: 0,

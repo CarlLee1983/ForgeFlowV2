@@ -1,4 +1,4 @@
-module forgeflow.dev/examples/go
+module praxisbound.dev/examples/go
 
 go 1.25.0
 

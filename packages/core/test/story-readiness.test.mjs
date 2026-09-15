@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   evaluateStoryReadiness,
   validateResultEnvelope,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 const story = `# Story: TST-008 Fixture
 

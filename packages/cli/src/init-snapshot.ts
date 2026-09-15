@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { InitSnapshot } from "@forgeflow/core";
+import type { InitSnapshot } from "@praxisbound/core";
 
 import {
   loadPackagedSnapshotProvenance,

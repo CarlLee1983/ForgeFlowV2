@@ -1,33 +1,32 @@
-# @forgeflow/cli
+# @praxisbound/cli
 
-The ForgeFlow command-line interface shell. Invoke it through `forgeflow`.
+The PraxisBound command-line interface shell. Invoke it through `praxisbound`.
 
 ## Acquisition and offline use
 
-For human exploration, `npx @forgeflow/cli --help` may acquire the current
+For human exploration, `npx @praxisbound/cli --help` may acquire the current
 release selected by npm. Reproducible automation pins the tooling version and
 suppresses the acquisition prompt:
 
 ```sh
-npx --yes @forgeflow/cli@<tooling-version> --help
+npx --yes @praxisbound/cli@<tooling-version> --help
 ```
 
 Package acquisition may use the network. After `npm install` has acquired an
-exact version, offline automation invokes `./node_modules/.bin/forgeflow`
+exact version, offline automation invokes `./node_modules/.bin/praxisbound`
 directly. It does not describe package acquisition itself as offline.
 
-Do not use the unscoped `npx forgeflow`; that registry name belongs to an
-unrelated package.
+Do not use the unscoped `npx praxisbound`; use the controlled scoped package.
 
 ```text
-forgeflow [command]
+praxisbound [command]
 ```
 
-`forgeflow`, `forgeflow help`, and `forgeflow --help` print help and exit zero.
-`forgeflow version` and `forgeflow --version` print the package version and exit
+`praxisbound`, `praxisbound help`, and `praxisbound --help` print help and exit zero.
+`praxisbound version` and `praxisbound --version` print the package version and exit
 zero. The first migrated domain command checks immutable Handoff evidence:
 
-`forgeflow init [--force | --upgrade] [--dry-run] [--json] [repository-directory]`
+`praxisbound init [--force | --upgrade] [--dry-run] [--json] [repository-directory]`
 plans or applies an offline initialization from the Protocol snapshot bundled
 in the CLI package. Safe mode refuses managed conflicts; force covers the exact
 fresh managed surface; upgrade covers templates and the marker only. Apply
@@ -38,7 +37,7 @@ no target writes, staging, or recovery. Init never uses the network or prompts.
 Project-local Codex activation is available through:
 
 ```text
-forgeflow codex activate [--apply] [--json] repository-directory
+praxisbound codex activate [--apply] [--json] repository-directory
 ```
 
 Preview is target-read-only and may use private external scratch. `--apply`
@@ -50,7 +49,7 @@ only packaged assets, never the network or target-owned processes.
 The Handoff command checks immutable evidence:
 
 ```text
-forgeflow handoff check [--json] [handoff-file]
+praxisbound handoff check [--json] [handoff-file]
 ```
 
 The path defaults to `specs/handoff.md`. Human mode preserves the Handoff
@@ -64,7 +63,7 @@ inference.
 The static Repository Doctor is available through:
 
 ```text
-forgeflow doctor [--json] [repository-directory]
+praxisbound doctor [--json] [repository-directory]
 ```
 
 It observes required Repository Contract paths, optional capabilities, marker
@@ -76,11 +75,11 @@ unconfirmable acquisition exits `2`.
 Canonical verification is available through:
 
 ```text
-forgeflow verify [--json] [repository-directory]
+praxisbound verify [--json] [repository-directory]
 ```
 
 It resolves a trusted target's physical root and invokes its `make verify`
-target exactly once. This command and `forgeflow doctor --run-verify` execute
+target exactly once. This command and `praxisbound doctor --run-verify` execute
 repository-owned code, are not read-only or sandboxed, and may write files,
 start services, or use the network. JSON mode reserves stdout for one result
 envelope; child output is forwarded to standard error.
@@ -88,7 +87,7 @@ envelope; child output is forwarded to standard error.
 The second migrated domain command resolves declared verification plans:
 
 ```text
-forgeflow verification check [--json] [story-directory ...]
+praxisbound verification check [--json] [story-directory ...]
 ```
 
 Without a Story directory it checks every directory under `specs/stories/`
@@ -104,7 +103,7 @@ verification command.
 Local release readiness is available through:
 
 ```text
-forgeflow release check [--json] [repository-directory]
+praxisbound release check [--json] [repository-directory]
 ```
 
 It resolves the selected directory physically and accepts only a Git worktree
@@ -119,13 +118,13 @@ Unavailable commands print the following one-line diagnostic to standard error
 and exit two:
 
 ```text
-forgeflow: command unavailable; this command is not available. Run forgeflow --help.
+praxisbound: command unavailable; this command is not available. Run praxisbound --help.
 ```
 
 ## Machine results
 
 The package root exports `serializeResultEnvelope(value)`. It validates through
-`@forgeflow/core` and returns one compact JSON object followed by one newline,
+`@praxisbound/core` and returns one compact JSON object followed by one newline,
 with envelope and issue properties in the published contract order. Invalid
 values throw Core's `ResultEnvelopeValidationError` before serialization.
 

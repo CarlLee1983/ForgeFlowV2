@@ -1,6 +1,6 @@
 # Architecture Contract
 
-A Story may state which architecture its change is answerable to. ForgeFlow
+A Story may state which architecture its change is answerable to. PraxisBound
 records and resolves those statements; it does not analyze the architecture.
 
 ## Architecture metadata
@@ -37,7 +37,7 @@ answerable to records nothing.
 
 The concerns this metadata is meant to carry are ownership, boundary,
 dependency direction, public contract, state authority, recovery, migration, and
-retirement. ForgeFlow does not require a Story to address all of them.
+retirement. PraxisBound does not require a Story to address all of them.
 
 ## Architecture decisions
 
@@ -53,11 +53,11 @@ specs/
 A record normally lives at `specs/decisions/ADR-<digits>-<slug>.md`, resolved
 relative to the Story collection so an example repository keeps its own
 decisions. A repository that already has an ADR collection may set
-`FORGEFLOW_DECISIONS_ROOT` to its directory for a `scripts/story-check`
+`PRAXISBOUND_DECISIONS_ROOT` to its directory for a `scripts/story-check`
 invocation; for example, from its repository root:
 
 ```sh
-FORGEFLOW_DECISIONS_ROOT=docs/adr ./scripts/story-check
+PRAXISBOUND_DECISIONS_ROOT=docs/adr ./scripts/story-check
 ```
 
 The value is used as supplied and is the only decision root for that
@@ -100,7 +100,7 @@ analysis of source code:
 
 These reuse the existing checker vocabulary — a rule, a static check over a
 declared artifact, and a reported result composed into the same
-`STORY_CONTRACT_OK` or `STORY_CONTRACT_INCOMPLETE` verdict. ForgeFlow adds no
+`STORY_CONTRACT_OK` or `STORY_CONTRACT_INCOMPLETE` verdict. PraxisBound adds no
 parallel rule engine.
 
 The `architecture` layer in a [verification profile](verification.md#verification-profiles)
@@ -112,7 +112,7 @@ is the extension point for the five checks that require analysing source code:
 * public interface drift
 * architecture drift
 
-ForgeFlow does not implement them, and it does not intend to.
+PraxisBound does not implement them, and it does not intend to.
 This is a scope boundary, not a schedule: they belong to the adopting
 repository, which places its own checker behind `make verify` like any other
 check and records the `architecture` layer as `unsupported` with a residual

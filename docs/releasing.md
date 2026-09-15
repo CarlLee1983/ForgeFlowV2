@@ -1,6 +1,6 @@
-# Releasing ForgeFlow
+# Releasing PraxisBound
 
-ForgeFlow publication is a human-authorized operation. The repository provides
+PraxisBound publication is a human-authorized operation. The repository provides
 one repeatable local readiness interface:
 
 ```sh
@@ -173,7 +173,7 @@ When the tag is absent, create it and rerun the readiness gate:
 
 ```sh
 git tag -a "$candidate_tag" "$candidate_sha" \
-  -m "ForgeFlow protocol $candidate_version"
+  -m "PraxisBound protocol $candidate_version"
 make release-check
 ```
 
@@ -183,7 +183,7 @@ verify the tag instead of implicitly creating one:
 ```sh
 git push "$candidate_remote_url" "refs/tags/$candidate_tag"
 gh release create "$candidate_tag" --repo "$candidate_repository" --verify-tag \
-  --title "ForgeFlow $candidate_tag" \
+  --title "PraxisBound $candidate_tag" \
   --notes-file /path/to/release-notes.md
 ```
 
@@ -202,3 +202,63 @@ Repeat the exact-SHA CI check and remote-state inspection. Confirm that:
 
 Only this combined evidence establishes publication. `VERSION`, local PASS, a
 tag, a release page, or a green run is insufficient on its own.
+
+## 7. Publish the npm packages
+
+The npm packages use their own exact version from
+`packages/core/package.json` and `packages/cli/package.json`; do not substitute
+the Protocol `VERSION`. Before the first publication, confirm all of the
+following against the same `candidate_sha`:
+
+* GitHub identifies the public repository as `CarlLee1983/PraxisBound` and both
+  package manifests name that exact repository and package subdirectory.
+* `@praxisbound/core@<version>` and `@praxisbound/cli@<version>` do not exist,
+  and the authenticated maintainer controls the `@praxisbound` scope.
+* Local `make verify` and the required remote `verify.yml` run pass for the
+  exact candidate SHA.
+* The protected `NPM_TOKEN` Actions secret contains only the short-lived,
+  scope-limited bootstrap credential. Never place or test that credential in
+  the worktree or a command argument.
+
+A brand-new npm package cannot use staged publishing and cannot have a Trusted
+Publisher configured before it exists. Dispatch `publish.yml` from `main` for
+`core` first, supplying the full approved `candidate_sha` input. The workflow
+refuses a dispatch or checked-out revision that differs from that SHA, reruns
+`make verify`, and accepts only an explicit registry E404 as evidence that the
+immutable version is unused. It publishes the package to the non-default `next` tag with
+provenance. Verify its public metadata, integrity, provenance, root import, and
+clean-consumer behavior before dispatching the same workflow for `cli`. The CLI
+job also refuses to proceed until the exact Core version is public.
+
+After both `next` packages pass the public smoke checks:
+
+1. Configure GitHub Actions Trusted Publishing separately for Core and CLI,
+   restricted to repository `CarlLee1983/PraxisBound` and workflow
+   `publish.yml`, with direct `npm publish` allowed.
+2. Verify the saved repository and workflow identity on both package settings.
+   The first OIDC-authenticated publication will be the next immutable package
+   version; npm does not validate the trust configuration when it is saved.
+3. Set each package's publishing access to require 2FA and disallow traditional
+   tokens, delete the protected `NPM_TOKEN` secret, and revoke the bootstrap
+   token at npm.
+4. Using an authenticated maintainer session with 2FA, promote the already
+   published immutable versions in order:
+
+   ```sh
+   npm dist-tag add @praxisbound/core@<version> latest
+   npm dist-tag add @praxisbound/cli@<version> latest
+   ```
+
+5. Confirm `npm view` resolves both `next` and `latest` to the same intended
+   immutable versions, then rerun the public smoke suite against exact versions
+   and against `latest`.
+
+Do not rerun `npm publish` to promote an existing version: npm versions are
+immutable, while promotion is a dist-tag operation. A failure after either
+first publication blocks the remaining package or promotion and must retain
+the observed registry state for review.
+
+Authoritative npm references: [scoped public packages](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/),
+[staged publishing](https://docs.npmjs.com/staged-publishing/),
+[Trusted Publishers](https://docs.npmjs.com/trusted-publishers/), and
+[dist-tags](https://docs.npmjs.com/adding-dist-tags-to-packages/).

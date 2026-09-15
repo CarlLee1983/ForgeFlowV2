@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   evaluateRepositoryDoctor,
   validateResultEnvelope,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 const file = (text = "content") => ({ kind: "file", readable: true, text });
 const directory = () => ({
@@ -15,12 +15,12 @@ const directory = () => ({
 const missing = { kind: "missing" };
 
 const complete = (overrides = {}) => ({
-  checkoutVersion: "0.9.0",
+  checkoutVersion: "0.10.0",
   agents: file("agent guide\n"),
   specs: directory(),
   stories: directory(),
   makefile: file("verify:\n\t@:\n"),
-  adoptionMarker: file("version=0.9.0\nrevision=unknown\n"),
+  adoptionMarker: file("version=0.10.0\nrevision=unknown\n"),
   guidance: missing,
   guidanceEntry: missing,
   skills: missing,
@@ -39,7 +39,7 @@ test("TST009-AC-001: conformant static snapshot produces ordered facts and STRUC
     { name: "agents", value: "OK" },
     { name: "stories", value: "OK" },
     { name: "makefile", value: "OK" },
-    { name: "adopted-version", value: "0.9.0" },
+    { name: "adopted-version", value: "0.10.0" },
     { name: "story-contract", value: "STORY_CONTRACT_OK" },
     { name: "handoff", value: "HANDOFF_CONTRACT_OK" },
     { name: "guidance", value: "NOT_PRESENT" },

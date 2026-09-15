@@ -11,7 +11,7 @@ export const verificationCheck = fileURLToPath(
 export const caseStory = "specs/stories/TST-901-case";
 export const resultBase = Object.freeze({
   schemaVersion: "1.0.0",
-  protocolVersion: "0.9.0",
+  protocolVersion: "0.10.0",
   subject: "verification",
 });
 export const acceptance = `# Acceptance Criteria

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Demonstrate a complete, executable ForgeFlow Story using the existing Go
+Demonstrate a complete, executable PraxisBound Story using the existing Go
 order-total example.
 
 ## Context
@@ -29,7 +29,7 @@ requirements to acceptance criteria to executable tests visible.
 
 * Changing order-total behavior, errors, or data types.
 * Requiring Go, a particular test framework, or this directory layout for
-  ForgeFlow users.
+  PraxisBound users.
 * Parsing arbitrary Markdown or defining a cross-language Story schema.
 
 ## Inputs
@@ -63,7 +63,7 @@ requirements to acceptance criteria to executable tests visible.
 ## Dependencies
 
 * The existing `CalculateOrderTotal` implementation and Go test suite.
-* The ForgeFlow Story Contract.
+* The PraxisBound Story Contract.
 
 ## Constraints
 

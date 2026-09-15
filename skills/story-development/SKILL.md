@@ -1,6 +1,6 @@
 ---
 name: story-development
-description: Implement an approved ForgeFlow Story when a request names a Story ID or asks to build work from specs/stories, including tests, verification, repair, and delivery reporting.
+description: Implement an approved PraxisBound Story when a request names a Story ID or asks to build work from specs/stories, including tests, verification, repair, and delivery reporting.
 ---
 
 # Story Development
@@ -103,11 +103,11 @@ After PASS, report:
 - remaining risks
 
 When the work changes hands, report the result to the human or external control
-plane that owns mutable lifecycle state. A ForgeFlow handoff is optional,
+plane that owns mutable lifecycle state. A PraxisBound handoff is optional,
 immutable historical evidence only. Create one only when a known Story, UTC
 time, repository, exact committed revision, command, and observed result can be
 recorded truthfully. Never infer or persist current/next/status/Gate/completion
-state in ForgeFlow files, and never bind dirty-worktree verification to the
+state in PraxisBound files, and never bind dirty-worktree verification to the
 unchanged HEAD SHA.
 
 If specification-blocked, report the conflicting or missing requirement,

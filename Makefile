@@ -1,6 +1,6 @@
-.PHONY: verify verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-execution verify-release verify-typescript verify-go verify-actions verify-tooling verify-portability release-check
+.PHONY: verify verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-execution verify-release verify-typescript verify-go verify-actions verify-tooling verify-portability verify-praxisbound release-check
 
-verify: verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions verify-execution verify-tooling
+verify: verify-protocol verify-bootstrap verify-doctor verify-story verify-handoff verify-release verify-typescript verify-go verify-actions verify-execution verify-tooling verify-praxisbound
 
 release-check: verify
 	./scripts/release-check
@@ -65,9 +65,15 @@ verify-go:
 
 verify-actions:
 	go -C examples/go tool actionlint \
-		../../templates/ci/github-actions.yml ../../.github/workflows/verify.yml
+		../../templates/ci/github-actions.yml ../../.github/workflows/verify.yml \
+		../../.github/workflows/publish.yml
 
 PORTABILITY_SHELL ?= /bin/sh
 
 verify-portability:
 	PORTABILITY_SHELL="$(PORTABILITY_SHELL)" sh ./tests/portability.sh
+
+verify-praxisbound:
+	sh -n tests/praxisbound-identity.sh tests/praxisbound-activation.sh
+	./tests/praxisbound-identity.sh
+	./tests/praxisbound-activation.sh

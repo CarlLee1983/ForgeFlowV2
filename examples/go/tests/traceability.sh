@@ -7,7 +7,7 @@ example_dir=$(CDPATH='' cd -- "$test_dir/.." && pwd)
 checker="$example_dir/scripts/check-traceability.sh"
 acceptance_file="$example_dir/specs/stories/ORD-001-order-total/acceptance.md"
 test_file="$example_dir/order_total_test.go"
-fixture_dir=$(mktemp -d "${TMPDIR:-/tmp}/forgeflow-traceability-test.XXXXXX")
+fixture_dir=$(mktemp -d "${TMPDIR:-/tmp}/praxisbound-traceability-test.XXXXXX")
 trap 'rm -rf "$fixture_dir"' EXIT HUP INT TERM
 
 expect_success() {

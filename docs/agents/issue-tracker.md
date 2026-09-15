@@ -1,7 +1,7 @@
 # Issue tracker: GitHub
 
 Issues and implementation tickets for this repository live in GitHub Issues for
-`CarlLee1983/ForgeFlowV2`. Use the authenticated `gh` CLI for all operations.
+`CarlLee1983/PraxisBound`. Use the authenticated `gh` CLI for all operations.
 
 ## Conventions
 
@@ -21,7 +21,7 @@ Issues and implementation tickets for this repository live in GitHub Issues for
 
 ## When a skill says “publish to the issue tracker”
 
-Create a GitHub issue in `CarlLee1983/ForgeFlowV2`.
+Create a GitHub issue in `CarlLee1983/PraxisBound`.
 
 ## When a skill says “fetch the relevant ticket”
 

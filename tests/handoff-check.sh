@@ -399,7 +399,7 @@ block_and_invocation_errors_are_distinct() {
 
   run_handoff_check --help
   assert_status 0
-  assert_output_contains 'ForgeFlow Handoff Contract Check'
+  assert_output_contains 'PraxisBound Handoff Contract Check'
 }
 
 run_handoff_check_without_utilities() {

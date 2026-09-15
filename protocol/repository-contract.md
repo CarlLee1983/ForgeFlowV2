@@ -1,6 +1,6 @@
 # Repository Contract
 
-A repository adopts ForgeFlow by exposing stable places for intent, agent
+A repository adopts PraxisBound by exposing stable places for intent, agent
 guidance, and deterministic verification. The contract is independent of
 language, framework, AI vendor, and CI provider.
 
@@ -20,7 +20,7 @@ specs/stories/
 - `make verify` runs every automated check required before human review.
 
 These entrypoints are the adoption contract. They are not an inventory of
-every file ForgeFlow may install, discover, or document. Each repository owns
+every file PraxisBound may install, discover, or document. Each repository owns
 its Makefile and technology-specific setup.
 
 ## Structural invariants
@@ -33,7 +33,7 @@ content rules of the [Story Contract](story.md).
 
 The [bootstrap script](../scripts/bootstrap) uses an internal installation
 manifest to copy its guide, starter Story template, optional Guidance starter,
-and `specs/.forgeflow-adoption` marker. That source-to-destination list is an
+and `specs/.praxisbound-adoption` marker. That source-to-destination list is an
 installer implementation detail, not a repository conformance contract.
 
 ## Optional engineering guidance
@@ -48,7 +48,7 @@ protocol-required inventory nor a restriction on repository customization.
 
 ## Optional Repository Doctor
 
-[Repository Doctor](../docs/doctor.md) is an optional ForgeFlow command for
+[Repository Doctor](../docs/doctor.md) is an optional PraxisBound command for
 inspecting an adoption. In its default static mode, it requires only a readable
 non-blank `AGENTS.md`, readable `specs/stories/`, and readable non-blank
 `Makefile`; detected optional capabilities are checked at their own entrypoint.
@@ -91,12 +91,12 @@ instead of silently changing requirements or bypassing verification.
 Guidance, immutable Handoff evidence, Skills, CI configuration, the adoption
 marker, templates, and repository-specific extensions are optional
 capabilities. Their absence does not make core adoption incomplete. A detected
-capability is validated only where ForgeFlow defines its entrypoint contract;
+capability is validated only where PraxisBound defines its entrypoint contract;
 new optional capabilities must not implicitly expand the required entrypoints.
 
 ## Portability boundary
 
-ForgeFlow does not require an agent runtime, workflow service, task scheduler,
+PraxisBound does not require an agent runtime, workflow service, task scheduler,
 database, dashboard, prompt format, or LLM abstraction. Repositories may add
 their own tools, but adoption depends only on files, Make, and existing
 development and CI systems.

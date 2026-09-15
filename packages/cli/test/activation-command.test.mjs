@@ -18,7 +18,7 @@ import { dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL, URL } from "node:url";
 import test from "node:test";
 
-import { validateResultEnvelope } from "@forgeflow/core";
+import { validateResultEnvelope } from "@praxisbound/core";
 
 import {
   nodeActivationFilesystemAdapter,
@@ -84,13 +84,13 @@ async function copySourceFile(sourceRoot, path) {
   await copyFile(join(repositoryRoot, path), destination);
 }
 
-async function legacySource(root) {
-  const source = join(root, "legacy-source");
+async function portableSource(root) {
+  const source = join(root, "portable-source");
   for (const path of [
     "scripts/codex-activate",
     "VERSION",
-    "skills/forgeflow/SKILL.md",
-    "skills/forgeflow/agents-block.md",
+    "skills/praxisbound/SKILL.md",
+    "skills/praxisbound/agents-block.md",
     "skills/story-development/SKILL.md",
   ])
     await copySourceFile(source, path);
@@ -99,11 +99,11 @@ async function legacySource(root) {
 }
 
 test("TST014-AC-001/002/008: packed preview, apply, and unchanged have retained generated-byte parity", async () => {
-  const root = await mkdtemp(join(tmpdir(), "forgeflow-activation-parity-"));
+  const root = await mkdtemp(join(tmpdir(), "praxisbound-activation-parity-"));
   try {
-    const source = await legacySource(root);
+    const source = await portableSource(root);
     const cliTarget = await adopted(root, "cli");
-    const legacyTarget = await adopted(root, "legacy");
+    const portableTarget = await adopted(root, "portable");
     const before = await manifest(cliTarget);
 
     const preview = runCli(["--json", cliTarget]);
@@ -115,23 +115,23 @@ test("TST014-AC-001/002/008: packed preview, apply, and unchanged have retained 
       previewResult.data.changes.map(({ path }) => path),
       [
         "AGENTS.md",
-        ".agents/skills/forgeflow/SKILL.md",
-        ".agents/skills/forgeflow/story-development.md",
-        ".agents/skills/forgeflow/.forgeflow-snapshot",
+        ".agents/skills/praxisbound/SKILL.md",
+        ".agents/skills/praxisbound/story-development.md",
+        ".agents/skills/praxisbound/.praxisbound-snapshot",
       ],
     );
 
     const humanPreview = runCli([cliTarget]);
-    const legacyPreview = spawnSync(
+    const portablePreview = spawnSync(
       join(source, "scripts/codex-activate"),
-      [legacyTarget],
+      [portableTarget],
       { encoding: "utf8" },
     );
     assert.equal(humanPreview.status, 0, humanPreview.stderr);
-    assert.equal(legacyPreview.status, 0, legacyPreview.stderr);
-    for (const output of [humanPreview.stdout, legacyPreview.stdout]) {
+    assert.equal(portablePreview.status, 0, portablePreview.stderr);
+    for (const output of [humanPreview.stdout, portablePreview.stdout]) {
       assert.match(output, /Would write .*AGENTS\.md/);
-      assert.match(output, /<!-- ForgeFlow Codex: begin -->/);
+      assert.match(output, /<!-- PraxisBound Codex: begin -->/);
       assert.match(output, /custom policy/);
       assert.match(output, /Preview only; review the changes/);
     }
@@ -140,24 +140,24 @@ test("TST014-AC-001/002/008: packed preview, apply, and unchanged have retained 
     assert.deepEqual(await manifest(cliTarget), before);
 
     const cli = runCli(["--apply", "--json", cliTarget]);
-    const legacy = spawnSync(
+    const portable = spawnSync(
       join(source, "scripts/codex-activate"),
-      ["--apply", legacyTarget],
+      ["--apply", portableTarget],
       { encoding: "utf8" },
     );
     assert.equal(cli.status, 0, cli.stderr);
-    assert.equal(legacy.status, 0, legacy.stderr);
+    assert.equal(portable.status, 0, portable.stderr);
     const result = JSON.parse(cli.stdout);
     assert.equal(result.outcome, "ACTIVATION_APPLIED");
     assert.deepEqual(validateResultEnvelope(result), {
       ok: true,
       value: result,
     });
-    assert.deepEqual(await manifest(cliTarget), await manifest(legacyTarget));
+    assert.deepEqual(await manifest(cliTarget), await manifest(portableTarget));
     assert.equal(result.data.attempted.at(-1), result.data.changes.at(-1).path);
     assert.equal(
       result.data.attempted.at(-1),
-      ".agents/skills/forgeflow/.forgeflow-snapshot",
+      ".agents/skills/praxisbound/.praxisbound-snapshot",
     );
 
     const installed = await manifest(cliTarget);
@@ -171,7 +171,7 @@ test("TST014-AC-001/002/008: packed preview, apply, and unchanged have retained 
 });
 
 test("TST014-AC-005/008: packaged activation provenance is internally consistent", async () => {
-  const root = await mkdtemp(join(tmpdir(), "forgeflow-activation-source-"));
+  const root = await mkdtemp(join(tmpdir(), "praxisbound-activation-source-"));
   try {
     const dist = fileURLToPath(new URL("../dist/", import.meta.url));
     const modulePath = join(root, "activation-snapshot.mjs");
@@ -212,13 +212,15 @@ test("TST014-AC-005/008: packaged activation provenance is internally consistent
 });
 
 test("TST014-AC-004: unknown and locally edited owned content conflicts before mutation", async () => {
-  const root = await mkdtemp(join(tmpdir(), "forgeflow-activation-conflict-"));
+  const root = await mkdtemp(
+    join(tmpdir(), "praxisbound-activation-conflict-"),
+  );
   try {
     const target = await adopted(root, "target");
     const installed = runCli(["--apply", target]);
     assert.equal(installed.status, 0, installed.stderr || installed.stdout);
     await writeFile(
-      join(target, ".agents/skills/forgeflow/local-note.md"),
+      join(target, ".agents/skills/praxisbound/local-note.md"),
       "keep me\n",
     );
     const before = await manifest(target);
@@ -227,9 +229,9 @@ test("TST014-AC-004: unknown and locally edited owned content conflicts before m
     assert.equal(JSON.parse(unknown.stdout).outcome, "ACTIVATION_CONFLICT");
     assert.deepEqual(await manifest(target), before);
 
-    await rm(join(target, ".agents/skills/forgeflow/local-note.md"));
+    await rm(join(target, ".agents/skills/praxisbound/local-note.md"));
     await writeFile(
-      join(target, ".agents/skills/forgeflow/SKILL.md"),
+      join(target, ".agents/skills/praxisbound/SKILL.md"),
       "local edit\n",
     );
     const editedBefore = await manifest(target);
@@ -241,7 +243,7 @@ test("TST014-AC-004: unknown and locally edited owned content conflicts before m
     const incompleteTarget = await adopted(root, "incomplete");
     assert.equal(runCli(["--apply", incompleteTarget]).status, 0);
     await rm(
-      join(incompleteTarget, ".agents/skills/forgeflow/story-development.md"),
+      join(incompleteTarget, ".agents/skills/praxisbound/story-development.md"),
     );
     const incompleteBefore = await manifest(incompleteTarget);
     const incomplete = runCli(["--apply", "--json", incompleteTarget]);
@@ -254,12 +256,12 @@ test("TST014-AC-004: unknown and locally edited owned content conflicts before m
 });
 
 test("TST014-AC-004/005: malformed markers, invalid adoption, and unsafe links fail closed", async () => {
-  const root = await mkdtemp(join(tmpdir(), "forgeflow-activation-safety-"));
+  const root = await mkdtemp(join(tmpdir(), "praxisbound-activation-safety-"));
   try {
     const malformedTarget = await adopted(root, "malformed");
     await writeFile(
       join(malformedTarget, "AGENTS.md"),
-      "<!-- ForgeFlow Codex: begin -->\nunclosed\n",
+      "<!-- PraxisBound Codex: begin -->\nunclosed\n",
     );
     const malformedBefore = await manifest(malformedTarget);
     const malformed = runCli(["--apply", "--json", malformedTarget]);
@@ -269,8 +271,8 @@ test("TST014-AC-004/005: malformed markers, invalid adoption, and unsafe links f
 
     const adoptionTarget = await adopted(root, "invalid-adoption");
     await writeFile(
-      join(adoptionTarget, "specs/.forgeflow-adoption"),
-      "version=0.9.0\nversion=0.8.0\n",
+      join(adoptionTarget, "specs/.praxisbound-adoption"),
+      "version=0.10.0\nversion=0.8.0\n",
     );
     const adoptionBefore = await manifest(adoptionTarget);
     const adoption = runCli(["--json", adoptionTarget]);
@@ -306,16 +308,16 @@ test("TST014-AC-004/005: malformed markers, invalid adoption, and unsafe links f
     assert.deepEqual(await manifest(parentTypeTarget), parentBefore);
 
     const leafTypeTarget = await adopted(root, "leaf-type");
-    await mkdir(join(leafTypeTarget, ".agents/skills/forgeflow"), {
+    await mkdir(join(leafTypeTarget, ".agents/skills/praxisbound"), {
       recursive: true,
     });
-    await mkdir(join(leafTypeTarget, ".agents/skills/forgeflow/SKILL.md"));
+    await mkdir(join(leafTypeTarget, ".agents/skills/praxisbound/SKILL.md"));
     await writeFile(
-      join(leafTypeTarget, ".agents/skills/forgeflow/story-development.md"),
+      join(leafTypeTarget, ".agents/skills/praxisbound/story-development.md"),
       "workflow\n",
     );
     await writeFile(
-      join(leafTypeTarget, ".agents/skills/forgeflow/.forgeflow-snapshot"),
+      join(leafTypeTarget, ".agents/skills/praxisbound/.praxisbound-snapshot"),
       "snapshot\n",
     );
     const leafBefore = await manifest(leafTypeTarget);
@@ -332,7 +334,7 @@ test("TST014-AC-004/005: malformed markers, invalid adoption, and unsafe links f
 });
 
 test("TST014-AC-007: preview and unchanged scratch cleanup faults retain evidence without target mutation", async () => {
-  const root = await mkdtemp(join(tmpdir(), "forgeflow-activation-scratch-"));
+  const root = await mkdtemp(join(tmpdir(), "praxisbound-activation-scratch-"));
   try {
     const target = await adopted(root, "target");
     const before = await manifest(target);
@@ -399,7 +401,7 @@ test("TST014-AC-007: preview and unchanged scratch cleanup faults retain evidenc
 
 test("TST014-AC-007: preview and unchanged keep real scratch external to the target", async () => {
   const root = await mkdtemp(
-    join(tmpdir(), "forgeflow-activation-external-scratch-"),
+    join(tmpdir(), "praxisbound-activation-external-scratch-"),
   );
   try {
     const target = await adopted(root, "target");
@@ -468,7 +470,7 @@ test("TST014-AC-007: preview and unchanged keep real scratch external to the tar
 test("TST014 input contract: activation routes each global option once before the delimiter", async () => {
   const help = runCli(["--json", "--help"]);
   assert.equal(help.status, 0, help.stderr);
-  assert.ok(help.stdout.includes("Usage:\n  forgeflow codex activate"));
+  assert.ok(help.stdout.includes("Usage:\n  praxisbound codex activate"));
   assert.equal(help.stderr, "");
 
   const version = runCli(["--apply", "--version"]);
@@ -516,8 +518,8 @@ test("TST014-AC-006/008: invalid invocation is ERROR/2 and packed assets are pre
   assert.equal(packed.status, 0, packed.stderr);
   const files = JSON.parse(packed.stdout)[0].files.map(({ path }) => path);
   for (const path of [
-    "dist/snapshot/skills/forgeflow/SKILL.md",
-    "dist/snapshot/skills/forgeflow/agents-block.md",
+    "dist/snapshot/skills/praxisbound/SKILL.md",
+    "dist/snapshot/skills/praxisbound/agents-block.md",
     "dist/snapshot/skills/story-development/SKILL.md",
   ])
     assert.ok(files.includes(path), `missing packed activation asset: ${path}`);

@@ -1,12 +1,12 @@
 {
-  "name": "@forgeflow/cli",
+  "name": "@praxisbound/cli",
   "version": "0.1.0",
-  "description": "ForgeFlow CLI and machine-result serialization",
+  "description": "PraxisBound CLI and machine-result serialization",
   "license": "MIT",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/CarlLee1983/ForgeFlowV2.git",
+    "url": "git+https://github.com/CarlLee1983/PraxisBound.git",
     "directory": "packages/cli"
   },
   "publishConfig": {
@@ -23,7 +23,7 @@
     }
   },
   "bin": {
-    "forgeflow": "./dist/bin.js"
+    "praxisbound": "./dist/bin.js"
   },
   "files": [
     "dist",
@@ -36,6 +36,6 @@
     "prepack": "pnpm run build"
   },
   "dependencies": {
-    "@forgeflow/core": "0.1.0"
+    "@praxisbound/core": "0.1.0"
   }
 }

@@ -17,7 +17,7 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { validateResultEnvelope } from "@forgeflow/core";
+import { validateResultEnvelope } from "@praxisbound/core";
 
 import {
   createNodeHandoffSourceReader,
@@ -28,7 +28,7 @@ import {
 const bin = fileURLToPath(
   new globalThis.URL("../dist/bin.js", import.meta.url),
 );
-const completeSource = `# ForgeFlow Handoff Evidence
+const completeSource = `# PraxisBound Handoff Evidence
 
 Prose context that the contract check ignores.
 
@@ -76,7 +76,7 @@ test("TST004-AC-001: complete evidence has exact human and machine results", asy
   assert.equal(human.stderr, "");
   assert.equal(
     human.stdout,
-    `ForgeFlow Handoff Contract Check
+    `PraxisBound Handoff Contract Check
 
 PASS  Story evidence: TST-004
 PASS  recorded at: 2026-09-12T02:30:00Z
@@ -201,10 +201,10 @@ test("TST004-AC-004: the Handoff subcommand exposes focused help", () => {
   const result = runCli(["handoff", "check", "--help"]);
   assert.equal(result.status, 0);
   assert.equal(result.stderr, "");
-  assert.match(result.stdout, /^ForgeFlow Handoff Contract Check\n\n/);
+  assert.match(result.stdout, /^PraxisBound Handoff Contract Check\n\n/);
   assert.match(
     result.stdout,
-    /forgeflow handoff check \[--json\] \[handoff-file\]/,
+    /praxisbound handoff check \[--json\] \[handoff-file\]/,
   );
   assert.match(result.stdout, /static and read-only/);
 });

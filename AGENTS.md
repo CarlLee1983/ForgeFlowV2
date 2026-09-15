@@ -1,6 +1,6 @@
 # Repository Agent Guide
 
-This repository is ForgeFlow itself: the protocol, the portable shell commands
+This repository is PraxisBound itself: the protocol, the portable shell commands
 that check it, and the templates adopters copy. It follows its own protocol, so
 this guide is both the local instruction set and a worked example of what
 `templates/AGENTS.md` describes.
@@ -112,14 +112,14 @@ When work changes hands, report the result to the human or external control plan
 that owns mutable lifecycle state. A repository handoff is optional,
 immutable historical evidence only; create one only when its Story, UTC time,
 repository, exact committed revision, command, and observed result are known.
-Never write current/next/status/Gate/completion state into ForgeFlow files or
+Never write current/next/status/Gate/completion state into PraxisBound files or
 attach dirty-worktree verification to an unchanged HEAD revision.
 
 ## Agent skills
 
 ### Issue tracker
 
-Issues are tracked in GitHub Issues for `CarlLee1983/ForgeFlowV2`. See
+Issues are tracked in GitHub Issues for `CarlLee1983/PraxisBound`. See
 `docs/agents/issue-tracker.md`.
 
 ### Triage labels

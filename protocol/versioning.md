@@ -1,6 +1,6 @@
-# Protocol Versioning
+# PraxisBound Protocol Versioning
 
-ForgeFlow versions the repository-level contract that adopters copy and rely
+PraxisBound versions the repository-level contract that adopters copy and rely
 on. The root [`VERSION`](../VERSION) file is the single authority for the
 current protocol version. It contains one numeric `MAJOR.MINOR.PATCH` value
 without a `v` prefix.
@@ -17,7 +17,7 @@ The protocol version covers:
   optional Repository Doctor.
 
 Examples demonstrate the contract but are not protocol packages. In particular,
-the private TypeScript example's package version is not the ForgeFlow protocol
+the private TypeScript example's package version is not the PraxisBound protocol
 version.
 
 ## Change classification
@@ -37,11 +37,11 @@ that identifies affected adopters and the required repository changes.
 
 ## Compatibility policy
 
-Before ForgeFlow 1.0, PATCH releases within the same MINOR line are
+Before PraxisBound 1.0, PATCH releases within the same MINOR line are
 backward-compatible. A new `0.MINOR.0` release may include documented breaking
 changes. Adopters must read its migration guidance before upgrading.
 
-Starting with 1.0, ForgeFlow follows Semantic Versioning:
+Starting with 1.0, PraxisBound follows Semantic Versioning:
 
 * MAJOR releases may contain breaking changes;
 * MINOR releases add backward-compatible behavior; and
@@ -54,7 +54,7 @@ will remain unchanged.
 ## Snapshots and releases
 
 Bootstrap installs a copy-time snapshot and records which snapshot it installed
-in `specs/.forgeflow-adoption`. It does not negotiate or automatically upgrade
+in `specs/.praxisbound-adoption`. It does not negotiate or automatically upgrade
 the protocol version in an adopting repository. Adopters review new templates
 and migration guidance before deliberately replacing managed files, whether with
 `--force` or with `--upgrade`.
@@ -90,14 +90,11 @@ Nothing else in an existing adoption changes: `make verify` semantics, bootstrap
 arguments, and Doctor behavior are unaffected, and a repository that never runs
 `scripts/story-check` is not blocked by the new field.
 
-The adoption marker `specs/.forgeflow-adoption` and the bootstrap `--upgrade`
-option are **Additive** capabilities: a repository adopted before either existed
-keeps working unchanged, `--upgrade` creates a missing marker rather than
-refusing, and no existing bootstrap invocation changes meaning. The marker is a
-managed file, so a plain bootstrap refuses to overwrite one that already exists.
-Changes to the marker's path or field format, or to `--upgrade`'s command form
-and safety guarantees, are changes to the versioned surface. The adopter-facing
-procedure is [Upgrading an adopting repository](../docs/upgrading.md).
+PraxisBound `0.10.0` is a **Breaking** identity migration from ForgeFlow
+`0.9.0`. Fresh adoption writes `specs/.praxisbound-adoption` only. Bootstrap
+`--upgrade` accepts a safe, valid legacy `specs/.forgeflow-adoption` only as
+one-way migration input; both markers, unsafe paths, or malformed legacy data
+are refused before mutation. See [Upgrading an adopting repository](../docs/upgrading.md).
 
 The Handoff Contract, `scripts/story-check`, and `scripts/handoff-check` are
 **Additive** capabilities: a repository without a handoff or without either
@@ -388,7 +385,7 @@ a set; it does not require reconstructing a bootstrap file inventory.
 
 ## Repository release readiness
 
-ForgeFlow maintainers can run root `make release-check` on a clean committed
+PraxisBound maintainers can run root `make release-check` on a clean committed
 candidate. It composes canonical verification with read-only local version,
 worktree, commit, and tag-consistency checks. A local PASS is necessary but not
 sufficient for publication: the command does not inspect or change remote refs,

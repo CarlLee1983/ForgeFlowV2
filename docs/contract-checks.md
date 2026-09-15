@@ -1,6 +1,6 @@
 # Contract Checks
 
-ForgeFlow ships three static, read-only checkers for the artifacts humans
+PraxisBound ships three static, read-only checkers for the artifacts humans
 write: `scripts/story-check` for Stories, `scripts/handoff-check` for handoffs,
 and `scripts/verification-check` for the execution contract and the recorded
 verification result.
@@ -28,7 +28,7 @@ Decision records normally resolve from `specs/decisions/`. A repository with an
 existing ADR collection can select it for one invocation without moving records:
 
 ```sh
-FORGEFLOW_DECISIONS_ROOT=docs/adr ./scripts/story-check
+PRAXISBOUND_DECISIONS_ROOT=docs/adr ./scripts/story-check
 ```
 
 The non-empty environment value is used as supplied and is the only decision
@@ -250,7 +250,7 @@ Unknown or repeated fields are rejected. Legacy `workflow` and `baseline`
 sections are rejected rather than retained as a compatibility state database.
 Current or next work, lifecycle status, completed work, Gates, review state,
 and completion state belong to the external control plane when one is present.
-ForgeFlow does not require such a control plane and does not infer current state
+PraxisBound does not require such a control plane and does not infer current state
 from handoff prose.
 
 The supported YAML subset is intentionally line-oriented and lexical. Each

@@ -2,7 +2,7 @@
 
 These tickets are dependency ordered. Each is one independently reviewable
 semantic slice. Before implementation, each ticket must be converted into an
-approved ForgeFlow Story with its own Classification, authority, architecture,
+approved PraxisBound Story with its own Classification, authority, architecture,
 risk, acceptance evidence, and versioning classification.
 
 Every implementation ticket ends with focused checks and repository
@@ -17,8 +17,8 @@ Scope:
 
 - Add a private root `package.json`, exact pnpm pin, `pnpm-workspace.yaml`, root
   lockfile, and `tsconfig.base.json`.
-- Add publishable package skeletons for `@forgeflow/core` and `@forgeflow/cli`,
-  ESM build outputs, package exports, and a `forgeflow` bin that supports only
+- Add publishable package skeletons for `@praxisbound/core` and `@praxisbound/cli`,
+  ESM build outputs, package exports, and a `praxisbound` bin that supports only
   `--help` and `--version`.
 - Add format, lint, typecheck, unit-test, build, and package-content checks to
   the existing root verification graph.
@@ -34,7 +34,7 @@ Acceptance criteria:
 
 - Both packages build from a clean install and have no third-party runtime
   dependency except CLI's workspace dependency on Core.
-- `forgeflow --help` and `--version` run from built output; all other commands
+- `praxisbound --help` and `--version` run from built output; all other commands
   return a documented not-implemented usage result.
 - Package root exports contain no internal parser/Adapter path.
 - Existing shell gates and outputs remain unchanged.
@@ -125,7 +125,7 @@ Scope:
 
 - Implement restricted Handoff block/scalar parsing and contract evaluation in
   Core.
-- Add `forgeflow handoff check`, human rendering, JSON envelope, and parity for
+- Add `praxisbound handoff check`, human rendering, JSON envelope, and parity for
   all current Handoff cases.
 
 Non-goals:
@@ -152,7 +152,7 @@ Scope:
 
 - Implement the shared Story declaration reader, task/authority/risk/architecture
   defaults, authority closure, and required-profile resolution.
-- Add default `forgeflow verification check` plan mode and parity.
+- Add default `praxisbound verification check` plan mode and parity.
 
 Non-goals:
 
@@ -182,7 +182,7 @@ Scope:
 - Implement `verification.md` parsing, required-layer evaluation, acceptance-
   evidence completeness, used-authority checking, residual-risk rules, and
   aggregate precedence.
-- Add `forgeflow verification check --result` and parity.
+- Add `praxisbound verification check --result` and parity.
 
 Non-goals:
 
@@ -209,7 +209,7 @@ Scope:
 - Implement default Story contract rules: IDs, Classification, security matrix,
   superseded behavior, governance declarations, decision resolution, and risk
   signal/contract structure.
-- Add default `forgeflow story check` with discovery and custom decision-root
+- Add default `praxisbound story check` with discovery and custom decision-root
   configuration.
 
 Non-goals:
@@ -238,7 +238,7 @@ Scope:
 
 - Add Goal/Scope content, checkbox AC, Acceptance Evidence, placeholders, and
   risk-evidence link evaluation.
-- Add `forgeflow story check --ready` and parity.
+- Add `praxisbound story check --ready` and parity.
 
 Non-goals:
 
@@ -266,7 +266,7 @@ Scope:
 - Implement filesystem observation for required/optional capabilities, limited
   Makefile clues, marker drift, and Core composition of TypeScript Story and
   Handoff results.
-- Add static `forgeflow doctor` in human and JSON modes.
+- Add static `praxisbound doctor` in human and JSON modes.
 
 Non-goals:
 
@@ -292,8 +292,8 @@ Depends on: TST-009.
 
 Scope:
 
-- Add the process Adapter and `forgeflow verify` exact-once execution.
-- Add parity for `forgeflow doctor --run-verify` using the same Adapter.
+- Add the process Adapter and `praxisbound verify` exact-once execution.
+- Add parity for `praxisbound doctor --run-verify` using the same Adapter.
 - Record child command/cwd/exit/signal as evidence and preserve JSON stdout.
 
 Non-goals:
@@ -320,7 +320,7 @@ Depends on: TST-003, TST-010.
 Scope:
 
 - Implement guarded Git observation, Core release evaluation, before/after
-  consistency checks, and `forgeflow release check [repository]`.
+  consistency checks, and `praxisbound release check [repository]`.
 - Default the candidate to `.`, resolve its physical Git top-level, and require
   the candidate itself to be that worktree root. Parity passes the same fixture
   checkout explicitly to both Implementations.
@@ -356,7 +356,7 @@ Scope:
 
 - Package the exact template snapshot and provenance.
 - Implement repository/adoption/version detection, managed-path preflight,
-  safe/force/upgrade mutation planning, and `forgeflow init --dry-run`.
+  safe/force/upgrade mutation planning, and `praxisbound init --dry-run`.
 - Emit exact planned changes in human and JSON modes.
 
 Non-goals:
@@ -419,7 +419,7 @@ Scope:
 
 - Implement activation preview, provenance/checksum drift checks, bounded agent
   block planning, apply, snapshot-last ordering, and recovery.
-- Add `forgeflow codex activate` and `--apply`.
+- Add `praxisbound codex activate` and `--apply`.
 - Use the same Core mutation-execution observation contract as init.
 
 Non-goals:
@@ -453,8 +453,8 @@ Scope:
 - Prove npm scope ownership, package provenance, exact Core/CLI dependency,
   exports, bin mode/shebang, tarball allowlist, license/readme, and engine policy.
 - Install tarballs into clean npm-only fixtures, run version-pinned
-  `npx --yes @forgeflow/cli@<tooling-version>` acquisition tests, and invoke
-  the installed `forgeflow` binary without pnpm or network.
+  `npx --yes @praxisbound/cli@<tooling-version>` acquisition tests, and invoke
+  the installed `praxisbound` binary without pnpm or network.
 - Add the supported Node/OS matrix.
 
 Non-goals:
@@ -467,9 +467,9 @@ Acceptance criteria:
 - Clean consumers run help, JSON static checks, verify, and init from tarballs.
 - Package acquisition behavior is distinguished from offline CLI runtime;
   templates and commands work offline after local tarball installation.
-- Unpinned `npx @forgeflow/cli` is labeled a human convenience. Unscoped
+- Unpinned `npx @praxisbound/cli` is labeled a human convenience. Unscoped
   `npx forgeflow` is not documented as public acquisition while the unrelated
-  package owns that name.
+  `forgeflow@0.6.0` package owns that name.
 
 Verification:
 
@@ -491,14 +491,14 @@ Scope:
 
 Non-goals:
 
-- No ForgePilot redesign, lifecycle-state import, internal ForgeFlow import,
+- No ForgePilot redesign, lifecycle-state import, internal PraxisBound import,
   remote service, MCP, or AI-dependent verification.
 
 Acceptance criteria:
 
 - Process integration handles pass/warning/fail/error and schema-version mismatch.
 - No test matches human wording.
-- ForgeFlow never reads or changes ForgePilot's mutable lifecycle authority.
+- PraxisBound never reads or changes ForgePilot's mutable lifecycle authority.
 
 Verification:
 

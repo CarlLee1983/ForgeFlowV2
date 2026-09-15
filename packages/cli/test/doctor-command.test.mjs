@@ -16,7 +16,7 @@ import test from "node:test";
 import {
   evaluateRepositoryDoctor,
   validateResultEnvelope,
-} from "@forgeflow/core";
+} from "@praxisbound/core";
 
 import { runDoctor } from "../dist/doctor.js";
 
@@ -73,7 +73,7 @@ test("TST009-AC-001: doctor reports a conformant static repository in human and 
   const human = runCli(["doctor"], root);
   assert.equal(human.status, 0);
   assert.equal(human.stderr, "");
-  assert.match(human.stdout, /^ForgeFlow Doctor$/m);
+  assert.match(human.stdout, /^PraxisBound Doctor$/m);
   assert.match(human.stdout, /^Story contract: STORY_CONTRACT_OK$/m);
   assert.match(human.stdout, /^Handoff: NOT_PRESENT$/m);
   assert.match(human.stdout, /^Result: STRUCTURE_OK$/m);
@@ -86,7 +86,7 @@ test("TST009-AC-001: doctor reports a conformant static repository in human and 
 test("TST009-AC-002: marker, Story, and Handoff drift remain advisory", async (t) => {
   const root = await fixture(t);
   await writeFile(
-    join(root, "specs", ".forgeflow-adoption"),
+    join(root, "specs", ".praxisbound-adoption"),
     "version=not-this-version\r\n",
   );
   await writeFile(join(root, "specs", "handoff.md"), "# Handoff\n");
@@ -149,7 +149,7 @@ test("TST009-AC-004/005: a fake filesystem adapter deterministically reports an 
   const execution = await runDoctor([], root, {
     async inspect() {
       return evaluateRepositoryDoctor({
-        checkoutVersion: "0.9.0",
+        checkoutVersion: "0.10.0",
         agents: { kind: "file", readable: false },
         specs: { kind: "directory", readable: true, searchable: true },
         stories: { kind: "directory", readable: true, searchable: true },
@@ -185,7 +185,7 @@ test("TST009-AC-001: doctor has focused static help and JSON usage errors", asyn
   const root = await fixture(t);
   const help = runCli(["doctor", "--help"], root);
   assert.equal(help.status, 0);
-  assert.match(help.stdout, /^ForgeFlow Repository Doctor\n\n/);
+  assert.match(help.stdout, /^PraxisBound Repository Doctor\n\n/);
   assert.match(help.stdout, /executes repository-owned code/);
   const invalid = parseJson(runCli(["doctor", "--json", "--unknown"], root), 2);
   assert.equal(invalid.outcome, "usage-error");

@@ -84,7 +84,7 @@ function normalizeLegacyDiagnostic(diagnostic) {
 function diagnosticLines(output) {
   const ignored = [
     /^$/,
-    /^ForgeFlow Verification Check$/,
+    /^PraxisBound Verification Check$/,
     /^[^ ].*:$/,
     /^ {2}(Task mode|Authority|Risk level|Architecture impact|Required checks): .+$/,
     /^Stories checked: \d+$/,
