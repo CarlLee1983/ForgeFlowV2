@@ -98,10 +98,14 @@ token issued by an organization-authorized account with direct-publish
 package-and-scope rights and bootstrap-only 2FA bypass, when organization
 policy permits it, is stored only as a protected GitHub Actions secret. It
 publishes each new package from a public, exact-revision workflow with provenance to the
-non-default `next` tag. Core is published and verified before CLI. After each
-package exists, its workflow becomes an OIDC Trusted Publisher, traditional
-token publishing is disabled, and the bootstrap token is revoked before either
-package is promoted to `latest`.
+non-default `next` tag. A first-created package may also receive `latest`
+immediately, so that default-tag visibility is recorded rather than treated as
+a later promotion. Core is published and verified before CLI. After both
+packages exist, their workflow becomes an OIDC Trusted Publisher, traditional
+token publishing is disabled, and every bootstrap token, including replaced or
+exposed tokens, is revoked. Final public
+smoke verifies both `next` and `latest` resolve to the immutable versions;
+already-correct tags are not rewritten.
 
 If organization policy forbids 2FA bypass, the first-publication token path
 blocks for Human Review; it does not relax the organization policy.

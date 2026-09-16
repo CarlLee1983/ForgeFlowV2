@@ -45,7 +45,7 @@ implemented CLI envelope and must be replaced before publication.
 * Boundary: `npm publication sequence`
 * Contract: `Core exposes only its package root with no runtime dependency; CLI exposes only its package root and praxisbound bin and depends on the exact Core version`
 * Contract: `the current JSON Schema validates the canonical bytes emitted by every CLI JSON command`
-* Contract: `publication proves the controlled scope, exact source revision, registry provenance, and clean-consumer behavior before latest promotion`
+* Contract: `publication proves the controlled scope, exact source revision, registry provenance, and clean-consumer behavior; first-created packages may expose latest immediately, while OIDC, credential revocation, and final smoke remain completion gates`
 * Owner: `Core npm package = PraxisBound Reference Tooling`
 * Owner: `CLI npm package and praxisbound executable = PraxisBound Reference Tooling`
 * Owner: `CLI result schema = PraxisBound CLI JSON Adapter`
@@ -72,8 +72,9 @@ implemented CLI envelope and must be replaced before publication.
   offline installed-binary execution, supported Node/Linux/macOS matrix, npm
   scope control, and final source identity.
 * Bootstrap each brand-new package through an exact-revision GitHub Actions
-  provenance publish to the non-default `next` tag, validate public consumers,
-  establish Trusted Publishing, then promote Core and CLI to `latest` in order.
+  provenance publish to the non-default `next` tag, record any immediate
+  `latest` assignment, validate public consumers, establish Trusted Publishing,
+  revoke the bootstrap credential, and verify both tags and final consumers.
 
 ### Out of Scope
 
@@ -95,7 +96,7 @@ implemented CLI envelope and must be replaced before publication.
 * `@praxisbound/core@0.1.0`, `@praxisbound/cli@0.1.0`, and the `praxisbound`
   executable with verified public metadata and provenance.
 * A current JSON Schema matching the canonical CLI envelope.
-* Retained pre-promotion and post-promotion consumer evidence for both packages.
+* Retained first-publication and post-hardening consumer evidence for both packages.
 
 ## Rules
 
@@ -124,10 +125,16 @@ implemented CLI envelope and must be replaced before publication.
   publishes to `next`. It is never printed, copied into the repository, or used
   from the local worktree. If organization policy forbids 2FA bypass, first
   publication blocks for Human Review rather than weakening that policy.
-* R7: Core is published to `next` and publicly smoke-tested before CLI. After
-  both packages exist, configure the exact public workflow as each package's
-  OIDC Trusted Publisher, disallow traditional token publishing, revoke the
-  bootstrap token, and only then promote `latest` Core first and CLI second.
+* R7: Core is published to `next` and publicly smoke-tested before CLI. A
+  brand-new package may also receive `latest` immediately; record that public
+  state without claiming the default tag was withheld. After both packages
+  exist, configure the exact public workflow as each package's OIDC Trusted
+  Publisher, disallow traditional token publishing, and revoke every bootstrap
+  token created for this first publication, including replaced or exposed
+  tokens. Finally, confirm `next` and `latest` resolve to the same verified
+  immutable version for Core and CLI and rerun public smoke. An already-correct
+  `latest` requires no dist-tag write; an absent or unexpected tag stops for
+  Human Review before any corrective write.
 * R8: A failed public version is not overwritten or silently unpublished. Move
   its dist-tag, deprecate it with a reason, and publish a fixed patch.
 
@@ -136,9 +143,10 @@ implemented CLI envelope and must be replaced before publication.
 * Any occupied coordinate, manifest/tarball/schema mismatch, failed provenance,
   source-identity mismatch, package or consumer failure, missing matrix result,
   or unclean/uncommitted source blocks publication.
-* Failure after the Core `next` publication blocks CLI publication and
-  `latest`; failure after the CLI `next` publication blocks both promotions and retains the
-  observed registry state for Human Review.
+* Failure after the Core publication blocks CLI publication and further release
+  steps; failure after the CLI publication blocks release completion. In either
+  case, retain the observed `next` and `latest` state for Human Review because
+  a first-created package may already be available through `latest`.
 
 ## Dependencies
 

@@ -255,9 +255,12 @@ Publisher configured before it exists. Dispatch `publish.yml` from `main` for
 refuses a dispatch or checked-out revision that differs from that SHA, reruns
 `make verify`, and accepts only an explicit registry E404 as evidence that the
 immutable version is unused. It publishes the package to the non-default `next` tag with
-provenance. Verify its public metadata, integrity, provenance, root import, and
-clean-consumer behavior before dispatching the same workflow for `cli`. The CLI
-job also refuses to proceed until the exact Core version is public.
+provenance. The [registry metadata contract](https://github.com/npm/registry/blob/main/docs/responses/package-metadata.md)
+defines `latest` for every package, and npm may assign it when creating a brand-new package;
+record both tags and do not claim that default acquisition was withheld. Verify
+its public metadata, integrity, provenance, root import, and clean-consumer
+behavior before dispatching the same workflow for `cli`. The CLI job also
+refuses to proceed until the exact Core version is public.
 
 After both `next` packages pass the public smoke checks:
 
@@ -267,25 +270,21 @@ After both `next` packages pass the public smoke checks:
 2. Verify the saved repository and workflow identity on both package settings.
    The first OIDC-authenticated publication will be the next immutable package
    version; npm does not validate the trust configuration when it is saved.
+   For that future publication, the workflow must use `id-token: write` without
+   a traditional `NODE_AUTH_TOKEN` secret or a setup-node-generated registry
+   auth file. npm's default public registry is sufficient for these packages.
 3. Set each package's publishing access to require 2FA and disallow traditional
-   tokens, delete the protected `NPM_TOKEN` secret, and revoke the bootstrap
-   token at npm.
-4. Using an authenticated maintainer session with 2FA, promote the already
-   published immutable versions in order:
+   tokens, delete the protected `NPM_TOKEN` secret, and revoke every bootstrap
+   token at npm, including any replaced or exposed token from a failed attempt.
+4. Confirm `npm view` resolves both `next` and `latest` to the same intended
+   immutable versions. An already-correct `latest` needs no dist-tag write; if a
+   tag is absent or points elsewhere, stop for Human Review before changing it.
+5. Rerun the public smoke suite against exact versions and against `latest`.
 
-   ```sh
-   npm dist-tag add @praxisbound/core@<version> latest
-   npm dist-tag add @praxisbound/cli@<version> latest
-   ```
-
-5. Confirm `npm view` resolves both `next` and `latest` to the same intended
-   immutable versions, then rerun the public smoke suite against exact versions
-   and against `latest`.
-
-Do not rerun `npm publish` to promote an existing version: npm versions are
-immutable, while promotion is a dist-tag operation. A failure after either
-first publication blocks the remaining package or promotion and must retain
-the observed registry state for review.
+Do not rerun `npm publish` to change an existing version or tag: npm versions
+are immutable. A failure after either first publication blocks the remaining
+release steps and must retain the observed registry state for review, including
+any `latest` tag already exposed by the registry.
 
 Authoritative npm references: [scoped public packages](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/),
 [staged publishing](https://docs.npmjs.com/staged-publishing/),

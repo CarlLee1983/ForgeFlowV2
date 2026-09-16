@@ -25,15 +25,19 @@
 
 ## First Publication
 
-* [ ] AC-005: Core then CLI are published under the `next` tag and their public
-  integrity, provenance, import, executable, JSON, init, Doctor, verification,
-  pinned acquisition, and offline behavior pass; OIDC Trusted Publishing is
-  then established and the one-time bootstrap token is revoked before promotion.
+* [ ] AC-005: Core then CLI are published under the `next` tag, with any
+  immediate `latest` assignment recorded, and their public integrity,
+  provenance, import, executable, JSON, init, Doctor, verification, pinned
+  acquisition, and offline behavior pass; OIDC Trusted Publishing is then
+  established and every bootstrap token, including replaced or exposed tokens,
+  is revoked.
 
-## Latest Promotion
+## Final Tag and Consumer Validation
 
-* [ ] AC-006: Core then CLI are promoted to `latest` and the public smoke suite
-  passes again without moving or overwriting either immutable version.
+* [ ] AC-006: After OIDC and credential revocation, `next` and `latest` resolve
+  to the verified immutable Core and CLI versions and the public smoke suite
+  passes again. An already-correct `latest` needs no dist-tag write; an absent
+  or unexpected tag requires Human Review before any write.
 
 ## Acceptance Evidence
 
@@ -43,8 +47,8 @@
 | `AC-002` | test | `packages/cli/test/result-schema.test.mjs PB003-AC-002` | `canonical command envelopes and invalid contract fixtures` | `current schema accepts emitted envelopes and rejects invalid ones` |
 | `AC-003` | test | `tests/typescript-tooling.sh PB003-AC-003` | `npm-only tarball and exact-version registry consumers on supported matrix` | `acquisition and commands pass; installed offline phase makes no network attempt` |
 | `AC-004` | human | `PraxisBound publication preflight review` | `authenticated npm scope view, final GitHub repository, clean exact revision, local and remote checks` | `all publication prerequisites are recorded as passing without credential material` |
-| `AC-005` | command | `PraxisBound first-publication workflow` | `verified committed candidate, protected one-time token, public GitHub runner, and next dist-tag` | `Core and CLI publish in order with valid provenance and consumer results; OIDC trust replaces and revokes the bootstrap credential` |
-| `AC-006` | command | `npm publication smoke workflow latest` | `both next-tagged packages and passing public smoke record` | `Core then CLI latest tags resolve to the immutable verified versions and smoke tests pass` |
+| `AC-005` | command | `PraxisBound first-publication workflow` | `verified committed candidate, protected bootstrap token, public GitHub runner, and next dist-tag` | `Core and CLI publish in order; any immediate latest assignment is recorded; valid provenance, consumer results, OIDC trust, and revocation of every bootstrap token are observed` |
+| `AC-006` | command | `npm publication smoke workflow latest` | `both published packages, saved OIDC trust, revoked bootstrap credential, and passing first-publication smoke record` | `Core and CLI next and latest tags resolve to the immutable verified versions and final smoke tests pass without an unnecessary dist-tag write` |
 
 ## Security Fixture Matrix
 
